@@ -1,4 +1,5 @@
 import { AccessButton } from "./access-button";
+import { FleetPanel } from "./fleet-panel";
 import { MarketCatalog } from "./market-catalog";
 
 const journey = [
@@ -13,33 +14,6 @@ const journey = [
   {
     title: "Review the result",
     copy: "See the recommendation, execution status and transaction trail.",
-  },
-];
-
-const roles = [
-  {
-    mark: "S",
-    name: "Scout",
-    copy: "Finds eligible markets and gathers evidence.",
-    rail: "Uniswap and The Graph",
-  },
-  {
-    mark: "R",
-    name: "Risk",
-    copy: "Checks policy, liquidity and execution limits.",
-    rail: "ENS policy",
-  },
-  {
-    mark: "T",
-    name: "Trader",
-    copy: "Prepares an approved and bounded stock token trade.",
-    rail: "Uniswap execution",
-  },
-  {
-    mark: "A",
-    name: "Auditor",
-    copy: "Reconciles the final decision and transaction evidence.",
-    rail: "The Graph evidence",
   },
 ];
 
@@ -100,26 +74,7 @@ export default function HomePage() {
 
         <MarketCatalog />
 
-        <section className="fleet">
-          <header className="fleetHeader">
-            <div>
-              <span className="eyebrow">Specialized by design</span>
-              <h2>One fleet, four responsibilities</h2>
-            </div>
-            <span>PerkOS Hermes runtimes</span>
-          </header>
-
-          <div className="fleetGrid">
-            {roles.map((role) => (
-              <article key={role.name}>
-                <span className="roleMark">{role.mark}</span>
-                <strong>{role.name}</strong>
-                <p>{role.copy}</p>
-                <small>{role.rail}</small>
-              </article>
-            ))}
-          </div>
-        </section>
+        <FleetPanel />
       </main>
     </div>
   );

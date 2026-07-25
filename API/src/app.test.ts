@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "./app.js";
 import { loadConfig } from "./config.js";
 
@@ -285,6 +285,117 @@ describe("API foundation", () => {
       ticker: "NVDA",
       source: "the-graph-substreams",
       health: { healthy: true },
+    });
+  });
+
+  it("starts an authenticated two-minute fleet goal", async () => {
+    const session = {
+      sub: "eip155:4663:0x1234567890abcdef1234567890abcdef12345678",
+      provider: "wallet" as const,
+      walletAddress:
+        "0x1234567890abcdef1234567890abcdef12345678" as const,
+      fleetUserId: "u-12345678",
+      expiresAt: "2026-07-25T13:00:00.000Z",
+    };
+    const start = vi.fn(async () => ({
+      id: "goal-1",
+      goal: "Find the strongest stock token opportunity",
+      amountIn: "1000000",
+      status: "active" as const,
+      startedAt: "2026-07-25T12:00:00.000Z",
+      endsAt: "2026-07-25T12:02:00.000Z",
+      cadenceSeconds: 30,
+      cyclesCompleted: 1,
+      gates: {
+        ens: "resolve-every-cycle" as const,
+        oneclaw: "enforced" as const,
+        linkedRoles: ["scout" as const],
+        requiredRoles: [
+          "scout" as const,
+          "risk" as const,
+          "trader" as const,
+          "auditor" as const,
+        ],
+        executionAuthorized: false,
+        detail: "Execution is locked.",
+      },
+      history: [],
+    }));
+    const response = await request(
+      "/api/goals",
+      {
+        ownerAuth: {
+          challenge: async () => {
+            throw new Error("not called");
+          },
+          verify: async () => session,
+          session: () => session,
+          perkosIdToken: () => "firebase-token",
+          logout: () => undefined,
+        },
+        fleetActivation: {
+          activate: async () => ({
+            status: "reactivated",
+            userId: session.fleetUserId,
+            owner: session.walletAddress,
+            rootName: "u-12345678.demo.eth",
+            agents: {
+              scout: "agent-scout",
+              risk: "agent-risk",
+              trader: "agent-trader",
+              auditor: "agent-auditor",
+            },
+            manifestHash: `0x${"aa".repeat(32)}`,
+            transactions: [],
+            verified: true,
+            runtime: {
+              provider: "perkos",
+              mode: "live",
+              status: "ready",
+              agents: [
+                {
+                  role: "scout",
+                  agentId: "agent-scout",
+                  name: "eqlty-scout-12345678",
+                  runtime: "Hermes",
+                  state: "ready",
+                  plugins: [],
+                  oneclaw: "linked",
+                },
+              ],
+            },
+          }),
+        },
+        goals: {
+          start,
+          read: async () => undefined,
+          tick: async () => undefined,
+        },
+      },
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          goal: "Find the strongest stock token opportunity",
+          amountIn: "1000000",
+          windowMinutes: 2,
+          cadenceSeconds: 30,
+          maxCandidates: 3,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(start).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "u-12345678",
+        owner: session.walletAddress,
+        linkedRoles: ["scout"],
+      }),
+    );
+    await expect(response.json()).resolves.toMatchObject({
+      id: "goal-1",
+      status: "active",
     });
   });
 });

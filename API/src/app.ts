@@ -1,11 +1,13 @@
 import cors from "cors";
 import express from "express";
 import type { Express } from "express";
+import { AutonomousGoalService } from "./autonomous-goals.js";
 import type { ApiConfig } from "./config.js";
 import { EnsControlPlaneService } from "./ens-control-plane.js";
 import { FleetActivationService } from "./fleet-activation.js";
 import { GraphEvidenceService } from "./graph-evidence.js";
 import { OwnerAuth } from "./owner-auth.js";
+import { OpportunityAnalysisService } from "./opportunity-analysis.js";
 import { publicConfig } from "./public-config.js";
 import { StockCatalogService } from "./stock-catalog.js";
 import { z } from "zod";
@@ -18,6 +20,26 @@ const ownerVerification = z.object({
 });
 const fleetRole = z.enum(["scout", "risk", "trader", "auditor"]);
 const ticker = z.string().regex(/^[A-Za-z][A-Za-z0-9.-]{0,11}$/);
+const uint256 = z
+  .string()
+  .max(78)
+  .regex(/^[1-9]\d*$/)
+  .refine((value) => BigInt(value) < 2n ** 256n);
+const goalInput = z
+  .object({
+    goal: z.string().trim().min(10).max(500),
+    amountIn: uint256,
+    windowMinutes: z.number().int().min(2).max(20),
+    cadenceSeconds: z.number().int().min(15).max(120).default(30),
+    maxCandidates: z.number().int().min(1).max(10).default(3),
+    candidateTickers: z
+      .array(z.string().regex(/^[A-Za-z][A-Za-z0-9.-]{0,11}$/))
+      .min(1)
+      .max(10)
+      .optional(),
+  })
+  .strict();
+const goalId = z.string().regex(/^[A-Za-z0-9-]{1,128}$/);
 
 type AppDependencies = {
   stockCatalog?: Pick<StockCatalogService, "assessTicker" | "catalog">;
@@ -29,6 +51,7 @@ type AppDependencies = {
   ensControlPlane?: Pick<EnsControlPlaneService, "resolve">;
   fleetActivation?: Pick<FleetActivationService, "activate">;
   graphEvidence?: Pick<GraphEvidenceService, "evidence">;
+  goals?: Pick<AutonomousGoalService, "read" | "start" | "tick">;
 };
 
 export function createApp(
@@ -46,6 +69,14 @@ export function createApp(
     new FleetActivationService(config, { controlPlane: ensControlPlane });
   const graphEvidence =
     dependencies.graphEvidence ?? new GraphEvidenceService(config);
+  const goals =
+    dependencies.goals ??
+    new AutonomousGoalService(
+      new OpportunityAnalysisService(config, {
+        catalog: stockCatalog,
+        controlPlane: ensControlPlane,
+      }),
+    );
 
   app.disable("x-powered-by");
   app.use(
@@ -228,6 +259,84 @@ export function createApp(
       });
     }
   });
+
+  app.post("/api/goals", async (request, response) => {
+    const session = ownerAuth.session(request);
+    if (!session) {
+      return response
+        .status(401)
+        .json({ error: "owner_session_required" });
+    }
+    const parsed = goalInput.safeParse(request.body);
+    if (!parsed.success) {
+      return response.status(400).json({
+        error: "invalid_goal",
+        issues: parsed.error.issues,
+      });
+    }
+    try {
+      const activation = await fleetActivation.activate({
+        userId: session.fleetUserId,
+        owner: session.walletAddress,
+        perkosIdToken: ownerAuth.perkosIdToken?.(request),
+      });
+      if (activation.status === "provisioning") {
+        throw new Error("The Hermes fleet is still provisioning");
+      }
+      const linkedRoles =
+        activation.runtime?.agents
+          .filter((agent) => agent.oneclaw === "linked")
+          .map((agent) => agent.role) ?? [];
+      response.setHeader("cache-control", "no-store");
+      return response.status(201).json(
+        await goals.start({
+          ...parsed.data,
+          userId: session.fleetUserId,
+          owner: session.walletAddress,
+          linkedRoles,
+        }),
+      );
+    } catch (error) {
+      return response.status(503).json({
+        error: "goal_start_failed",
+        message: safeMessage(error),
+      });
+    }
+  });
+
+  app.get("/api/goals/:id", async (request, response) => {
+    return goalResponse(request, response, "read");
+  });
+
+  app.post("/api/goals/:id/tick", async (request, response) => {
+    return goalResponse(request, response, "tick");
+  });
+
+  async function goalResponse(
+    request: express.Request,
+    response: express.Response,
+    action: "read" | "tick",
+  ) {
+    const session = ownerAuth.session(request);
+    if (!session) {
+      return response
+        .status(401)
+        .json({ error: "owner_session_required" });
+    }
+    const parsed = goalId.safeParse(request.params.id);
+    if (!parsed.success) {
+      return response.status(400).json({ error: "invalid_goal_id" });
+    }
+    const goal = await goals[action](parsed.data, {
+      userId: session.fleetUserId,
+      owner: session.walletAddress,
+    });
+    if (!goal) {
+      return response.status(404).json({ error: "goal_not_found" });
+    }
+    response.setHeader("cache-control", "no-store");
+    return response.json(goal);
+  }
 
   app.get("/api/assets", async (request, response, next) => {
     const catalog = String(request.query.catalog ?? "");

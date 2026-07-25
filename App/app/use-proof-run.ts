@@ -108,7 +108,7 @@ export function useProofRun(session?: AutonomousGoal): ProofRunState {
     setRun(undefined);
     setAcknowledged(false);
     setError(undefined);
-  }, [session?.latest?.id]);
+  }, [session?.id]);
 
   return {
     run,

@@ -189,6 +189,70 @@
   font: 7px "DM Mono", monospace;
 }
 
+.agentMetadata {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 7px;
+  padding-top: 8px;
+  border-top: 1px solid #203027;
+}
+
+.agentMetadataActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 9px;
+}
+
+.agentMetadataActions button,
+.agentMetadataActions a {
+  color: #8be8a8;
+  font: 7px "DM Mono", monospace;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.agentMetadataActions button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.agentMetadata > small {
+  color: #9a916d;
+  font: 7px "DM Mono", monospace;
+}
+
+.agentMetadata dl {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+}
+
+.agentMetadata dl > div {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 7px;
+}
+
+.agentMetadata dt,
+.agentMetadata dd {
+  margin: 0;
+  font: 7px "DM Mono", monospace;
+  line-height: 1.45;
+}
+
+.agentMetadata dt {
+  color: #6f8175;
+  text-transform: uppercase;
+}
+
+.agentMetadata dd {
+  overflow-wrap: anywhere;
+  color: #cbd6cf;
+}
+
 .agentSteps {
   display: grid;
   grid-column: 1 / -1;

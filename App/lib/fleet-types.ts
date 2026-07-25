@@ -27,14 +27,14 @@ export type FleetRuntime = {
 };
 
 export type FleetActivation = {
-  status: "provisioned" | "reactivated";
+  status: "provisioning" | "provisioned" | "reactivated";
   userId: string;
   owner: `0x${string}`;
   rootName: string;
   agents: Record<AgentRole, string>;
-  manifestHash: `0x${string}`;
+  manifestHash?: `0x${string}`;
   transactions: Array<`0x${string}`>;
-  verified: true;
+  verified: boolean;
   runtime?: FleetRuntime;
 };
 

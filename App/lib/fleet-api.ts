@@ -65,6 +65,10 @@ export function fleetMetadataUrl(role: AgentRole): string {
   return `${apiUrl()}/api/fleet/metadata/${role}`;
 }
 
+export function ensManagerUrl(name: string): string {
+  return `https://sepolia.app.ens.domains/${encodeURIComponent(name)}`;
+}
+
 export async function loadFleetMetadata(
   role: AgentRole,
 ): Promise<EnsAgentMetadata> {

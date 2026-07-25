@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import {
+  ensManagerUrl,
   fleetMetadataUrl,
   loadFleetMetadata,
 } from "../lib/fleet-api";
@@ -89,6 +90,7 @@ export function FleetPanel() {
             index={index}
             key={agent.role}
             phase={state.phase}
+            rootName={state.activation?.rootName}
             runtimeAvailable={Boolean(runtime)}
           />
         ))}
@@ -125,11 +127,13 @@ function AgentCard({
   agent,
   index,
   phase,
+  rootName,
   runtimeAvailable,
 }: {
   agent: FleetAgent;
   index: number;
   phase: FleetPhase;
+  rootName?: string;
   runtimeAvailable: boolean;
 }) {
   const visualPhase = runtimeAvailable
@@ -155,7 +159,9 @@ function AgentCard({
             : "Security pending"}
         </small>
       </div>
-      {runtimeAvailable && <AgentMetadata role={agent.role} />}
+      {runtimeAvailable && (
+        <AgentMetadata role={agent.role} rootName={rootName} />
+      )}
       <ol
         aria-label={`${agent.role} runtime progress`}
         className="agentSteps"
@@ -180,7 +186,13 @@ function AgentCard({
   );
 }
 
-function AgentMetadata({ role }: { role: FleetAgent["role"] }) {
+function AgentMetadata({
+  role,
+  rootName,
+}: {
+  role: FleetAgent["role"];
+  rootName?: string;
+}) {
   const [metadata, setMetadata] = useState<EnsAgentMetadata>();
   const [error, setError] = useState<string>();
   const [loading, setLoading] = useState(false);
@@ -210,12 +222,17 @@ function AgentMetadata({ role }: { role: FleetAgent["role"] }) {
         <button aria-expanded={open} onClick={toggle} type="button">
           {open ? "Hide settings" : "View settings"}
         </button>
-        <a
-          href={fleetMetadataUrl(role)}
-          rel="noreferrer"
-          target="_blank"
-        >
-          Open ENS metadata
+        {rootName && (
+          <a
+            href={ensManagerUrl(`${role}.${rootName}`)}
+            rel="noreferrer"
+            target="_blank"
+          >
+            View on ENS
+          </a>
+        )}
+        <a href={fleetMetadataUrl(role)} rel="noreferrer" target="_blank">
+          Inspect metadata JSON
         </a>
       </div>
       {open && loading && <small>Loading active ENS settings</small>}

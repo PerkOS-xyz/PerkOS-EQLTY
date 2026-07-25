@@ -77,5 +77,5 @@ export type GoalInput = GoalIdentity & {
   cadenceSeconds: number;
   maxCandidates: number;
   candidateTickers?: string[];
-  linkedRoles: FleetRole[];
+  linkedRoles: readonly FleetRole[];
 };

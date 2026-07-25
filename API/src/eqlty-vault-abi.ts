@@ -1,5 +1,19 @@
 export const eqltyVaultAbi = [
   {
+    type: "event",
+    name: "TradeExecuted",
+    anonymous: false,
+    inputs: [
+      { name: "strategyId", type: "uint256", indexed: true },
+      { name: "nonce", type: "uint256", indexed: true },
+      { name: "signalHash", type: "bytes32", indexed: true },
+      { name: "quoteHash", type: "bytes32", indexed: false },
+      { name: "amountIn", type: "uint256", indexed: false },
+      { name: "amountOut", type: "uint256", indexed: false },
+      { name: "router", type: "address", indexed: false },
+    ],
+  },
+  {
     type: "function",
     name: "RISK_SIGNER",
     stateMutability: "view",

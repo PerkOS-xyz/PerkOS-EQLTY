@@ -9,6 +9,8 @@ import "./goals.css";
 import "./goals-mobile.css";
 import "./execution.css";
 import "./execution-mobile.css";
+import "./audit.css";
+import "./audit-mobile.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {

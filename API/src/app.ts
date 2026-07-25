@@ -11,8 +11,10 @@ import { GraphEvidenceService } from "./graph-evidence.js";
 import { OwnerAuth } from "./owner-auth.js";
 import { OpportunityAnalysisService } from "./opportunity-analysis.js";
 import { oneClawGate } from "./oneclaw-policy.js";
+import { PortfolioService } from "./portfolio.js";
 import { ProofRunService } from "./proof-run.js";
 import { publicConfig } from "./public-config.js";
+import { PurchaseHistoryService } from "./purchase-history.js";
 import { StockCatalogService } from "./stock-catalog.js";
 import { StrategyService } from "./strategy-service.js";
 import { StrategyStore } from "./strategy-store.js";
@@ -101,6 +103,8 @@ type AppDependencies = {
   goals?: Pick<AutonomousGoalService, "read" | "start" | "tick">;
   strategies?: Pick<StrategyService, "create">;
   proofRuns?: Pick<ProofRunService, "run">;
+  purchaseHistory?: Pick<PurchaseHistoryService, "list">;
+  portfolio?: Pick<PortfolioService, "read">;
 };
 
 export function createApp(
@@ -147,6 +151,15 @@ export function createApp(
       catalog: stockCatalog,
       controlPlane: ensControlPlane,
       executor: new EqltyVaultExecutor(config),
+    });
+  const purchaseHistory =
+    dependencies.purchaseHistory ??
+    new PurchaseHistoryService(config, { catalog: stockCatalog });
+  const portfolio =
+    dependencies.portfolio ??
+    new PortfolioService(config, {
+      history: purchaseHistory,
+      catalog: stockCatalog,
     });
 
   app.disable("x-powered-by");
@@ -536,6 +549,44 @@ export function createApp(
     } catch (error) {
       return response.status(503).json({
         error: "proof_run_failed",
+        message: safeMessage(error),
+      });
+    }
+  });
+
+  app.get("/api/history", async (request, response) => {
+    const session = ownerAuth.session(request);
+    if (!session) {
+      return response
+        .status(401)
+        .json({ error: "owner_session_required" });
+    }
+    try {
+      response.setHeader("cache-control", "no-store");
+      return response.json(
+        await purchaseHistory.list(session.walletAddress),
+      );
+    } catch (error) {
+      return response.status(503).json({
+        error: "purchase_history_unavailable",
+        message: safeMessage(error),
+      });
+    }
+  });
+
+  app.get("/api/portfolio", async (request, response) => {
+    const session = ownerAuth.session(request);
+    if (!session) {
+      return response
+        .status(401)
+        .json({ error: "owner_session_required" });
+    }
+    try {
+      response.setHeader("cache-control", "no-store");
+      return response.json(await portfolio.read(session.walletAddress));
+    } catch (error) {
+      return response.status(503).json({
+        error: "portfolio_unavailable",
         message: safeMessage(error),
       });
     }

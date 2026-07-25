@@ -1,0 +1,152 @@
+@media (max-width: 900px) {
+  .auditContent {
+    width: min(100% - 36px, 760px);
+    padding-top: 44px;
+  }
+
+  .auditHero {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .holdingGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .network {
+    display: none;
+  }
+
+  .primaryNav {
+    margin-right: 6px;
+  }
+
+  .primaryNav a {
+    padding-inline: 8px;
+    font-size: 9px;
+  }
+
+  .portfolioSummary {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .proofHashes {
+    grid-template-columns: 1fr;
+  }
+
+  .holdingGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .topbar {
+    flex-wrap: wrap;
+  }
+
+  .primaryNav {
+    order: 3;
+    width: 100%;
+    justify-content: center;
+    margin: 7px 0 0;
+    padding-top: 7px;
+    border-top: 1px solid #1e2521;
+  }
+
+  .primaryNav a {
+    min-width: 90px;
+    text-align: center;
+  }
+
+  .auditContent {
+    width: calc(100% - 24px);
+    padding: 32px 0 55px;
+  }
+
+  .auditHero {
+    padding-bottom: 25px;
+  }
+
+  .auditHero h1 {
+    font-size: 40px;
+  }
+
+  .auditHeroMetric {
+    padding: 16px;
+  }
+
+  .auditToolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .auditToolbar a,
+  .auditToolbar button {
+    width: 100%;
+    min-height: 40px;
+  }
+
+  .historyCard,
+  .holdingCard {
+    padding: 14px;
+  }
+
+  .historyCard > header > b,
+  .holdingCard > header > b {
+    max-width: 94px;
+    text-align: center;
+  }
+
+  .purchaseFlow {
+    grid-template-columns: 1fr;
+  }
+
+  .purchaseFlow i {
+    transform: rotate(90deg);
+  }
+
+  .historyCard > footer,
+  .holdingCard > footer {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .historyCard > footer a,
+  .holdingCard > footer a {
+    min-height: 38px;
+    padding: 11px;
+    text-align: center;
+  }
+
+  .holdingCard dl {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .auditState {
+    min-height: 240px;
+    padding: 22px;
+  }
+}
+
+@media (max-width: 380px) {
+  .brandCopy strong {
+    font-size: 13px;
+  }
+
+  .accessButton {
+    min-width: 96px;
+  }
+
+  .portfolioSummary,
+  .holdingCard dl {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auditState.busy > i {
+    animation: none;
+  }
+}

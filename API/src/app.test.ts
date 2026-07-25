@@ -637,6 +637,71 @@ describe("API foundation", () => {
       status: "approved",
     });
   });
+
+  it("serves authenticated purchase history", async () => {
+    const session = testSession();
+    const list = vi.fn(async () => ({
+      source: "robinhood-chain" as const,
+      status: "ready" as const,
+      vault:
+        "0x2222222222222222222222222222222222222222" as const,
+      entries: [],
+    }));
+    const response = await request("/api/history", {
+      ownerAuth: testOwnerAuth(session),
+      purchaseHistory: { list },
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(list).toHaveBeenCalledWith(session.walletAddress);
+    await expect(response.json()).resolves.toMatchObject({
+      source: "robinhood-chain",
+      status: "ready",
+    });
+  });
+
+  it("serves the authenticated wallet portfolio", async () => {
+    const session = testSession();
+    const read = vi.fn(async () => ({
+      source: "robinhood-chain" as const,
+      status: "ready" as const,
+      owner: session.walletAddress,
+      observedAt: "2026-07-25T12:00:00.000Z",
+      coverage: {
+        checkedTokens: 10,
+        unreadableTokens: 0,
+        pricedPositions: 1,
+        verifiedCostPositions: 1,
+      },
+      summary: {
+        positions: 1,
+        marketValueUsd: 1.25,
+        costBasisUsd: 1,
+        unrealizedGainUsd: 0.25,
+      },
+      holdings: [],
+    }));
+    const response = await request("/api/portfolio", {
+      ownerAuth: testOwnerAuth(session),
+      portfolio: { read },
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(read).toHaveBeenCalledWith(session.walletAddress);
+    await expect(response.json()).resolves.toMatchObject({
+      summary: { positions: 1, unrealizedGainUsd: 0.25 },
+    });
+  });
+
+  it("protects purchase history and portfolio without a session", async () => {
+    const history = await request("/api/history");
+    const portfolio = await request("/api/portfolio");
+
+    expect(history.status).toBe(401);
+    expect(portfolio.status).toBe(401);
+  });
 });
 
 function testSession() {

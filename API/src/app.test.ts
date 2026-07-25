@@ -249,6 +249,44 @@ describe("API foundation", () => {
       verified: false,
     });
   });
+
+  it("serves authenticated Graph evidence", async () => {
+    const session = {
+      sub: "eip155:4663:0x1234567890abcdef1234567890abcdef12345678",
+      provider: "wallet" as const,
+      walletAddress:
+        "0x1234567890abcdef1234567890abcdef12345678" as const,
+      fleetUserId: "u-12345678",
+      expiresAt: "2026-07-25T13:00:00.000Z",
+    };
+    const response = await request("/api/evidence/nvda", {
+      ownerAuth: {
+        challenge: async () => {
+          throw new Error("not called");
+        },
+        verify: async () => session,
+        session: () => session,
+        logout: () => undefined,
+      },
+      graphEvidence: {
+        evidence: async (ticker: string) => ({
+          ticker: ticker.toUpperCase(),
+          source: "the-graph-substreams",
+          health: { healthy: true },
+        }),
+      } as NonNullable<
+        Parameters<typeof createApp>[1]
+      >["graphEvidence"],
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    await expect(response.json()).resolves.toMatchObject({
+      ticker: "NVDA",
+      source: "the-graph-substreams",
+      health: { healthy: true },
+    });
+  });
 });
 
 async function request(

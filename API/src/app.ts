@@ -4,6 +4,7 @@ import type { Express } from "express";
 import type { ApiConfig } from "./config.js";
 import { EnsControlPlaneService } from "./ens-control-plane.js";
 import { FleetActivationService } from "./fleet-activation.js";
+import { GraphEvidenceService } from "./graph-evidence.js";
 import { OwnerAuth } from "./owner-auth.js";
 import { publicConfig } from "./public-config.js";
 import { StockCatalogService } from "./stock-catalog.js";
@@ -16,6 +17,7 @@ const ownerVerification = z.object({
   signature: z.string().regex(/^0x[0-9a-fA-F]+$/),
 });
 const fleetRole = z.enum(["scout", "risk", "trader", "auditor"]);
+const ticker = z.string().regex(/^[A-Za-z][A-Za-z0-9.-]{0,11}$/);
 
 type AppDependencies = {
   stockCatalog?: Pick<StockCatalogService, "assessTicker" | "catalog">;
@@ -26,6 +28,7 @@ type AppDependencies = {
     Partial<Pick<OwnerAuth, "perkosIdToken">>;
   ensControlPlane?: Pick<EnsControlPlaneService, "resolve">;
   fleetActivation?: Pick<FleetActivationService, "activate">;
+  graphEvidence?: Pick<GraphEvidenceService, "evidence">;
 };
 
 export function createApp(
@@ -41,6 +44,8 @@ export function createApp(
   const fleetActivation =
     dependencies.fleetActivation ??
     new FleetActivationService(config, { controlPlane: ensControlPlane });
+  const graphEvidence =
+    dependencies.graphEvidence ?? new GraphEvidenceService(config);
 
   app.disable("x-powered-by");
   app.use(
@@ -201,6 +206,27 @@ export function createApp(
       owner: session.walletAddress,
       settings,
     });
+  });
+
+  app.get("/api/evidence/:ticker", async (request, response) => {
+    if (!ownerAuth.session(request)) {
+      return response
+        .status(401)
+        .json({ error: "owner_session_required" });
+    }
+    const parsed = ticker.safeParse(request.params.ticker);
+    if (!parsed.success) {
+      return response.status(400).json({ error: "invalid_ticker" });
+    }
+    try {
+      response.setHeader("cache-control", "no-store");
+      return response.json(await graphEvidence.evidence(parsed.data));
+    } catch (error) {
+      return response.status(503).json({
+        error: "graph_evidence_unavailable",
+        message: safeMessage(error),
+      });
+    }
   });
 
   app.get("/api/assets", async (request, response, next) => {

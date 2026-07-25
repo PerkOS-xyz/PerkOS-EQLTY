@@ -1,5 +1,7 @@
 # EQLTY
 
+![EQLTY banner](Assets/banner.png)
+
 EQLTY is an agent powered experience for discovering and buying tokenized
 stocks on Robinhood Chain.
 
@@ -81,6 +83,12 @@ The product focuses on three sponsor integrations:
   prepares hash bound policy changes that wait for owner authorization.
 - [`ens-fleet.mjs`](Plugins/EQLTY-ENS-Plugin/skills/ens-agent-fleet/scripts/ens-fleet.mjs#L93)
   is the reusable fleet directory and policy preset tool.
+
+## Screenshots
+
+| Stock Token catalog | Mobile experience | Wallet access |
+|---|---|---|
+| ![Stock Token catalog](Assets/Screenshot01.png) | ![Mobile experience](Assets/Screenshot02.png) | ![Wallet access with Dynamic](Assets/Screenshot03.png) |
 
 ## Repository map
 

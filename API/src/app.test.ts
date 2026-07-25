@@ -317,6 +317,9 @@ describe("API foundation", () => {
           "trader" as const,
           "auditor" as const,
         ],
+        oneclawRequired: false,
+        oneclawLinked: false,
+        oneclawMinimumAmount: "3000000",
         executionAuthorized: false,
         detail: "Execution is locked.",
       },
@@ -557,6 +560,7 @@ describe("API foundation", () => {
       createdAt: "2026-07-25T12:00:00.000Z",
       steps: [],
       handoffs: [],
+      oneclaw: input.oneclaw,
       proofBundleRoot: `0x${"bb".repeat(32)}` as const,
     }));
     const response = await request(
@@ -621,7 +625,12 @@ describe("API foundation", () => {
       execute: false,
       userId: session.fleetUserId,
       owner: session.walletAddress,
-      executionAuthorized: true,
+      oneclaw: {
+        required: false,
+        linked: true,
+        minimumAmount: "3000000",
+        executionAuthorized: true,
+      },
     });
     await expect(response.json()).resolves.toMatchObject({
       id: "run-1",

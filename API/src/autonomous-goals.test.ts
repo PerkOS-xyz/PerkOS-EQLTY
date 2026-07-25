@@ -44,13 +44,32 @@ describe("autonomous goals", () => {
 
     const goal = await service.start({
       ...goalInput(),
+      amountIn: "3000000",
       linkedRoles: ["scout", "risk", "auditor"],
     });
 
     expect(goal.status).toBe("active");
     expect(goal.cyclesCompleted).toBe(1);
     expect(goal.gates.executionAuthorized).toBe(false);
-    expect(goal.gates.detail).toContain("execution is locked");
+    expect(goal.gates.detail).toContain("are locked");
+  });
+
+  it("keeps sub-threshold execution available without 1Claw", async () => {
+    const now = Date.parse("2026-07-25T12:00:00.000Z");
+    const service = new AutonomousGoalService(
+      { analyze: async () => analysis(now) },
+      { now: () => now },
+    );
+
+    const goal = await service.start({
+      ...goalInput(),
+      amountIn: "2999999",
+      linkedRoles: [],
+    });
+
+    expect(goal.gates.oneclawRequired).toBe(false);
+    expect(goal.gates.oneclawLinked).toBe(false);
+    expect(goal.gates.executionAuthorized).toBe(true);
   });
 
   it("does not expose a goal to another owner", async () => {

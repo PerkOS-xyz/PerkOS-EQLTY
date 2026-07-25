@@ -95,6 +95,12 @@ const schema = z.object({
     .enum(["disabled", "preview", "live"])
     .default("preview"),
   PERKOS_HERMES_IMAGE_TAG: optional(z.string().min(3).max(256)),
+  EQLTY_ONECLAW_MIN_AMOUNT_USDG: z
+    .string()
+    .max(78)
+    .regex(/^[1-9]\d*$/)
+    .refine((value) => BigInt(value) < 2n ** 256n)
+    .default("3000000"),
   ENS_ROOT_NAME: optional(z.string().min(3).max(255)),
   EQLTY_ENS_RECORDS_CHAIN_ID: z.coerce
     .number()

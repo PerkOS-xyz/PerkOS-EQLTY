@@ -58,6 +58,12 @@ export type TradeRun = {
   createdAt: string;
   steps: RunStep[];
   handoffs: AgentHandoff[];
+  oneclaw: {
+    required: boolean;
+    linked: boolean;
+    minimumAmount: string;
+    executionAuthorized: boolean;
+  };
   proofBundleRoot?: `0x${string}`;
   rejectionReason?: string;
   transactionHash?: `0x${string}`;

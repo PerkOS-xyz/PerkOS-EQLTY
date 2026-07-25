@@ -8,6 +8,10 @@ import type {
 import type { FleetRole } from "./fleet-types.js";
 import { fleetRoles } from "./fleet-types.js";
 import type { OpportunityAnalysisService } from "./opportunity-analysis.js";
+import {
+  defaultOneClawMinimumAmount,
+  oneClawGate,
+} from "./oneclaw-policy.js";
 
 type StoredGoal = AutonomousGoal & {
   input: GoalInput;
@@ -17,12 +21,14 @@ type StoredGoal = AutonomousGoal & {
 type Dependencies = {
   now?: () => number;
   id?: () => string;
+  oneclawMinimumAmount?: string;
 };
 
 export class AutonomousGoalService {
   private readonly goals = new Map<string, StoredGoal>();
   private readonly now: () => number;
   private readonly id: () => string;
+  private readonly oneclawMinimumAmount: string;
 
   constructor(
     private readonly opportunities: Pick<
@@ -33,6 +39,9 @@ export class AutonomousGoalService {
   ) {
     this.now = dependencies.now ?? Date.now;
     this.id = dependencies.id ?? randomUUID;
+    this.oneclawMinimumAmount =
+      dependencies.oneclawMinimumAmount ??
+      defaultOneClawMinimumAmount;
   }
 
   async start(input: GoalInput): Promise<AutonomousGoal> {
@@ -43,9 +52,12 @@ export class AutonomousGoalService {
     const linkedRoles = requiredRoles.filter((role) =>
       input.linkedRoles.includes(role),
     );
-    const executionAuthorized = requiredRoles.every((role) =>
-      linkedRoles.includes(role),
-    );
+    const oneclaw = oneClawGate({
+      amountIn: input.amountIn,
+      linkedRoles,
+      requiredRoles,
+      minimumAmount: this.oneclawMinimumAmount,
+    });
     const goal: StoredGoal = {
       id: this.id(),
       goal: input.goal,
@@ -62,10 +74,11 @@ export class AutonomousGoalService {
         oneclaw: "enforced",
         linkedRoles,
         requiredRoles,
-        executionAuthorized,
-        detail: executionAuthorized
-          ? "Every fleet role has an active 1Claw security link."
-          : "Analysis may continue, but execution is locked until every fleet role has an active 1Claw security link.",
+        oneclawRequired: oneclaw.required,
+        oneclawLinked: oneclaw.linked,
+        oneclawMinimumAmount: oneclaw.minimumAmount,
+        executionAuthorized: oneclaw.executionAuthorized,
+        detail: gateDetail(oneclaw),
       },
       history: [],
       input,
@@ -172,6 +185,16 @@ export class AutonomousGoalService {
       goal.history.splice(0, goal.history.length - 64);
     }
   }
+}
+
+function gateDetail(gate: ReturnType<typeof oneClawGate>): string {
+  if (!gate.required) {
+    return "This purchase is below the 3 USDG 1Claw threshold.";
+  }
+  if (gate.linked) {
+    return "Every fleet role has an active 1Claw security link.";
+  }
+  return "Analysis may continue, but purchases of 3 USDG or more are locked until every fleet role has an active 1Claw security link.";
 }
 
 function publicGoal(goal: StoredGoal): AutonomousGoal {

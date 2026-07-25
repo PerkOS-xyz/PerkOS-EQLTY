@@ -83,8 +83,10 @@ export function useProofRun(session?: AutonomousGoal): ProofRunState {
       setError("Complete the proof and confirm the live purchase first.");
       return;
     }
-    if (!session?.gates.executionAuthorized) {
-      setError("1Claw execution rails are not linked for the full fleet.");
+    if (!run.oneclaw.executionAuthorized) {
+      setError(
+        "Purchases of 3 USDG or more require every 1Claw fleet rail.",
+      );
       return;
     }
 
@@ -99,7 +101,7 @@ export function useProofRun(session?: AutonomousGoal): ProofRunState {
     } finally {
       setPurchaseBusy(false);
     }
-  }, [acknowledged, run, session?.gates.executionAuthorized, strategy]);
+  }, [acknowledged, run, strategy]);
 
   useEffect(() => {
     setStrategy(undefined);

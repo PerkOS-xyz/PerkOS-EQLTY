@@ -9,10 +9,12 @@ import {
   createExecutionStrategy,
   linkExecutionStrategy,
   readExecutionConfig,
+  readWalletReadiness,
   robinhoodUsdG,
   startProofRun,
   universalRouter,
 } from "../lib/execution-api";
+import type { WalletReadiness } from "../lib/execution-api";
 import {
   provisionWalletStrategy,
   type PurchaseStage,
@@ -30,10 +32,15 @@ export type ProofRunState = {
   proofBusy: boolean;
   purchaseBusy: boolean;
   purchaseStage: PurchaseStage;
+  reviewOpen: boolean;
+  reviewBusy: boolean;
+  readiness?: WalletReadiness;
   acknowledged: boolean;
   error?: string;
   runProof: () => void;
   executePurchase: () => void;
+  openReview: () => void;
+  closeReview: () => void;
   setAcknowledged: (value: boolean) => void;
 };
 
@@ -45,6 +52,9 @@ export function useProofRun(session?: AutonomousGoal): ProofRunState {
   const [purchaseBusy, setPurchaseBusy] = useState(false);
   const [purchaseStage, setPurchaseStage] =
     useState<PurchaseStage>("idle");
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewBusy, setReviewBusy] = useState(false);
+  const [readiness, setReadiness] = useState<WalletReadiness>();
   const [acknowledged, setAcknowledged] = useState(false);
   const [error, setError] = useState<string>();
 
@@ -87,7 +97,8 @@ export function useProofRun(session?: AutonomousGoal): ProofRunState {
       !strategy ||
       !run ||
       run.status !== "approved" ||
-      !acknowledged
+      !acknowledged ||
+      !readiness?.ready
     ) {
       setError("Complete the proof and confirm the live purchase first.");
       return;
@@ -137,6 +148,7 @@ export function useProofRun(session?: AutonomousGoal): ProofRunState {
       }
       setPurchaseStage("executing");
       setRun(await startProofRun(activeStrategy, run.amountIn, true));
+      setReviewOpen(false);
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : "Purchase execution failed",
@@ -145,13 +157,43 @@ export function useProofRun(session?: AutonomousGoal): ProofRunState {
       setPurchaseBusy(false);
       setPurchaseStage("idle");
     }
-  }, [acknowledged, run, strategy, wallet]);
+  }, [acknowledged, readiness?.ready, run, strategy, wallet]);
+
+  const openReview = useCallback(async () => {
+    if (!run || run.status !== "approved") return;
+    setReviewOpen(true);
+    setReviewBusy(true);
+    setAcknowledged(false);
+    setReadiness(undefined);
+    setError(undefined);
+    try {
+      setReadiness(await readWalletReadiness(run.amountIn));
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Wallet readiness check failed",
+      );
+    } finally {
+      setReviewBusy(false);
+    }
+  }, [run]);
+
+  const closeReview = useCallback(() => {
+    if (purchaseBusy) return;
+    setReviewOpen(false);
+    setAcknowledged(false);
+    setError(undefined);
+  }, [purchaseBusy]);
 
   useEffect(() => {
     setStrategy(undefined);
     setRun(undefined);
     setAcknowledged(false);
     setPurchaseStage("idle");
+    setReviewOpen(false);
+    setReviewBusy(false);
+    setReadiness(undefined);
     setError(undefined);
   }, [session?.id]);
 
@@ -161,10 +203,15 @@ export function useProofRun(session?: AutonomousGoal): ProofRunState {
     proofBusy,
     purchaseBusy,
     purchaseStage,
+    reviewOpen,
+    reviewBusy,
+    readiness,
     acknowledged,
     error,
     runProof: () => void runProof(),
     executePurchase: () => void executePurchase(),
+    openReview: () => void openReview(),
+    closeReview,
     setAcknowledged,
   };
 }

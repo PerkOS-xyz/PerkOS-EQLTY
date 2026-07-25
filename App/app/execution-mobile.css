@@ -37,6 +37,25 @@
   .walletStrategyLogs > div {
     grid-template-columns: 1fr;
   }
+
+  .purchaseReviewBackdrop {
+    display: block;
+    padding: 12px;
+  }
+
+  .purchaseReviewGrid,
+  .purchaseReviewSteps {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .purchaseReviewChecks {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .purchaseReviewChecks > strong {
+    margin-right: 0;
+  }
 }
 
 @media (max-width: 420px) {
@@ -67,5 +86,31 @@
 
   .walletStrategyLogs > header {
     flex-direction: column;
+  }
+
+  .purchaseReview {
+    padding: 16px;
+  }
+
+  .purchaseReviewSummary,
+  .purchaseReviewGrid,
+  .purchaseReviewSteps {
+    grid-template-columns: 1fr;
+  }
+
+  .purchaseReviewSummary i {
+    transform: rotate(90deg);
+  }
+
+  .purchaseReviewSteps > strong {
+    grid-column: 1;
+  }
+
+  .purchaseReview > footer > div {
+    flex-direction: column-reverse;
+  }
+
+  .purchaseReview > footer button {
+    width: 100%;
   }
 }

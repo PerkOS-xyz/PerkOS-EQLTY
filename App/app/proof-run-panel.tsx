@@ -88,15 +88,15 @@ export function ProofRunPanel({
       )}
 
       {run.status === "approved" && (
-        <LiveAuthorization
-          executionAuthorized={run.oneclaw.executionAuthorized}
-          oneclawRequired={run.oneclaw.required}
-          state={state}
-        />
+        <PurchaseReviewEntry state={state} />
       )}
 
       {state.strategy?.onchain && (
         <WalletStrategyLogs strategy={state.strategy} />
+      )}
+
+      {state.reviewOpen && (
+        <PurchaseReviewScreen run={run} state={state} />
       )}
 
       {run.status === "executed" && run.transactionHash && (
@@ -211,53 +211,219 @@ function VerificationLogs({ run }: { run: TradeRun }) {
   );
 }
 
-function LiveAuthorization({
-  executionAuthorized,
-  oneclawRequired,
+function PurchaseReviewEntry({
   state,
 }: {
-  executionAuthorized: boolean;
-  oneclawRequired: boolean;
   state: ProofRunState;
 }) {
   return (
     <div className="liveAuthorization">
       <div>
-        <span>Final authorization</span>
-        <strong>
-          {executionAuthorized
-            ? oneclawRequired
-              ? "Proof passed. 1Claw rails are linked."
-              : "Proof passed. This purchase is below the 1Claw lock."
-            : "Proof passed. 1Claw still blocks this purchase."}
-        </strong>
+        <span>Purchase review required</span>
+        <strong>Review the exact wallet actions before signing.</strong>
         <small>
-          Your wallet will create, approve and fund this exact strategy.
-          From 3 USDG, 1Claw plus live x401 and x402 evidence are required.
+          See balances, limits, expected output and every transaction in one
+          screen.
         </small>
       </div>
-      <label>
-        <input
-          checked={state.acknowledged}
-          disabled={!executionAuthorized}
-          onChange={(event) => state.setAcknowledged(event.target.checked)}
-          type="checkbox"
-        />
-        <span>I authorize this exact USDG purchase</span>
-      </label>
       <button
-        disabled={
-          !executionAuthorized ||
-          !state.acknowledged ||
-          state.purchaseBusy
-        }
-        onClick={state.executePurchase}
+        disabled={state.purchaseBusy}
+        onClick={state.openReview}
         type="button"
       >
-        {state.purchaseBusy
-          ? purchaseLabel(state.purchaseStage)
-          : "Prepare wallet and execute"}
+        Review purchase
       </button>
+    </div>
+  );
+}
+
+function PurchaseReviewScreen({
+  run,
+  state,
+}: {
+  run: TradeRun;
+  state: ProofRunState;
+}) {
+  const readiness = state.readiness;
+  const fundsAfter =
+    readiness &&
+    BigInt(readiness.usdGBalance) >= BigInt(readiness.amountIn)
+      ? (BigInt(readiness.usdGBalance) - BigInt(readiness.amountIn)).toString()
+      : "0";
+  return (
+    <div className="purchaseReviewBackdrop">
+      <section
+        aria-label={`Review ${run.ticker} purchase`}
+        aria-modal="true"
+        className="purchaseReview"
+        role="dialog"
+      >
+        <header>
+          <div>
+            <span>Final authorization</span>
+            <strong>Review {run.ticker} purchase</strong>
+            <small>Robinhood Chain · Uniswap · wallet owned strategy</small>
+          </div>
+          <button
+            aria-label="Close purchase review"
+            disabled={state.purchaseBusy}
+            onClick={state.closeReview}
+            type="button"
+          >
+            ×
+          </button>
+        </header>
+
+        <div className="purchaseReviewSummary">
+          <span>
+            <small>You pay</small>
+            <strong>{formatUnits(run.amountIn, 6)} USDG</strong>
+          </span>
+          <i>→</i>
+          <span>
+            <small>Estimated receive</small>
+            <strong>
+              {formatUnits(run.quote?.quotedAmountOut ?? "0", 18)} {run.ticker}
+            </strong>
+          </span>
+        </div>
+
+        <div className="purchaseReviewGrid">
+          <article>
+            <span>Wallet and balances</span>
+            {state.reviewBusy ? (
+              <strong>Checking Robinhood Chain...</strong>
+            ) : readiness ? (
+              <>
+                <code>{readiness.wallet}</code>
+                <dl>
+                  <div>
+                    <dt>USDG balance</dt>
+                    <dd>{formatUnits(readiness.usdGBalance, 6)} USDG</dd>
+                  </div>
+                  <div>
+                    <dt>After funding</dt>
+                    <dd>{formatUnits(fundsAfter, 6)} USDG</dd>
+                  </div>
+                  <div>
+                    <dt>Gas balance</dt>
+                    <dd>{formatUnits(readiness.nativeBalance, 18)} ETH</dd>
+                  </div>
+                </dl>
+              </>
+            ) : (
+              <strong>Wallet check unavailable</strong>
+            )}
+          </article>
+
+          <article>
+            <span>Protection limits</span>
+            <dl>
+              <div>
+                <dt>Max spend</dt>
+                <dd>{formatUnits(run.amountIn, 6)} USDG</dd>
+              </div>
+              <div>
+                <dt>Max slippage</dt>
+                <dd>
+                  {((state.strategy?.maxSlippageBps ?? 0) / 100).toFixed(2)}%
+                </dd>
+              </div>
+              <div>
+                <dt>1Claw</dt>
+                <dd>{run.oneclaw.required ? "Required" : "Below lock"}</dd>
+              </div>
+            </dl>
+          </article>
+        </div>
+
+        <div className="purchaseReviewChecks">
+          <strong>Preflight checks</strong>
+          <span className={readiness?.checks.funds ? "passed" : ""}>
+            <i>{readiness?.checks.funds ? "✓" : "·"}</i>
+            Enough USDG
+          </span>
+          <span className={readiness?.checks.gas ? "passed" : ""}>
+            <i>{readiness?.checks.gas ? "✓" : "·"}</i>
+            Gas available
+          </span>
+          <span className={readiness?.checks.vault ? "passed" : ""}>
+            <i>{readiness?.checks.vault ? "✓" : "·"}</i>
+            Vault verified
+          </span>
+        </div>
+
+        <div className="purchaseReviewSteps">
+          <strong>What your wallet will sign</strong>
+          {[
+            [
+              "1",
+              "Create strategy",
+              `Bind ${run.ticker}, limits and Hermes trader`,
+            ],
+            [
+              "2",
+              `Approve ${formatUnits(run.amountIn, 6)} USDG`,
+              "Exact allowance to the EQLTY vault",
+            ],
+            [
+              "3",
+              "Fund strategy",
+              `Move ${formatUnits(run.amountIn, 6)} USDG into your strategy`,
+            ],
+            ["4", "Agent execution", "Hermes submits the guarded Uniswap swap"],
+          ].map(([number, title, detail]) => (
+            <span key={number}>
+              <i>{number}</i>
+              <b>{title}</b>
+              <small>{detail}</small>
+            </span>
+          ))}
+        </div>
+
+        <footer>
+          <label>
+            <input
+              checked={state.acknowledged}
+              disabled={!readiness?.ready || state.purchaseBusy}
+              onChange={(event) =>
+                state.setAcknowledged(event.target.checked)
+              }
+              type="checkbox"
+            />
+            <span>
+              I authorize this exact {formatUnits(run.amountIn, 6)} USDG{" "}
+              {run.ticker} purchase
+            </span>
+          </label>
+          {readiness && !readiness.ready && (
+            <p>Resolve the failed preflight check before authorizing.</p>
+          )}
+          {state.error && <p>{state.error}</p>}
+          <div>
+            <button
+              disabled={state.purchaseBusy}
+              onClick={state.closeReview}
+              type="button"
+            >
+              Back
+            </button>
+            <button
+              disabled={
+                !readiness?.ready ||
+                !state.acknowledged ||
+                state.purchaseBusy
+              }
+              onClick={state.executePurchase}
+              type="button"
+            >
+              {state.purchaseBusy
+                ? purchaseLabel(state.purchaseStage)
+                : "Authorize with wallet"}
+            </button>
+          </div>
+        </footer>
+      </section>
     </div>
   );
 }

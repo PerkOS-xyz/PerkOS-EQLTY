@@ -61,6 +61,41 @@ describe("API foundation", () => {
     expect(serialized).not.toMatch(/key|secret|token|rpcUrl/i);
   });
 
+  it("reports purchase readiness for the authenticated wallet", async () => {
+    const session = testSession();
+    const read = vi.fn(async (owner, amountIn) => ({
+      chainId: 4663 as const,
+      network: "Robinhood Chain" as const,
+      wallet: owner,
+      vault:
+        "0x033f13BC2CCB53dbfBEef7594668F9cfa4A70833" as const,
+      nativeBalance: "3700000000000000",
+      usdGBalance: "7963158",
+      amountIn,
+      ready: true,
+      checks: { gas: true, funds: true, vault: true },
+    }));
+    const response = await request(
+      "/api/wallet/readiness?amountIn=1000000",
+      {
+        ownerAuth: testOwnerAuth(session),
+        walletReadiness: { read },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(read).toHaveBeenCalledWith(
+      session.walletAddress,
+      "1000000",
+    );
+    await expect(response.json()).resolves.toMatchObject({
+      wallet: session.walletAddress,
+      usdGBalance: "7963158",
+      ready: true,
+    });
+  });
+
   it("uses a consistent missing route response", async () => {
     const response = await request("/missing");
 

@@ -193,11 +193,68 @@ describe("API foundation", () => {
       name: "scout.u-12345678.demo.eth",
     });
   });
+
+  it("activates the authenticated owner's fleet", async () => {
+    const session = {
+      sub: "eip155:4663:0x1234567890abcdef1234567890abcdef12345678",
+      provider: "wallet" as const,
+      walletAddress:
+        "0x1234567890abcdef1234567890abcdef12345678" as const,
+      fleetUserId: "u-12345678",
+      expiresAt: "2026-07-25T13:00:00.000Z",
+    };
+    const response = await request(
+      "/api/fleet/activate",
+      {
+        ownerAuth: {
+          challenge: async () => {
+            throw new Error("not called");
+          },
+          verify: async () => session,
+          session: () => session,
+          perkosIdToken: () => "firebase-token",
+          logout: () => undefined,
+        },
+        fleetActivation: {
+          activate: async (input) => ({
+            status: "provisioning",
+            userId: input.userId,
+            owner: input.owner,
+            rootName: "u-12345678.demo.eth",
+            agents: {
+              scout: "eqlty-scout-12345678",
+              risk: "eqlty-risk-12345678",
+              trader: "eqlty-trader-12345678",
+              auditor: "eqlty-auditor-12345678",
+            },
+            transactions: [],
+            verified: false,
+            runtime: {
+              provider: "perkos",
+              mode: "live",
+              status: "provisioning",
+              agents: [],
+            },
+          }),
+        },
+      },
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    await expect(response.json()).resolves.toMatchObject({
+      status: "provisioning",
+      userId: "u-12345678",
+      verified: false,
+    });
+  });
 });
 
 async function request(
   path: string,
   dependencies?: Parameters<typeof createApp>[1],
+  init?: RequestInit,
 ): Promise<Response> {
   const server = createServer(createApp(loadConfig({}), dependencies));
   servers.push(server);
@@ -205,5 +262,5 @@ async function request(
     server.listen(0, "127.0.0.1", resolve);
   });
   const address = server.address() as AddressInfo;
-  return fetch(`http://127.0.0.1:${address.port}${path}`);
+  return fetch(`http://127.0.0.1:${address.port}${path}`, init);
 }

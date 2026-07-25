@@ -3,6 +3,7 @@ import express from "express";
 import type { Express } from "express";
 import type { ApiConfig } from "./config.js";
 import { EnsControlPlaneService } from "./ens-control-plane.js";
+import { FleetActivationService } from "./fleet-activation.js";
 import { OwnerAuth } from "./owner-auth.js";
 import { publicConfig } from "./public-config.js";
 import { StockCatalogService } from "./stock-catalog.js";
@@ -21,8 +22,10 @@ type AppDependencies = {
   ownerAuth?: Pick<
     OwnerAuth,
     "challenge" | "logout" | "session" | "verify"
-  >;
+  > &
+    Partial<Pick<OwnerAuth, "perkosIdToken">>;
   ensControlPlane?: Pick<EnsControlPlaneService, "resolve">;
+  fleetActivation?: Pick<FleetActivationService, "activate">;
 };
 
 export function createApp(
@@ -35,6 +38,9 @@ export function createApp(
   const ownerAuth = dependencies.ownerAuth ?? new OwnerAuth(config);
   const ensControlPlane =
     dependencies.ensControlPlane ?? new EnsControlPlaneService(config);
+  const fleetActivation =
+    dependencies.fleetActivation ??
+    new FleetActivationService(config, { controlPlane: ensControlPlane });
 
   app.disable("x-powered-by");
   app.use(
@@ -129,6 +135,30 @@ export function createApp(
         owner: session.walletAddress,
       }),
     );
+  });
+
+  app.post("/api/fleet/activate", async (request, response) => {
+    const session = ownerAuth.session(request);
+    if (!session) {
+      return response
+        .status(401)
+        .json({ error: "owner_session_required" });
+    }
+    try {
+      response.setHeader("cache-control", "no-store");
+      return response.json(
+        await fleetActivation.activate({
+          userId: session.fleetUserId,
+          owner: session.walletAddress,
+          perkosIdToken: ownerAuth.perkosIdToken?.(request),
+        }),
+      );
+    } catch (error) {
+      return response.status(503).json({
+        error: "fleet_activation_failed",
+        message: safeMessage(error),
+      });
+    }
   });
 
   app.get("/api/fleet/metadata/:role", async (request, response) => {

@@ -72,8 +72,33 @@ export type ExecutionConfig = {
   };
 };
 
+export type WalletReadiness = {
+  chainId: 4663;
+  network: "Robinhood Chain";
+  wallet: `0x${string}`;
+  vault: `0x${string}`;
+  nativeBalance: string;
+  usdGBalance: string;
+  amountIn: string;
+  ready: boolean;
+  checks: {
+    gas: boolean;
+    funds: boolean;
+    vault: boolean;
+  };
+};
+
 export function readExecutionConfig(): Promise<ExecutionConfig> {
   return request<ExecutionConfig>("/api/config", { method: "GET" });
+}
+
+export function readWalletReadiness(
+  amountIn: string,
+): Promise<WalletReadiness> {
+  return request<WalletReadiness>(
+    `/api/wallet/readiness?amountIn=${encodeURIComponent(amountIn)}`,
+    { method: "GET" },
+  );
 }
 
 export function startProofRun(

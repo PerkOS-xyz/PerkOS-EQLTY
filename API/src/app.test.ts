@@ -65,10 +65,48 @@ describe("API foundation", () => {
     expect(response.status).toBe(404);
     await expect(response.json()).resolves.toEqual({ error: "not_found" });
   });
+
+  it("serves the stock catalog contract", async () => {
+    const catalog = {
+      chainId: 4663 as const,
+      quoteToken: "USDG" as const,
+      quoteAmount: "1000000",
+      observedAt: "2026-07-25T12:00:00.000Z",
+      thresholds: {
+        availableDeviationBps: 100,
+        maxDeviationBps: 300,
+        maxReferenceAgeSeconds: 86_400,
+      },
+      summary: {
+        total: 0,
+        available: 0,
+        caution: 0,
+        blocked: 0,
+        routed: 0,
+        orchestrationReady: 0,
+      },
+      assets: [],
+    };
+    const response = await request(
+      "/api/assets?catalog=uniswap-v4-universe",
+      {
+        stockCatalog: {
+          catalog: async () => catalog,
+          assessTicker: async () => undefined,
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual(catalog);
+  });
 });
 
-async function request(path: string): Promise<Response> {
-  const server = createServer(createApp(loadConfig({})));
+async function request(
+  path: string,
+  dependencies?: Parameters<typeof createApp>[1],
+): Promise<Response> {
+  const server = createServer(createApp(loadConfig({}), dependencies));
   servers.push(server);
   await new Promise<void>((resolve) => {
     server.listen(0, "127.0.0.1", resolve);

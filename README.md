@@ -41,6 +41,47 @@ The product focuses on three sponsor integrations:
   activity.
 - **ENS** provides the public behavior and policy records used by the fleet.
 
+### How we use Uniswap
+
+- [`uniswap-client.ts`](API/src/uniswap-client.ts#L22) requests V4 exact input
+  quotes from the Uniswap Trading API on Robinhood Chain.
+- [`stock-catalog.ts`](API/src/stock-catalog.ts#L90) combines each quote with a
+  reference price to score route deviation per candidate.
+- [`proof-run.ts`](API/src/proof-run.ts#L220) keeps the routing, quoted output
+  and request id inside the four agent proof bundle.
+- [`EQLTYVault.sol`](Contracts/src/EQLTYVault.sol#L214) executes the approved
+  route with per trade, total spend, slippage and deadline limits.
+- [`uniswap-agent.mjs`](Plugins/EQLTY-Uniswap-Plugin/skills/execute-stock-token-trade/scripts/uniswap-agent.mjs#L103)
+  packages quote review and guarded execution as a reusable agent skill.
+
+### How we use The Graph
+
+- [`lib.rs`](Plugins/EQLTY-The-Graph-Plugin/substreams/src/lib.rs#L13) is the
+  parameterized Rust Substreams module that filters Uniswap V4 stock token
+  pool events on Robinhood Chain.
+- [`graph-evidence.ts`](API/src/graph-evidence.ts#L7) accepts only strict
+  `the-graph-substreams` provenance for market evidence.
+- [`graph-evidence.ts`](API/src/graph-evidence.ts#L77) validates ticker,
+  freshness and block lag before evidence reaches the Risk role.
+- [`proof-run.ts`](API/src/proof-run.ts#L210) is the Graph risk gate inside
+  the four agent proof.
+- [`stock-substreams.mjs`](Plugins/EQLTY-The-Graph-Plugin/skills/robinhood-stock-substreams/scripts/stock-substreams.mjs)
+  exposes the 94 pool catalog, snapshots and direct streaming as an agent
+  tool.
+
+### How we use ENS
+
+- [`ens-control-plane.ts`](API/src/ens-control-plane.ts#L37) resolves the
+  owner, manifest and four role records that define fleet behavior.
+- [`ens-policy.ts`](API/src/ens-policy.ts#L115) checks manifest expiry,
+  version and settings hashes.
+- [`durin-provisioner.ts`](API/src/durin-provisioner.ts#L49) provisions a
+  Durin subname for each user fleet.
+- [`ens-policy-preparation.ts`](API/src/ens-policy-preparation.ts#L67)
+  prepares hash bound policy changes that wait for owner authorization.
+- [`ens-fleet.mjs`](Plugins/EQLTY-ENS-Plugin/skills/ens-agent-fleet/scripts/ens-fleet.mjs#L93)
+  is the reusable fleet directory and policy preset tool.
+
 ## Repository map
 
 ```text

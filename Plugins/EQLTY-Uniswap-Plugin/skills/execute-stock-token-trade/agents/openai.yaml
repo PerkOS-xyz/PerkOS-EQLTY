@@ -1,0 +1,4 @@
+interface:
+  display_name: "Execute Stock Token Trade"
+  short_description: "Run guarded Robinhood Stock Token trades through Uniswap."
+  default_prompt: "Evaluate a policy-compliant Stock Token trade and execute only when every gate is live."

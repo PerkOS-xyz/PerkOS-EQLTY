@@ -73,44 +73,40 @@ export class PerkosFleetService {
         "PerkOS wallet authentication is required for live Hermes agents",
       );
     }
+    const idToken = input.idToken;
 
     const imageTag =
       this.config.PERKOS_HERMES_IMAGE_TAG ??
       (await this.latestHermesImage());
     const existing = await this.request<{ agents: ApiAgent[] }>(
       "/agents",
-      input.idToken,
+      idToken,
     );
     const byName = new Map(
       existing.agents.map((agent) => [agent.name, agent]),
     );
-    const agents: FleetAgent[] = [];
-
-    for (const definition of fleetRoles) {
-      const plan = plannedAgent(input.userId, definition);
-      const current = byName.get(plan.name);
-      if (current) {
-        agents.push(
-          await this.activateExisting(
+    const agents = await Promise.all(
+      fleetRoles.map(async (definition) => {
+        const plan = plannedAgent(input.userId, definition);
+        const current = byName.get(plan.name);
+        if (current) {
+          return this.activateExisting(
             plan,
             current,
-            input.idToken,
+            idToken,
             input.linkedAgentIds,
-          ),
-        );
-        continue;
-      }
-      agents.push(
-        await this.launchAgent(
+          );
+        }
+        return this.launchAgent(
           plan,
           definition,
           input.owner,
           input.userId,
           imageTag,
-          input.idToken,
-        ),
-      );
-    }
+          idToken,
+        );
+      }),
+    );
 
     return {
       provider: "perkos",
@@ -156,6 +152,7 @@ export class PerkosFleetService {
         method: "POST",
         body: "{}",
       },
+      90_000,
     );
     return {
       ...plan,
@@ -225,6 +222,7 @@ export class PerkosFleetService {
     path: string,
     idToken?: string,
     init: RequestInit = {},
+    timeoutMs = 20_000,
   ): Promise<T> {
     const response = await this.fetchFn(
       new URL(
@@ -239,7 +237,7 @@ export class PerkosFleetService {
           ...(idToken ? { authorization: `Bearer ${idToken}` } : {}),
           ...init.headers,
         },
-        signal: AbortSignal.timeout(20_000),
+        signal: AbortSignal.timeout(timeoutMs),
       },
     );
     const body: unknown = await response.json().catch(() => ({}));

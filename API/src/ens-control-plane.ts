@@ -151,12 +151,12 @@ function roleAddress(
   config: ApiConfig,
   role: FleetRole,
 ): EvmAddress | undefined {
-  return {
+  return ({
     scout: config.ENS_SCOUT_ADDRESS,
     risk: config.ENS_RISK_ADDRESS,
     trader: config.ENS_TRADER_ADDRESS,
     auditor: config.ENS_AUDITOR_ADDRESS,
-  }[role];
+  }[role] ?? undefined) as EvmAddress | undefined;
 }
 
 function sameAddress(left: string, right: string): boolean {

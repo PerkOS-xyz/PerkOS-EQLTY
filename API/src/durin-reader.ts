@@ -32,7 +32,9 @@ export class ViemDurinReader implements DurinReader {
       config.EQLTY_ENS_RECORDS_CHAIN_ID === base.id
         ? base
         : baseSepolia;
-    this.registry = config.EQLTY_ENS_L2_REGISTRY_ADDRESS;
+    this.registry = config.EQLTY_ENS_L2_REGISTRY_ADDRESS as
+      | EvmAddress
+      | undefined;
     this.client = createPublicClient({
       chain,
       transport: http(config.EQLTY_ENS_RECORDS_RPC_URL),

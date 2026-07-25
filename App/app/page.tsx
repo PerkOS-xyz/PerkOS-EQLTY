@@ -1,3 +1,5 @@
+import { AccessButton } from "./access-button";
+
 const journey = [
   {
     title: "Define the goal",
@@ -51,10 +53,13 @@ export default function HomePage() {
             <span>Agent powered investing</span>
           </div>
         </div>
-        <span className="network">
-          <i />
-          Robinhood Chain
-        </span>
+        <div className="topbarActions">
+          <span className="network">
+            <i />
+            Robinhood Chain
+          </span>
+          <AccessButton />
+        </div>
       </header>
 
       <main className="content">

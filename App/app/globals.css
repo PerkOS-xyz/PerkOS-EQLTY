@@ -108,6 +108,59 @@ button {
   box-shadow: 0 0 10px #6df29a;
 }
 
+.topbarActions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.accessButton {
+  min-width: 116px;
+  min-height: 34px;
+  padding: 7px 12px;
+  border: 1px solid #343d38;
+  border-radius: 999px;
+  background: #141916;
+  color: #a7b0ab;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.accessButton:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.accessButton.ready {
+  border-color: #41724f;
+  background: #13231a;
+  color: #84e9a5;
+}
+
+.accessButton.ready:hover {
+  border-color: #72ee9d;
+  background: #172b20;
+}
+
+.accessButton.connected {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-color: #315c3e;
+  color: #83e9a4;
+  font: 500 9px "DM Mono", monospace;
+}
+
+.accessButton.connected i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #6df29a;
+  box-shadow: 0 0 8px #6df29a;
+}
+
 .content {
   width: min(1160px, calc(100% - 80px));
   margin: 0 auto;
@@ -262,6 +315,16 @@ button {
 
   .network {
     font-size: 8px;
+  }
+
+  .topbarActions {
+    gap: 6px;
+  }
+
+  .accessButton {
+    min-width: 104px;
+    min-height: 40px;
+    padding-inline: 10px;
   }
 
   .content {

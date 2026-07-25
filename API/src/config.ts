@@ -51,6 +51,26 @@ const schema = z.object({
     .min(60)
     .max(172_800)
     .default(86_400),
+  GRAPH_RISK_URL: optional(z.string().url()),
+  GRAPH_API_TOKEN: optional(z.string().min(1)),
+  GRAPH_MAX_PROVIDER_AGE_SECONDS: z.coerce
+    .number()
+    .int()
+    .min(5)
+    .max(86_400)
+    .default(90),
+  GRAPH_MAX_SWAP_AGE_SECONDS: z.coerce
+    .number()
+    .int()
+    .min(5)
+    .max(86_400)
+    .default(3_600),
+  GRAPH_MAX_LAG_BLOCKS: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .max(100_000)
+    .default(25),
   EQLTY_SESSION_SECRET: optional(z.string().min(32)),
   SESSION_TTL_SECONDS: z.coerce
     .number()

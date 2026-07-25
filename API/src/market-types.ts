@@ -28,6 +28,21 @@ export type RobinhoodQuote = {
 
 export type StockAvailability = "available" | "caution" | "blocked";
 
+export type GraphEvidenceSummary = {
+  source: "the-graph-substreams";
+  healthy: boolean;
+  protocol: "v3" | "v4";
+  blockNumber: string;
+  liquidityUsd: number;
+  lastSwapPrice: number;
+  transactionHash: `0x${string}`;
+  capturedAt: string;
+  processedBlock: string;
+  providerHeadBlock: string;
+  lagBlocks: number;
+  reasons: string[];
+};
+
 export type StockCatalogAsset = {
   ticker: string;
   name: string;
@@ -48,6 +63,7 @@ export type StockCatalogAsset = {
   quotedAmountOut?: string;
   uniswapImpliedPrice?: number;
   deviationBps?: number;
+  graphEvidence?: GraphEvidenceSummary;
   status: StockAvailability;
   reasons: string[];
   orchestrationReady: boolean;

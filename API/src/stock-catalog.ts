@@ -1,4 +1,8 @@
 import type { ApiConfig } from "./config.js";
+import {
+  GraphEvidenceService,
+  type GraphEvidence,
+} from "./graph-evidence.js";
 import type {
   EvmAddress,
   RobinhoodAsset,
@@ -23,6 +27,7 @@ type Dependencies = {
   fetchFn?: typeof fetch;
   now?: () => number;
   uniswap?: Pick<UniswapClient, "quote" | "ready">;
+  graph?: Pick<GraphEvidenceService, "evidence" | "ready">;
 };
 
 export class StockCatalogService {
@@ -31,6 +36,7 @@ export class StockCatalogService {
   private readonly fetchFn: typeof fetch;
   private readonly now: () => number;
   private readonly uniswap: Pick<UniswapClient, "quote" | "ready">;
+  private readonly graph: Pick<GraphEvidenceService, "evidence" | "ready">;
 
   constructor(
     private readonly config: ApiConfig,
@@ -40,6 +46,12 @@ export class StockCatalogService {
     this.now = dependencies.now ?? Date.now;
     this.uniswap =
       dependencies.uniswap ?? new UniswapClient(config, this.fetchFn);
+    this.graph =
+      dependencies.graph ??
+      new GraphEvidenceService(config, {
+        fetchFn: this.fetchFn,
+        now: this.now,
+      });
   }
 
   async catalog(force = false): Promise<StockCatalog> {
@@ -75,11 +87,28 @@ export class StockCatalogService {
       return entry;
     }
 
-    try {
-      const quote = await this.uniswap.quote(
+    const [quoteResult, graphResult] = await Promise.allSettled([
+      this.uniswap.quote(
         entry.tokenAddress,
         catalog.quoteAmount,
-      );
+      ),
+      this.graph.ready()
+        ? this.graph.evidence(normalized)
+        : Promise.reject(
+            new Error("The Graph evidence provider is not configured"),
+          ),
+    ]);
+    if (quoteResult.status === "rejected") {
+      return {
+        ...entry,
+        status: "blocked",
+        reasons: [...entry.reasons, "Fresh Uniswap quote failed"],
+        orchestrationReady: false,
+      };
+    }
+
+    try {
+      const quote = quoteResult.value;
       const inputUsd = Number(catalog.quoteAmount) / 1_000_000;
       const outputTokens = Number(quote.amountOut) / 1e18;
       const impliedPrice = inputUsd / outputTokens;
@@ -100,6 +129,19 @@ export class StockCatalogService {
           `Price deviation ${deviationBps.toFixed(1)} bps exceeds policy`,
         );
       }
+      const graphEvidence =
+        graphResult.status === "fulfilled"
+          ? summarizeGraph(graphResult.value)
+          : undefined;
+      if (graphResult.status === "rejected") {
+        reasons.push(errorMessage(graphResult.reason));
+      } else if (!graphResult.value.health.healthy) {
+        reasons.push(
+          ...graphResult.value.health.reasons.map(
+            (reason) => `The Graph: ${reason}`,
+          ),
+        );
+      }
       const status = classify(reasons, deviationBps);
 
       return {
@@ -111,9 +153,11 @@ export class StockCatalogService {
         quotedAmountOut: quote.amountOut,
         uniswapImpliedPrice: impliedPrice,
         deviationBps,
+        graphEvidence,
         status,
         reasons,
-        orchestrationReady: status !== "blocked",
+        orchestrationReady:
+          status !== "blocked" && graphEvidence?.healthy === true,
       };
     } catch {
       return {
@@ -250,6 +294,25 @@ export class StockCatalogService {
   }
 }
 
+function summarizeGraph(
+  evidence: GraphEvidence,
+): NonNullable<StockCatalogAsset["graphEvidence"]> {
+  return {
+    source: evidence.source,
+    healthy: evidence.health.healthy,
+    protocol: evidence.protocol,
+    blockNumber: evidence.blockNumber,
+    liquidityUsd: evidence.liquidityUsd,
+    lastSwapPrice: evidence.lastSwapPrice,
+    transactionHash: evidence.transactionHash as `0x${string}`,
+    capturedAt: evidence.capturedAt,
+    processedBlock: evidence.stream.processedBlock,
+    providerHeadBlock: evidence.stream.providerHeadBlock,
+    lagBlocks: evidence.stream.lagBlocks,
+    reasons: evidence.health.reasons,
+  };
+}
+
 function normalizeStatus(status: string): string {
   return status.replace("ASSET_STATUS_", "").toUpperCase();
 }
@@ -296,4 +359,8 @@ function summarize(assets: StockCatalogAsset[]): StockCatalog["summary"] {
 
 function isAddress(value: string): value is EvmAddress {
   return /^0x[0-9a-fA-F]{40}$/.test(value);
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "The Graph evidence failed";
 }

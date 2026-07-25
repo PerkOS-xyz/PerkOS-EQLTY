@@ -50,7 +50,7 @@ The product focuses on three sponsor integrations:
   quotes from the Uniswap Trading API on Robinhood Chain.
 - [`stock-catalog.ts`](API/src/stock-catalog.ts#L90) combines each quote with a
   reference price to score route deviation per candidate.
-- [`proof-run.ts`](API/src/proof-run.ts#L220) keeps the routing, quoted output
+- [`proof-run.ts`](API/src/proof-run.ts#L227) keeps the routing, quoted output
   and request id inside the four agent proof bundle.
 - [`EQLTYVault.sol`](Contracts/src/EQLTYVault.sol#L214) executes the approved
   route with per trade, total spend, slippage and deadline limits.
@@ -64,9 +64,9 @@ The product focuses on three sponsor integrations:
   pool events on Robinhood Chain.
 - [`graph-evidence.ts`](API/src/graph-evidence.ts#L7) accepts only strict
   `the-graph-substreams` provenance for market evidence.
-- [`graph-evidence.ts`](API/src/graph-evidence.ts#L77) validates ticker,
+- [`graph-evidence.ts`](API/src/graph-evidence.ts#L80) validates ticker,
   freshness and block lag before evidence reaches the Risk role.
-- [`proof-run.ts`](API/src/proof-run.ts#L210) is the Graph risk gate inside
+- [`proof-run.ts`](API/src/proof-run.ts#L220) is the Graph risk gate inside
   the four agent proof.
 - [`stock-substreams.mjs`](Plugins/EQLTY-The-Graph-Plugin/skills/robinhood-stock-substreams/scripts/stock-substreams.mjs)
   exposes the 94 pool catalog, snapshots and direct streaming as an agent

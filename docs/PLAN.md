@@ -43,7 +43,7 @@ can be executed with a clear evidence trail.
 ### 5. Policy control
 
 - [x] Resolve agent behavior settings from ENS records.
-- [ ] Show current settings on each agent card.
+- [x] Show current settings on each agent card.
 - [ ] Provide clear policy presets for the demonstration.
 - [x] Stop the workflow immediately when the fleet is paused.
 

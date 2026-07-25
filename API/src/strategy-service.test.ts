@@ -36,6 +36,12 @@ describe("strategy service", () => {
     await expect(
       service.create({
         ...input(),
+        agent: "0x2222222222222222222222222222222222222222",
+      }),
+    ).rejects.toThrow("authorized trader");
+    await expect(
+      service.create({
+        ...input(),
         outputToken: "0x2222222222222222222222222222222222222222",
       }),
     ).rejects.toThrow("ticker and output token");

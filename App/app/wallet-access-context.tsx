@@ -1,6 +1,18 @@
 "use client";
 
 import { createContext, useContext } from "react";
+import type {
+  Account,
+  Chain,
+  PublicClient,
+  Transport,
+  WalletClient,
+} from "viem";
+
+export type EvmClients = {
+  publicClient: PublicClient<Transport, Chain>;
+  walletClient: WalletClient<Transport, Chain, Account>;
+};
 
 export type WalletAccess = {
   enabled: boolean;
@@ -10,6 +22,7 @@ export type WalletAccess = {
   open: () => void;
   logout: () => Promise<void>;
   signMessage: (message: string) => Promise<`0x${string}`>;
+  getEvmClients: (chainId: number) => Promise<EvmClients>;
 };
 
 export const disabledWalletAccess: WalletAccess = {
@@ -19,6 +32,9 @@ export const disabledWalletAccess: WalletAccess = {
   open: () => undefined,
   logout: async () => undefined,
   signMessage: async () => {
+    throw new Error("Wallet access is not configured");
+  },
+  getEvmClients: async () => {
     throw new Error("Wallet access is not configured");
   },
 };

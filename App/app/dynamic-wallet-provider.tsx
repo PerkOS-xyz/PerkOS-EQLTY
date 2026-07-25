@@ -1,6 +1,9 @@
 "use client";
 
-import { EthereumWalletConnectors } from "@dynamic-labs/ethereum";
+import {
+  EthereumWalletConnectors,
+  isEthereumWallet,
+} from "@dynamic-labs/ethereum";
 import {
   DynamicContextProvider,
   useDynamicContext,
@@ -66,6 +69,17 @@ function DynamicWalletBridge({ children }: { children: ReactNode }) {
           throw new Error("The wallet returned an empty signature");
         }
         return signature as `0x${string}`;
+      },
+      getEvmClients: async (chainId) => {
+        if (!primaryWallet || !address || !isEthereumWallet(primaryWallet)) {
+          throw new Error("Connect an EVM wallet first");
+        }
+        await primaryWallet.switchNetwork(chainId);
+        const [walletClient, publicClient] = await Promise.all([
+          primaryWallet.getWalletClient(String(chainId)),
+          primaryWallet.getPublicClient(),
+        ]);
+        return { walletClient, publicClient };
       },
     }),
     [

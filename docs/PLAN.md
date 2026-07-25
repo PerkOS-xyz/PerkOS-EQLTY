@@ -20,40 +20,40 @@ can be executed with a clear evidence trail.
 
 ### 2. User experience
 
-- [ ] Create the responsive application shell.
-- [ ] Add a single wallet access flow.
-- [ ] Present the supported Robinhood stock token universe.
-- [ ] Show the four agent roles and their live runtime state.
-- [ ] Explain recommendation, policy and execution status in plain language.
+- [x] Create the responsive application shell.
+- [x] Add a single wallet access flow.
+- [x] Present the supported Robinhood stock token universe.
+- [x] Show the four agent roles and their live runtime state.
+- [x] Explain recommendation, policy and execution status in plain language.
 
 ### 3. Market workflow
 
-- [ ] Discover eligible stock tokens through Uniswap.
-- [ ] Compare candidates against the user objective.
-- [ ] Reject assets that fail availability or liquidity requirements.
-- [ ] Produce a recommendation with source timestamps.
+- [x] Discover eligible stock tokens through Uniswap.
+- [x] Compare candidates against the user objective.
+- [x] Reject assets that fail availability or liquidity requirements.
+- [x] Produce a recommendation with source timestamps.
 
 ### 4. Agent fleet
 
-- [ ] Provision or wake one Hermes fleet per authenticated user.
-- [ ] Give each role only the capabilities it needs.
+- [x] Provision or wake one Hermes fleet per authenticated user.
+- [x] Give each role only the capabilities it needs.
 - [ ] Apply independent 1Claw controls to agent activity.
-- [ ] Display creation, provisioning and wake progress.
+- [x] Display creation, provisioning and wake progress.
 
 ### 5. Policy control
 
-- [ ] Resolve agent behavior settings from ENS records.
+- [x] Resolve agent behavior settings from ENS records.
 - [ ] Show current settings on each agent card.
 - [ ] Provide clear policy presets for the demonstration.
-- [ ] Stop the workflow immediately when the fleet is paused.
+- [x] Stop the workflow immediately when the fleet is paused.
 
 ### 6. Execution and evidence
 
-- [ ] Request and review an executable Uniswap quote.
-- [ ] Enforce contract and spending limits before execution.
+- [x] Request and review an executable Uniswap quote.
+- [x] Enforce contract and spending limits before execution.
 - [ ] Record the resulting transaction and explorer link.
-- [ ] Index transaction evidence with The Graph Substreams.
-- [ ] Reconcile the final receipt through the Auditor role.
+- [x] Index transaction evidence with The Graph Substreams.
+- [x] Reconcile the proof bundle through the Auditor role.
 
 ### 7. Human authorization
 

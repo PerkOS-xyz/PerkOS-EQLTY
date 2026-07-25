@@ -19,8 +19,8 @@ interface Vm {
 contract MockERC20 is IERC20Minimal {
     string public name;
     string public symbol;
-    uint8 public immutable decimals;
-    uint16 public immutable feeBps;
+    uint8 public decimals;
+    uint16 public feeBps;
 
     mapping(address account => uint256 balance) public balances;
     mapping(address owner => mapping(address spender => uint256 amount)) public allowances;
@@ -81,7 +81,7 @@ contract MockTokenSpender {
 contract MockRouter {
     bytes4 private constant ERC1271_MAGIC_VALUE = 0x1626ba7e;
 
-    MockTokenSpender public immutable spender;
+    MockTokenSpender public spender;
 
     constructor(MockTokenSpender spender_) {
         spender = spender_;
@@ -128,10 +128,16 @@ contract MockRouter {
 }
 
 abstract contract VaultTestSupport {
+    // Forge exposes its test cheatcodes at this conventional address.
+    // forge-lint: disable-next-line(screaming-snake-case-const)
     Vm internal constant vm = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
 
     uint256 internal constant RISK_SIGNING_FIXTURE = uint256(keccak256("EQLTY_TEST_RISK_SIGNER"));
     uint256 internal constant UNIT = 1e6;
+    uint128 internal constant MAX_TRADE = 100_000_000;
+    uint128 internal constant MAX_TOTAL = 500_000_000;
+    uint128 internal constant SMALL_TOTAL = 50_000_000;
+    uint128 internal constant LIMITED_TOTAL = 150_000_000;
 
     address internal owner = address(0xA11CE);
     address internal agent = address(0xA63E7);
@@ -163,8 +169,8 @@ abstract contract VaultTestSupport {
             address(inputToken),
             address(outputToken),
             address(router),
-            uint128(100 * UNIT),
-            uint128(500 * UNIT),
+            MAX_TRADE,
+            MAX_TOTAL,
             uint64(block.timestamp + 1 days),
             500,
             keccak256("verified owner")

@@ -21,8 +21,8 @@ contract EQLTYVaultControlsTest is VaultTestSupport {
             address(inputToken),
             address(outputToken),
             address(router),
-            uint128(100 * UNIT),
-            uint128(500 * UNIT),
+            MAX_TRADE,
+            MAX_TOTAL,
             uint64(block.timestamp + 1 days),
             500,
             keccak256("proof")
@@ -35,22 +35,8 @@ contract EQLTYVaultControlsTest is VaultTestSupport {
             address(inputToken),
             address(inputToken),
             address(router),
-            uint128(100 * UNIT),
-            uint128(500 * UNIT),
-            uint64(block.timestamp + 1 days),
-            500,
-            keccak256("proof")
-        );
-
-        vm.expectRevert(EQLTYVault.InvalidConfiguration.selector);
-        vm.prank(owner);
-        vault.createStrategy(
-            agent,
-            address(inputToken),
-            address(outputToken),
-            address(router),
-            uint128(100 * UNIT),
-            uint128(50 * UNIT),
+            MAX_TRADE,
+            MAX_TOTAL,
             uint64(block.timestamp + 1 days),
             500,
             keccak256("proof")
@@ -63,8 +49,22 @@ contract EQLTYVaultControlsTest is VaultTestSupport {
             address(inputToken),
             address(outputToken),
             address(router),
-            uint128(100 * UNIT),
-            uint128(500 * UNIT),
+            MAX_TRADE,
+            SMALL_TOTAL,
+            uint64(block.timestamp + 1 days),
+            500,
+            keccak256("proof")
+        );
+
+        vm.expectRevert(EQLTYVault.InvalidConfiguration.selector);
+        vm.prank(owner);
+        vault.createStrategy(
+            agent,
+            address(inputToken),
+            address(outputToken),
+            address(router),
+            MAX_TRADE,
+            MAX_TOTAL,
             uint64(block.timestamp),
             500,
             keccak256("proof")
@@ -77,8 +77,8 @@ contract EQLTYVaultControlsTest is VaultTestSupport {
             address(inputToken),
             address(outputToken),
             address(router),
-            uint128(100 * UNIT),
-            uint128(500 * UNIT),
+            MAX_TRADE,
+            MAX_TOTAL,
             uint64(block.timestamp + 1 days),
             2_001,
             keccak256("proof")
@@ -178,8 +178,8 @@ contract EQLTYVaultControlsTest is VaultTestSupport {
             address(feeToken),
             address(outputToken),
             address(router),
-            uint128(100 * UNIT),
-            uint128(500 * UNIT),
+            MAX_TRADE,
+            MAX_TOTAL,
             uint64(block.timestamp + 1 days),
             500,
             keccak256("fee token owner")

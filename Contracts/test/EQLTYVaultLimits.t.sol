@@ -58,8 +58,8 @@ contract EQLTYVaultLimitsTest is VaultTestSupport {
             address(inputToken),
             address(outputToken),
             address(router),
-            uint128(100 * UNIT),
-            uint128(150 * UNIT),
+            MAX_TRADE,
+            LIMITED_TOTAL,
             uint64(block.timestamp + 1 days),
             500,
             keccak256("limited owner")

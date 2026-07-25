@@ -19,7 +19,7 @@ export type OpportunityCandidate = {
 
 export type GoalPolicy = {
   source: "ens" | "durin" | "local";
-  version?: string;
+  version?: number | string;
   manifestHash?: `0x${string}`;
   allowedTickers: string[];
   paused: boolean;

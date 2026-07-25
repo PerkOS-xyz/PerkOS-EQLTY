@@ -3,6 +3,7 @@ import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "./app.js";
 import { loadConfig } from "./config.js";
+import type { EnsPolicyPreparationService } from "./ens-policy-preparation.js";
 
 const servers: ReturnType<typeof createServer>[] = [];
 
@@ -397,6 +398,95 @@ describe("API foundation", () => {
       id: "goal-1",
       status: "active",
     });
+  });
+
+  it("prepares an authenticated ENS policy change", async () => {
+    const session = testSession();
+    const prepared = {
+      rootName: "u-12345678.demo.eth",
+      currentManifestHash: `0x${"11".repeat(32)}`,
+      manifestHash: `0x${"22".repeat(32)}`,
+      manifest: {},
+      manifestJson: "{}",
+      agentRecords: {},
+      diff: [
+        {
+          field: "allowedTickers",
+          before: ["NVDA"],
+          after: ["NVDA", "AMZN"],
+        },
+      ],
+      publicationMode: "prepared-only" as const,
+      requiredAuthorization: [
+        "owner-wallet",
+        "world-selfie",
+      ] as const,
+    } as Awaited<
+      ReturnType<EnsPolicyPreparationService["prepare"]>
+    >;
+    const prepare = vi.fn(async () => prepared);
+    const response = await request(
+      "/api/orchestration/prepare",
+      {
+        ownerAuth: testOwnerAuth(session),
+        ensPolicyPreparation: { prepare },
+      },
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          paused: false,
+          allowedTickers: ["nvda", "amzn"],
+          maxAmountPerTrade: "1000000",
+          maxDeviationBps: 300,
+          minLiquidityUsd: 50_000,
+          maxOracleAgeSeconds: 900,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(prepare).toHaveBeenCalledWith({
+      userId: session.fleetUserId,
+      owner: session.walletAddress,
+      change: expect.objectContaining({
+        allowedTickers: ["NVDA", "AMZN"],
+      }),
+    });
+    await expect(response.json()).resolves.toMatchObject({
+      publicationMode: "prepared-only",
+      requiredAuthorization: ["owner-wallet", "world-selfie"],
+    });
+  });
+
+  it("rejects unauthorized and malformed ENS policy changes", async () => {
+    const prepare = vi.fn();
+    const unauthorized = await request(
+      "/api/orchestration/prepare",
+      { ensPolicyPreparation: { prepare } },
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({}),
+      },
+    );
+    const invalid = await request(
+      "/api/orchestration/prepare",
+      {
+        ownerAuth: testOwnerAuth(testSession()),
+        ensPolicyPreparation: { prepare },
+      },
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ allowedTickers: [] }),
+      },
+    );
+
+    expect(unauthorized.status).toBe(401);
+    expect(invalid.status).toBe(400);
+    expect(prepare).not.toHaveBeenCalled();
   });
 
   it("creates an execution strategy for the session owner", async () => {

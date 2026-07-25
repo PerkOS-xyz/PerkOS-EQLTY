@@ -20,5 +20,9 @@ Current endpoints:
 - `GET /health`
 - `GET /api/config`
 - `GET /api/assets?catalog=uniswap-v4-universe`
+- `GET /api/auth/perkos/nonce`
+- `POST /api/auth/perkos/verify`
+- `GET /api/auth/session`
+- `POST /api/auth/logout`
 
 Run `pnpm test`, `pnpm typecheck` and `pnpm build` before publishing changes.

@@ -5,7 +5,9 @@ import type {
   OpportunityAnalysis,
   OpportunityCandidate,
 } from "../lib/goal-types";
+import { ProofRunPanel } from "./proof-run-panel";
 import { useGoalAnalysis } from "./use-goal-analysis";
+import { useProofRun } from "./use-proof-run";
 
 const roles = ["Scout", "Risk", "Trader", "Auditor"];
 
@@ -125,6 +127,7 @@ function GoalProgress({
   session: AutonomousGoal;
 }) {
   const active = session.status === "active";
+  const proof = useProofRun(session);
 
   return (
     <div className="goalProgress">
@@ -205,8 +208,17 @@ function GoalProgress({
                 A purchase still requires policy, evidence and quote approval.
               </small>
             </div>
-            <span>Analysis only</span>
+            <span>Proof required</span>
           </footer>
+          <ProofRunPanel
+            executionAuthorized={session.gates.executionAuthorized}
+            hasCandidate={analysis.candidates.some(
+              (candidate) =>
+                candidate.status === "recommended" &&
+                Boolean(candidate.tokenAddress),
+            )}
+            state={proof}
+          />
         </div>
       )}
     </div>

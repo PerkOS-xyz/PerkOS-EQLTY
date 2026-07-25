@@ -7,6 +7,8 @@ import "./market.css";
 import "./market-mobile.css";
 import "./goals.css";
 import "./goals-mobile.css";
+import "./execution.css";
+import "./execution-mobile.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {

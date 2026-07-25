@@ -63,7 +63,7 @@ export type EnsControlPlane = {
   source: "durin";
   mode: "live";
   status: "active" | "invalid" | "unavailable";
-  rootName: string;
+  rootName?: string;
   manifestHash?: `0x${string}`;
   resolvedAt: string;
   owner?: EvmAddress;

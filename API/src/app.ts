@@ -19,6 +19,7 @@ import { PurchaseHistoryService } from "./purchase-history.js";
 import { StockCatalogService } from "./stock-catalog.js";
 import { StrategyService } from "./strategy-service.js";
 import { StrategyStore } from "./strategy-store.js";
+import { WalletReadinessService } from "./wallet-readiness.js";
 import { z } from "zod";
 
 const address = z.string().regex(/^0x[0-9a-fA-F]{40}$/);
@@ -120,6 +121,7 @@ type AppDependencies = {
   proofRuns?: Pick<ProofRunService, "run">;
   purchaseHistory?: Pick<PurchaseHistoryService, "list">;
   portfolio?: Pick<PortfolioService, "read">;
+  walletReadiness?: Pick<WalletReadinessService, "read">;
 };
 
 export function createApp(
@@ -176,6 +178,8 @@ export function createApp(
       history: purchaseHistory,
       catalog: stockCatalog,
     });
+  const walletReadiness =
+    dependencies.walletReadiness ?? new WalletReadinessService(config);
 
   app.disable("x-powered-by");
   app.use(
@@ -199,6 +203,36 @@ export function createApp(
   app.get("/api/config", (_request, response) => {
     response.setHeader("cache-control", "public, max-age=30");
     response.json(publicConfig(config));
+  });
+
+  app.get("/api/wallet/readiness", async (request, response) => {
+    const session = ownerAuth.session(request);
+    if (!session) {
+      return response
+        .status(401)
+        .json({ error: "owner_session_required" });
+    }
+    const parsed = uint256.safeParse(request.query.amountIn);
+    if (!parsed.success) {
+      return response.status(400).json({
+        error: "invalid_purchase_amount",
+        issues: parsed.error.issues,
+      });
+    }
+    try {
+      response.setHeader("cache-control", "no-store");
+      return response.json(
+        await walletReadiness.read(
+          session.walletAddress,
+          parsed.data,
+        ),
+      );
+    } catch (error) {
+      return response.status(503).json({
+        error: "wallet_readiness_unavailable",
+        message: safeMessage(error),
+      });
+    }
   });
 
   app.get("/api/auth/perkos/nonce", async (request, response) => {

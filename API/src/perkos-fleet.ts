@@ -194,10 +194,10 @@ export class PerkosFleetService {
     );
     return {
       ...plan,
-      agentId: launch.result?.agent?.id ?? launch.launchId,
+      agentId: launch.result?.agent?.id,
       state:
         launch.result?.status === "ready" ? "ready" : "provisioning",
-      jobId: launch.result?.jobId ?? undefined,
+      jobId: launch.result?.jobId ?? launch.launchId,
     };
   }
 

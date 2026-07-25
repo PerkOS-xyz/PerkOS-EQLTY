@@ -1,4 +1,5 @@
 import { AccessButton } from "./access-button";
+import { MarketCatalog } from "./market-catalog";
 
 const journey = [
   {
@@ -96,6 +97,8 @@ export default function HomePage() {
             </article>
           ))}
         </section>
+
+        <MarketCatalog />
 
         <section className="fleet">
           <header className="fleetHeader">

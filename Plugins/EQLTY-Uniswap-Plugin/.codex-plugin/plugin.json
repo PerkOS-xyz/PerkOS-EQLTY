@@ -1,0 +1,24 @@
+{
+  "name": "eqlty-uniswap-plugin",
+  "version": "0.1.0",
+  "description": "Discover, quote and execute guarded Robinhood Stock Token trades through the Uniswap API.",
+  "author": {
+    "name": "EQLTY"
+  },
+  "license": "MIT",
+  "keywords": ["uniswap", "stock-tokens", "robinhood-chain", "agents"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "EQLTY Uniswap Plugin",
+    "shortDescription": "Guarded Stock Token quotes and execution.",
+    "longDescription": "Agent tooling for Uniswap discovery, quotes and policy-gated Stock Token execution on Robinhood Chain.",
+    "developerName": "EQLTY",
+    "category": "Developer Tools",
+    "capabilities": ["Read", "Write"],
+    "defaultPrompt": [
+      "Find a live Uniswap route for an available Stock Token.",
+      "Dry-run a policy-compatible Stock Token purchase.",
+      "Execute a Stock Token purchase after every policy gate passes."
+    ]
+  }
+}

@@ -58,6 +58,29 @@ describe("strategy service", () => {
       }),
     ).rejects.toThrow("next seven days");
   });
+
+  it("links the funded onchain strategy to its owner", async () => {
+    const service = createService(asset(true));
+    const strategy = await service.create(input());
+    const onchain = {
+      chainId: 4663 as const,
+      strategyId: "2",
+      creationTransactionHash: `0x${"11".repeat(32)}` as const,
+      approvalTransactionHash: `0x${"22".repeat(32)}` as const,
+      fundingTransactionHash: `0x${"33".repeat(32)}` as const,
+    };
+
+    expect(
+      service.bindOnchain(strategy.id, owner, onchain).onchain,
+    ).toEqual(onchain);
+    expect(() =>
+      service.bindOnchain(
+        strategy.id,
+        "0x2222222222222222222222222222222222222222",
+        onchain,
+      ),
+    ).toThrow("cannot be linked");
+  });
 });
 
 function createService(entry: StockCatalogAsset) {

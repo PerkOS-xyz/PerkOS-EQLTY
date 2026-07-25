@@ -1,5 +1,8 @@
 import type { ApiConfig } from "./config.js";
-import type { ExecutionStrategy } from "./execution-types.js";
+import type {
+  ExecutionStrategy,
+  OnchainStrategy,
+} from "./execution-types.js";
 import type { EvmAddress } from "./market-types.js";
 import type { StockCatalogService } from "./stock-catalog.js";
 import { StockCatalogService as Catalog } from "./stock-catalog.js";
@@ -77,6 +80,18 @@ export class StrategyService {
       ticker,
       executionMode: asset.orchestrationReady ? "full" : "analysis",
     });
+  }
+
+  bindOnchain(
+    id: string,
+    owner: EvmAddress,
+    onchain: OnchainStrategy,
+  ): ExecutionStrategy {
+    const strategy = this.store.bindOnchain(id, owner, onchain);
+    if (!strategy) {
+      throw new Error("Strategy cannot be linked to this onchain record");
+    }
+    return strategy;
   }
 }
 

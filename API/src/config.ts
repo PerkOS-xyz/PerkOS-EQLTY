@@ -51,12 +51,6 @@ const schema = z.object({
   EQLTY_VAULT_DEPLOYMENT_BLOCK: optional(
     z.string().max(78).regex(/^(0|[1-9]\d*)$/),
   ),
-  EQLTY_VAULT_STRATEGY_ID: z
-    .string()
-    .max(78)
-    .regex(/^[1-9]\d*$/)
-    .refine((value) => BigInt(value) < 2n ** 256n)
-    .default("1"),
   EQLTY_TRADER_PRIVATE_KEY: optional(privateKey),
   EQLTY_RISK_SIGNER_PRIVATE_KEY: optional(privateKey),
   EQLTY_EXECUTION_MODE: z

@@ -18,6 +18,10 @@ export type PublicApiConfig = {
       chainId: number;
     };
   };
+  contracts: {
+    eqltyVault?: `0x${string}`;
+    trader?: `0x${string}`;
+  };
   integrations: {
     ens: "ready" | "pending";
     oneclaw: "pending";
@@ -51,6 +55,12 @@ export function publicConfig(config: ApiConfig): PublicApiConfig {
         name: "Robinhood",
         chainId: config.UNISWAP_CHAIN_ID,
       },
+    },
+    contracts: {
+      eqltyVault: config.EQLTY_VAULT_ADDRESS as
+        | `0x${string}`
+        | undefined,
+      trader: config.ENS_TRADER_ADDRESS as `0x${string}` | undefined,
     },
     integrations: {
       ens:

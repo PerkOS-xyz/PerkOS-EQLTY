@@ -93,7 +93,7 @@ export class EqltyVaultExecutor implements TradeExecutor {
         BigInt(10_000 - input.strategy.maxSlippageBps)) /
       10_000n;
     const message = {
-      strategyId: this.strategyId(),
+      strategyId: state.strategyId,
       amountIn: BigInt(input.amountIn),
       quotedAmountOut,
       minAmountOut,
@@ -167,7 +167,7 @@ export class EqltyVaultExecutor implements TradeExecutor {
   private async assertOnchainStrategy(
     strategy: ExecutionStrategy,
     amountIn: string,
-  ): Promise<{ nonce: bigint }> {
+  ): Promise<{ nonce: bigint; strategyId: bigint }> {
     const rpcUrl = this.rpcUrl();
     const publicClient = createPublicClient({
       chain: robinhood(rpcUrl),
@@ -180,7 +180,7 @@ export class EqltyVaultExecutor implements TradeExecutor {
     if (!code || code === "0x") {
       throw new Error("EQLTY vault bytecode is missing");
     }
-    const strategyId = this.strategyId();
+    const strategyId = onchainStrategyId(strategy);
     const [stored, available, nonce, riskSigner, tokenSpender] =
       await Promise.all([
         publicClient.readContract({
@@ -250,11 +250,7 @@ export class EqltyVaultExecutor implements TradeExecutor {
     ) {
       throw new Error("EQLTY vault balance or limits block this purchase");
     }
-    return { nonce };
-  }
-
-  private strategyId(): bigint {
-    return BigInt(this.config.EQLTY_VAULT_STRATEGY_ID);
+    return { nonce, strategyId };
   }
 
   private vault(): Address {
@@ -264,4 +260,13 @@ export class EqltyVaultExecutor implements TradeExecutor {
   private rpcUrl(): string {
     return this.config.ROBINHOOD_MAINNET_RPC_URL as string;
   }
+}
+
+export function onchainStrategyId(
+  strategy: ExecutionStrategy,
+): bigint {
+  if (!strategy.onchain || strategy.onchain.chainId !== 4663) {
+    throw new Error("Strategy is not funded on Robinhood Chain");
+  }
+  return BigInt(strategy.onchain.strategyId);
 }

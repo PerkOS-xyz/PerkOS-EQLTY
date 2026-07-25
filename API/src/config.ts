@@ -56,6 +56,7 @@ const schema = z.object({
     .default(86_400),
   GRAPH_RISK_URL: optional(z.string().url()),
   EQLTY_GRAPH_ADAPTER_URL: optional(z.string().url()),
+  EQLTY_GRAPH_ACCESS_TOKEN: optional(z.string().min(32)),
   GRAPH_API_TOKEN: optional(z.string().min(1)),
   GRAPH_MAX_PROVIDER_AGE_SECONDS: z.coerce
     .number()

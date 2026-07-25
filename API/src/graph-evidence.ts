@@ -87,13 +87,18 @@ export class GraphEvidenceService {
     if (!adapterUrl) {
       throw new Error("The Graph evidence provider is not configured");
     }
+    const accessToken =
+      this.config.EQLTY_GRAPH_ACCESS_TOKEN ??
+      this.config.GRAPH_API_TOKEN;
     const response = await this.fetchFn(adapterUrl, {
       method: "POST",
       headers: {
         accept: "application/json",
         "content-type": "application/json",
-        ...(this.config.GRAPH_API_TOKEN
-          ? { authorization: `Bearer ${this.config.GRAPH_API_TOKEN}` }
+        ...(accessToken
+          ? {
+              authorization: `Bearer ${accessToken}`,
+            }
           : {}),
       },
       body: JSON.stringify({

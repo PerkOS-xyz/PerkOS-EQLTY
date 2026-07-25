@@ -3,6 +3,7 @@ import { z } from "zod";
 const schema = z.object({
   EQLTY_GRAPH_PORT: z.coerce.number().int().positive().default(4022),
   EQLTY_GRAPH_API_TOKEN: z.string().min(20),
+  EQLTY_GRAPH_ACCESS_TOKEN: z.string().min(32),
   EQLTY_GRAPH_RPC_URL: z.string().url(),
   EQLTY_GRAPH_PROVIDER: z
     .string()

@@ -21,7 +21,8 @@ describe("The Graph evidence", () => {
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({
-          authorization: "Bearer graph-token",
+          authorization:
+            "Bearer eqlty-graph-access-token-for-tests",
         }),
         body: JSON.stringify({
           ticker: "NVDA",
@@ -81,6 +82,8 @@ describe("The Graph evidence", () => {
 function config() {
   return loadConfig({
     GRAPH_RISK_URL: "https://graph.example/risk",
+    EQLTY_GRAPH_ACCESS_TOKEN:
+      "eqlty-graph-access-token-for-tests",
     GRAPH_API_TOKEN: "graph-token",
     GRAPH_MAX_PROVIDER_AGE_SECONDS: "90",
     GRAPH_MAX_SWAP_AGE_SECONDS: "3600",

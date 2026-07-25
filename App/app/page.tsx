@@ -80,8 +80,8 @@ export default function HomePage() {
 
           <aside className="statusCard">
             <span>Current milestone</span>
-            <strong>Foundation</strong>
-            <p>The product shell is ready for wallet access and live markets.</p>
+            <strong>Market discovery</strong>
+            <p>The app now reads live stock token availability and routes.</p>
             <div className="meter">
               <i />
             </div>

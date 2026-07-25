@@ -1,0 +1,35 @@
+specVersion: v0.1.0
+package:
+  name: eqlty_robinhood_stock_v4
+  version: v0.1.0
+  url: https://github.com/PerkOS-xyz/PerkOS-EQLTY
+  description: Parameterized Uniswap V4 Robinhood Stock Token events for agent fleets.
+
+imports:
+  ethereum: https://github.com/streamingfast/firehose-ethereum/releases/download/v1.4.8/ethereum-v1.0.0.spkg
+
+network: robinhood
+
+protobuf:
+  files:
+    - events.proto
+  importPaths:
+    - ./proto
+
+binaries:
+  default:
+    type: wasm/rust-v1
+    file: ./target/wasm32-unknown-unknown/release/substreams.wasm
+
+modules:
+  - name: map_pool_events
+    kind: map
+    inputs:
+      - params: string
+      - source: sf.ethereum.type.v2.Block
+    output:
+      type: proto:eqlty.graph.v1.Events
+    doc: Filters Robinhood Stock Token pool logs and attaches ticker metadata.
+
+params:
+  map_pool_events: "v3=;v4=0x8366a39cc670b4001a1121b8f6a443a643e40951:0xd32646872e6712af8cf778e34b6bbef1d2ae0bddd83764e1b07333518ad59333=AMZN"

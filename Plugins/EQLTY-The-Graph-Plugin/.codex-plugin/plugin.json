@@ -1,0 +1,24 @@
+{
+  "name": "eqlty-the-graph-plugin",
+  "version": "0.1.0",
+  "description": "Query live Robinhood Stock Token Uniswap V4 evidence through The Graph Substreams.",
+  "author": {
+    "name": "EQLTY"
+  },
+  "license": "MIT",
+  "keywords": ["the-graph", "substreams", "uniswap-v4", "stock-tokens"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "EQLTY The Graph Plugin",
+    "shortDescription": "Live Stock Token Substreams evidence.",
+    "longDescription": "Substreams tooling for resolving Stock Token pools, checking freshness and citing Robinhood Chain swap evidence.",
+    "developerName": "EQLTY",
+    "category": "Developer Tools",
+    "capabilities": ["Read"],
+    "defaultPrompt": [
+      "Verify the latest AMZN Stock Token pool evidence.",
+      "Check whether The Graph provider is fresh.",
+      "Stream the latest swaps for a Robinhood Stock Token."
+    ]
+  }
+}

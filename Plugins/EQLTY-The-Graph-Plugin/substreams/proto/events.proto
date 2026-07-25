@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package eqlty.graph.v1;
+
+message Events {
+  uint64 block_number = 1;
+  repeated Event events = 2;
+  uint64 block_timestamp_seconds = 3;
+}
+
+message Event {
+  string address = 1;
+  repeated string topics = 2;
+  string transaction_hash = 3;
+  string data = 4;
+  string ticker = 5;
+  string pool_identifier = 6;
+  string protocol = 7;
+}

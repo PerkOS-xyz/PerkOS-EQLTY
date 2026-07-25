@@ -1,0 +1,23 @@
+[package]
+name = "eqlty-robinhood-stock-v4"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+name = "substreams"
+crate-type = ["cdylib"]
+
+[dependencies]
+anyhow = "1"
+prost = "0.11"
+substreams = "0.5"
+substreams-ethereum = "0.9"
+
+[target.wasm32-unknown-unknown.dependencies]
+getrandom = { version = "0.2", features = ["custom"] }
+
+[profile.release]
+lto = true
+opt-level = "s"
+strip = "debuginfo"

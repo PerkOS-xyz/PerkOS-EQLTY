@@ -1,0 +1,84 @@
+@media (max-width: 760px) {
+  .marketHeading {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 18px;
+  }
+
+  .marketSummary {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .marketSummary span {
+    text-align: left;
+  }
+
+  .marketControls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .marketControls input {
+    width: 100%;
+    min-height: 42px;
+  }
+
+  .marketControls > div {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .marketControls button {
+    min-height: 40px;
+  }
+
+  .marketControls small {
+    margin-left: 0;
+  }
+
+  .marketTable {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .marketLabels {
+    display: none;
+  }
+
+  .marketRow:not(.marketLabels) {
+    grid-template-columns: 1fr 1fr;
+    gap: 15px 12px;
+    padding: 16px 14px;
+  }
+
+  .marketRow > span::before,
+  .marketRow > a::before {
+    content: attr(data-label);
+    color: #59655e;
+    font: 7px "DM Mono", monospace;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .marketRow .marketAsset {
+    grid-column: 1 / -1;
+    grid-template-columns: 40px 1fr;
+  }
+
+  .marketAsset i {
+    width: 40px;
+    height: 40px;
+  }
+
+  .marketError {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marketSkeleton {
+    animation: none;
+  }
+}

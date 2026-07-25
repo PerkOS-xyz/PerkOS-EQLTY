@@ -1,4 +1,4 @@
-import { AccessButton } from "./access-button";
+import { AppHeader } from "./app-header";
 import { FleetPanel } from "./fleet-panel";
 import { GoalAnalyzer } from "./goal-analyzer";
 import { MarketCatalog } from "./market-catalog";
@@ -21,22 +21,7 @@ const journey = [
 export default function HomePage() {
   return (
     <div className="shell">
-      <header className="topbar">
-        <div className="brand">
-          <span className="brandMark">E</span>
-          <div className="brandCopy">
-            <strong>EQLTY</strong>
-            <span>Agent powered investing</span>
-          </div>
-        </div>
-        <div className="topbarActions">
-          <span className="network">
-            <i />
-            Robinhood Chain
-          </span>
-          <AccessButton />
-        </div>
-      </header>
+      <AppHeader active="home" />
 
       <main className="content">
         <section className="hero">

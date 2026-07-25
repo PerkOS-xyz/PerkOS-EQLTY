@@ -2,7 +2,7 @@ import cors from "cors";
 import express from "express";
 import type { Express } from "express";
 import { AutonomousGoalService } from "./autonomous-goals.js";
-import type { ApiConfig } from "./config.js";
+import { loadConfig, type ApiConfig } from "./config.js";
 import { EnsControlPlaneService } from "./ens-control-plane.js";
 import { EnsPolicyPreparationService } from "./ens-policy-preparation.js";
 import { FleetActivationService } from "./fleet-activation.js";
@@ -565,3 +565,5 @@ export function createApp(
 function safeMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Authentication failed";
 }
+
+export default createApp(loadConfig());

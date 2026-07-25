@@ -1,9 +1,10 @@
 import cors from "cors";
 import express from "express";
+import type { Express } from "express";
 import type { ApiConfig } from "./config.js";
 import { publicConfig } from "./public-config.js";
 
-export function createApp(config: ApiConfig) {
+export function createApp(config: ApiConfig): Express {
   const app = express();
 
   app.disable("x-powered-by");

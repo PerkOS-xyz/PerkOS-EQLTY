@@ -46,6 +46,24 @@ export type UserSession = {
   expiresAt: string;
 };
 
+export type EnsAgentMetadata = {
+  name: string;
+  settings: {
+    ensName: string;
+    behavior: {
+      objective: string;
+      inputs: string[];
+      actions: string[];
+      requiresWorldSelfieForChanges: boolean;
+    };
+    security: {
+      provider: string;
+      enforcement: string;
+      policyRef: string;
+    };
+  };
+};
+
 export type FleetPhase =
   | "idle"
   | "locating"

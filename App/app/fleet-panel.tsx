@@ -1,7 +1,13 @@
 "use client";
 
+import { useState } from "react";
+import {
+  fleetMetadataUrl,
+  loadFleetMetadata,
+} from "../lib/fleet-api";
 import type {
   AgentState,
+  EnsAgentMetadata,
   FleetAgent,
   FleetPhase,
 } from "../lib/fleet-types";
@@ -149,6 +155,7 @@ function AgentCard({
             : "Security pending"}
         </small>
       </div>
+      {runtimeAvailable && <AgentMetadata role={agent.role} />}
       <ol
         aria-label={`${agent.role} runtime progress`}
         className="agentSteps"
@@ -170,6 +177,73 @@ function AgentCard({
         ))}
       </ol>
     </article>
+  );
+}
+
+function AgentMetadata({ role }: { role: FleetAgent["role"] }) {
+  const [metadata, setMetadata] = useState<EnsAgentMetadata>();
+  const [error, setError] = useState<string>();
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  const toggle = async () => {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    setOpen(true);
+    if (metadata || loading) return;
+    setLoading(true);
+    setError(undefined);
+    try {
+      setMetadata(await loadFleetMetadata(role));
+    } catch {
+      setError("ENS metadata is still syncing");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="agentMetadata">
+      <div className="agentMetadataActions">
+        <button aria-expanded={open} onClick={toggle} type="button">
+          {open ? "Hide settings" : "View settings"}
+        </button>
+        <a
+          href={fleetMetadataUrl(role)}
+          rel="noreferrer"
+          target="_blank"
+        >
+          Open ENS metadata
+        </a>
+      </div>
+      {open && loading && <small>Loading active ENS settings</small>}
+      {open && error && <small>{error}</small>}
+      {open && metadata && (
+        <dl>
+          <div>
+            <dt>ENS name</dt>
+            <dd>{metadata.name}</dd>
+          </div>
+          <div>
+            <dt>Objective</dt>
+            <dd>{metadata.settings.behavior.objective}</dd>
+          </div>
+          <div>
+            <dt>Rules</dt>
+            <dd>
+              {metadata.settings.behavior.inputs.join(", ")} ·{" "}
+              {metadata.settings.behavior.actions.join(", ")}
+            </dd>
+          </div>
+          <div>
+            <dt>Security</dt>
+            <dd>{metadata.settings.security.enforcement}</dd>
+          </div>
+        </dl>
+      )}
+    </div>
   );
 }
 

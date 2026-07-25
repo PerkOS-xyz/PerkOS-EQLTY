@@ -1,4 +1,9 @@
-import type { FleetActivation, UserSession } from "./fleet-types";
+import type {
+  AgentRole,
+  EnsAgentMetadata,
+  FleetActivation,
+  UserSession,
+} from "./fleet-types";
 
 const fallbackUrl = "http://localhost:4021";
 
@@ -54,4 +59,14 @@ export async function activateFleet(): Promise<FleetActivation> {
   return request<FleetActivation>("/api/fleet/activate", {
     method: "POST",
   });
+}
+
+export function fleetMetadataUrl(role: AgentRole): string {
+  return `${apiUrl()}/api/fleet/metadata/${role}`;
+}
+
+export async function loadFleetMetadata(
+  role: AgentRole,
+): Promise<EnsAgentMetadata> {
+  return request<EnsAgentMetadata>(`/api/fleet/metadata/${role}`);
 }

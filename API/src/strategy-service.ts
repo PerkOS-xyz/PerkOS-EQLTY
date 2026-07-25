@@ -35,6 +35,11 @@ export class StrategyService {
     maxSlippageBps: number;
     expiresAt: string;
   }): Promise<ExecutionStrategy> {
+    const expectedAgent =
+      this.config.ENS_TRADER_ADDRESS ?? input.owner;
+    if (!sameAddress(input.agent, expectedAgent)) {
+      throw new Error("Strategy agent is not the authorized trader");
+    }
     if (!sameAddress(input.inputToken, this.config.INPUT_TOKEN_ADDRESS)) {
       throw new Error("Strategy input token must be Robinhood USDG");
     }

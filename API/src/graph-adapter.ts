@@ -1,5 +1,6 @@
 import express from "express";
 import { z } from "zod";
+import { hasGraphAccess } from "./graph-adapter-auth.js";
 import { loadGraphAdapterConfig } from "./graph-adapter-config.js";
 import { GraphAdapterSink } from "./graph-adapter-sink.js";
 
@@ -26,6 +27,15 @@ app.get("/health", (_request, response) => {
 });
 
 app.post("/api/graph-risk", (request, response) => {
+  if (
+    !hasGraphAccess(
+      request.get("authorization"),
+      config.EQLTY_GRAPH_ACCESS_TOKEN,
+    )
+  ) {
+    return response.status(401).json({ error: "unauthorized" });
+  }
+
   const parsed = tickerSchema.safeParse(request.body?.ticker);
   if (!parsed.success) {
     return response.status(400).json({ error: "invalid_ticker" });

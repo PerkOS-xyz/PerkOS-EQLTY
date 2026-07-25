@@ -1,0 +1,24 @@
+{
+  "name": "eqlty-ens-plugin",
+  "version": "0.1.0",
+  "description": "Resolve ENS-named agent fleets and prepare bounded behavior changes.",
+  "author": {
+    "name": "EQLTY"
+  },
+  "license": "MIT",
+  "keywords": ["ens", "durin", "agent-fleet", "l2-subnames"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "EQLTY ENS Plugin",
+    "shortDescription": "ENS identity and policy for agent fleets.",
+    "longDescription": "Resolve per-user Durin subnames, inspect agent metadata and prepare verifiable fleet policy changes.",
+    "developerName": "EQLTY",
+    "category": "Developer Tools",
+    "capabilities": ["Read", "Write"],
+    "defaultPrompt": [
+      "Resolve my ENS agent fleet.",
+      "Explain the active Stock Token policy.",
+      "Prepare an Emergency Stop policy diff."
+    ]
+  }
+}

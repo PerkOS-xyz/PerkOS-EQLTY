@@ -1,0 +1,4 @@
+interface:
+  display_name: "ENS Agent Fleet"
+  short_description: "Inspect and prepare ENS fleet policies."
+  default_prompt: "Use $ens-agent-fleet to resolve my fleet and explain its active policy."

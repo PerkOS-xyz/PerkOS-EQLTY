@@ -5,6 +5,9 @@ import type { EnsControlPlaneService } from "./ens-control-plane.js";
 import { EnsControlPlaneService as ControlPlane } from "./ens-control-plane.js";
 import { fleetNames } from "./ens-names.js";
 import type {
+  EnsControlPlane,
+} from "./ens-types.js";
+import type {
   FleetRole,
   FleetRuntime,
 } from "./fleet-types.js";
@@ -17,7 +20,10 @@ type Dependencies = {
   perkos?: Pick<PerkosFleetService, "activate">;
   controlPlane?: Pick<EnsControlPlaneService, "resolve">;
   provisioner?: Pick<DurinFleetProvisioner, "provision">;
+  ensResolveTimeoutMs?: number;
 };
+
+const defaultEnsResolveTimeoutMs = 3_000;
 
 type PendingActivation = {
   status: "provisioning";
@@ -48,6 +54,7 @@ export class FleetActivationService {
   private readonly perkos: Pick<PerkosFleetService, "activate">;
   private readonly controlPlane: Pick<EnsControlPlaneService, "resolve">;
   private readonly provisioner: Pick<DurinFleetProvisioner, "provision">;
+  private readonly ensResolveTimeoutMs: number;
 
   constructor(
     private readonly config: ApiConfig,
@@ -58,6 +65,8 @@ export class FleetActivationService {
       dependencies.controlPlane ?? new ControlPlane(config);
     this.provisioner =
       dependencies.provisioner ?? new FleetProvisioner(config);
+    this.ensResolveTimeoutMs =
+      dependencies.ensResolveTimeoutMs ?? defaultEnsResolveTimeoutMs;
   }
 
   async activate(input: {
@@ -94,10 +103,13 @@ export class FleetActivationService {
       };
     }
 
-    const existing = await this.controlPlane.resolve({
+    const existing = await this.resolveControlPlane({
       userId: input.userId,
       owner: input.owner,
     });
+    if (!existing) {
+      return this.pendingActivation(input, names.user, runtime);
+    }
     if (existing.status === "invalid") {
       throw new Error(
         existing.error ?? "ENS fleet records failed verification",
@@ -150,6 +162,43 @@ export class FleetActivationService {
       verified: true,
       runtime,
     };
+  }
+
+  private pendingActivation(
+    input: { userId: string; owner: EvmAddress },
+    rootName: string,
+    runtime: FleetRuntime,
+  ): PendingActivation {
+    const agents = Object.fromEntries(
+      runtime.agents.map((agent) => [agent.role, agent.agentId ?? agent.name]),
+    ) as Record<FleetRole, string>;
+    return {
+      status: "provisioning",
+      userId: input.userId,
+      owner: input.owner,
+      rootName,
+      agents,
+      transactions: [],
+      verified: false,
+      runtime,
+    };
+  }
+
+  private async resolveControlPlane(input: {
+    userId: string;
+    owner: EvmAddress;
+  }): Promise<EnsControlPlane | undefined> {
+    let timer: number | undefined;
+    try {
+      return await Promise.race([
+        this.controlPlane.resolve(input),
+        new Promise<undefined>((resolve) => {
+          timer = setTimeout(resolve, this.ensResolveTimeoutMs);
+        }),
+      ]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   }
 }
 

@@ -266,9 +266,12 @@ async function signPermit(
     readonly { name: string; type: string }[]
   >;
   const message = record(permitData.values, "Permit2 values");
-  const primaryType = Object.keys(types).find(
-    (name) => name !== "EIP712Domain",
-  );
+  const primaryType = [
+    "PermitSingle",
+    "PermitBatch",
+    "PermitTransferFrom",
+    "PermitBatchTransferFrom",
+  ].find((name) => types[name]);
   if (!primaryType) {
     throw new Error("Permit2 primary type is missing");
   }

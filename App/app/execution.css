@@ -1,0 +1,285 @@
+.proofStart {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px 20px;
+  align-items: center;
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid #2b3a31;
+  border-radius: 10px;
+  background: #101713;
+}
+
+.proofStart > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.proofStart strong {
+  font-size: 11px;
+}
+
+.proofStart small {
+  color: #7d8882;
+  font-size: 9px;
+}
+
+.proofStart button,
+.liveAuthorization button {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  background: #74e99c;
+  color: #07110b;
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.proofStart button:disabled,
+.liveAuthorization button:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.proofStart > p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #ef978d;
+  font-size: 9px;
+}
+
+.proofRun {
+  margin-top: 12px;
+  padding: 15px;
+  border: 1px solid #304c39;
+  border-radius: 11px;
+  background: #0c130f;
+}
+
+.proofRun.rejected,
+.proofRun.failed {
+  border-color: #633c38;
+}
+
+.proofRun > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.proofRun > header > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.proofRun > header span,
+.liveAuthorization > div > span,
+.executionLog > div > span {
+  color: #75e69a;
+  font: 500 8px "DM Mono", monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.proofRun > header strong {
+  font-size: 13px;
+}
+
+.proofRun > header small,
+.liveAuthorization small,
+.executionLog small {
+  color: #78837d;
+  font-size: 8px;
+}
+
+.proofRun > header > b {
+  padding: 5px 8px;
+  border: 1px solid #335740;
+  border-radius: 999px;
+  color: #7ce9a0;
+  font: 500 7px "DM Mono", monospace;
+  text-transform: uppercase;
+}
+
+.proofTimeline {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.proofTimeline article {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: center;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid #222d26;
+  border-radius: 8px;
+  background: #0a0e0b;
+}
+
+.proofTimeline article > i {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 50%;
+  background: #17251c;
+  color: #71df95;
+  font: normal 600 8px "DM Mono", monospace;
+}
+
+.proofTimeline article > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.proofTimeline strong {
+  font-size: 9px;
+}
+
+.proofTimeline p {
+  overflow: hidden;
+  margin: 0;
+  color: #747f79;
+  font-size: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.proofTimeline article > b {
+  color: #69736d;
+  font: 500 7px "DM Mono", monospace;
+  text-transform: uppercase;
+}
+
+.proofMetrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.proofMetrics span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+  padding: 9px;
+  border: 1px solid #222d26;
+  border-radius: 8px;
+  color: #89948d;
+  font: 500 8px "DM Mono", monospace;
+  overflow-wrap: anywhere;
+}
+
+.proofMetrics b {
+  color: #66716a;
+  font: 600 7px "Manrope", sans-serif;
+  text-transform: uppercase;
+}
+
+.liveAuthorization {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px 18px;
+  align-items: center;
+  margin-top: 11px;
+  padding: 13px;
+  border: 1px solid #43543e;
+  border-radius: 9px;
+  background: #12170f;
+}
+
+.liveAuthorization > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.liveAuthorization strong {
+  font-size: 10px;
+}
+
+.liveAuthorization label {
+  grid-column: 1;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #9ca69f;
+  font-size: 8px;
+}
+
+.liveAuthorization input {
+  accent-color: #74e99c;
+}
+
+.liveAuthorization button {
+  grid-column: 2;
+  grid-row: 1 / 3;
+}
+
+.executionLog {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-top: 11px;
+  padding: 13px;
+  border: 1px solid #3a774c;
+  border-radius: 9px;
+  background: #101c14;
+}
+
+.executionLog > div,
+.executionLog a {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.executionLog strong {
+  font-size: 10px;
+}
+
+.executionLog a {
+  align-items: flex-end;
+  color: #7ce69e;
+  font-size: 8px;
+  text-decoration: none;
+}
+
+.executionLog code {
+  color: #89948d;
+  font-size: 7px;
+}
+
+.proofRejected {
+  display: flex;
+  gap: 7px;
+  margin-top: 11px;
+  padding: 11px;
+  border: 1px solid #603b37;
+  border-radius: 8px;
+  background: #1a100f;
+  color: #e4978e;
+  font-size: 9px;
+}
+
+.proofRejected strong {
+  white-space: nowrap;
+}
+
+.proofError {
+  margin: 10px 0 0;
+  color: #ef978d;
+  font-size: 9px;
+}

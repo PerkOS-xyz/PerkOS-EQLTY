@@ -65,6 +65,15 @@ export class DurinFleetProvisioner {
     }
 
     const names = fleetNames(input.userId, this.config.ENS_ROOT_NAME);
+    const addresses = Object.fromEntries(
+      fleetRoles.map(({ role }) => {
+        const address = roleAddress(this.config, role);
+        if (!address) {
+          throw new Error(`ENS ${role} address is not configured`);
+        }
+        return [role, address];
+      }),
+    ) as Record<FleetRole, EvmAddress>;
     const existingManifest = await this.existingText(names.user);
     const bundle = buildEnsFleetBundle(this.config, {
       userId: input.userId,
@@ -77,7 +86,7 @@ export class DurinFleetProvisioner {
     await this.ensureNode({
       name: names.user,
       parentNode: expectedBaseNode,
-      label: input.userId,
+      label: names.user.slice(0, names.user.indexOf(".")),
       owner: input.owner,
       address: input.owner,
       text: bundle.manifestJson,
@@ -86,23 +95,19 @@ export class DurinFleetProvisioner {
     });
 
     for (const { role } of fleetRoles) {
-      const address = roleAddress(this.config, role);
-      if (!address) {
-        throw new Error(`ENS ${role} address is not configured`);
-      }
       await this.ensureNode({
         name: names.agents[role],
         parentNode: namehash(names.user),
         label: role,
         owner: input.owner,
-        address,
+        address: addresses[role],
         text: bundle.agents[role].settingsJson,
         transactions,
         created,
       });
     }
 
-    await this.verify(bundle, input.owner);
+    await this.verify(bundle, input.owner, addresses);
     return { bundle, transactions, created, verified: true };
   }
 
@@ -128,6 +133,7 @@ export class DurinFleetProvisioner {
   private async verify(
     bundle: EnsFleetBundle,
     owner: EvmAddress,
+    addresses: Record<FleetRole, EvmAddress>,
   ): Promise<void> {
     await this.assertRecords(
       bundle.names.user,
@@ -136,12 +142,10 @@ export class DurinFleetProvisioner {
       bundle.manifestJson,
     );
     for (const { role } of fleetRoles) {
-      const address = roleAddress(this.config, role);
-      if (!address) throw new Error(`ENS ${role} address is not configured`);
       await this.assertRecords(
         bundle.names.agents[role],
         owner,
-        address,
+        addresses[role],
         bundle.agents[role].settingsJson,
       );
     }

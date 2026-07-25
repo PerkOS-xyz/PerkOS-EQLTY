@@ -99,6 +99,30 @@ describe("Durin fleet provisioner", () => {
       }),
     ).rejects.toThrow("cannot be overwritten");
   });
+
+  it("validates every executor address before the first write", async () => {
+    const records = new MemoryRecords();
+    const writer = new MemoryWriter(records);
+    const provisioner = new DurinFleetProvisioner(
+      loadConfig({
+        ENS_ROOT_NAME: "demo.eth",
+        EQLTY_ENS_RECORDS_RPC_URL: "https://base-sepolia.example",
+        EQLTY_ENS_L2_REGISTRY_ADDRESS:
+          "0x7777777777777777777777777777777777777777",
+        ENS_SCOUT_ADDRESS: roleAddresses.scout,
+      }),
+      { reader: records, writer },
+    );
+
+    await expect(
+      provisioner.provision({
+        userId: "u-12345678",
+        owner,
+        agentIds,
+      }),
+    ).rejects.toThrow("ENS risk address is not configured");
+    expect(writer.calls).toBe(0);
+  });
 });
 
 function config() {
@@ -107,7 +131,6 @@ function config() {
     EQLTY_ENS_RECORDS_RPC_URL: "https://base-sepolia.example",
     EQLTY_ENS_L2_REGISTRY_ADDRESS:
       "0x7777777777777777777777777777777777777777",
-    EQLTY_ENS_REGISTRAR_PRIVATE_KEY: `0x${"88".repeat(32)}`,
     ENS_SCOUT_ADDRESS: roleAddresses.scout,
     ENS_RISK_ADDRESS: roleAddresses.risk,
     ENS_TRADER_ADDRESS: roleAddresses.trader,

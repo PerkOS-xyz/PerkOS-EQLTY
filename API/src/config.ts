@@ -30,6 +30,7 @@ const schema = z.object({
   DEMO_MODE: booleanValue("true"),
   REQUIRE_LIVE_DATA: booleanValue("false"),
   ROBINHOOD_CHAIN_ID: z.coerce.number().int().positive().default(4663),
+  ROBINHOOD_MAINNET_RPC_URL: optional(z.string().url()),
   UNISWAP_CHAIN_ID: z.coerce.number().int().positive().default(4663),
   UNISWAP_API_KEY: optional(z.string().min(1)),
   UNISWAP_API_URL: z
@@ -43,6 +44,28 @@ const schema = z.object({
   UNISWAP_UNIVERSAL_ROUTER_ADDRESS: address.default(
     "0x8876789976decbfcbbbe364623c63652db8c0904",
   ),
+  UNISWAP_PERMIT2_ADDRESS: address.default(
+    "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+  ),
+  EQLTY_VAULT_ADDRESS: optional(address),
+  EQLTY_VAULT_STRATEGY_ID: z
+    .string()
+    .max(78)
+    .regex(/^[1-9]\d*$/)
+    .refine((value) => BigInt(value) < 2n ** 256n)
+    .default("1"),
+  EQLTY_TRADER_PRIVATE_KEY: optional(privateKey),
+  EQLTY_RISK_SIGNER_PRIVATE_KEY: optional(privateKey),
+  EQLTY_EXECUTION_MODE: z
+    .enum(["disabled", "live"])
+    .default("disabled"),
+  EQLTY_EXECUTION_CONFIRM: optional(z.literal("ROBINHOOD_MAINNET")),
+  EQLTY_MAX_INPUT_AMOUNT: z
+    .string()
+    .max(78)
+    .regex(/^[1-9]\d*$/)
+    .refine((value) => BigInt(value) < 2n ** 256n)
+    .default("1000000"),
   MAINNET_QUOTE_AMOUNT: z
     .string()
     .max(78)

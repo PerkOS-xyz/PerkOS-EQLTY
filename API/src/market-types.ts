@@ -99,3 +99,17 @@ export type UniswapQuote = {
   requestId?: string;
   routing: string;
 };
+
+export type PreparedUniswapSwap = {
+  amountOut: string;
+  requestId: string;
+  routing: string;
+  rawQuote: Record<string, unknown>;
+  transaction: {
+    to: EvmAddress;
+    from: EvmAddress;
+    data: `0x${string}`;
+    value: string;
+    chainId: number;
+  };
+};

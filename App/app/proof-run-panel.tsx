@@ -1,6 +1,9 @@
 "use client";
 
-import { transactionUrl } from "../lib/execution-api";
+import {
+  graphEvidenceUrl,
+  transactionUrl,
+} from "../lib/execution-api";
 import type { TradeRun } from "../lib/execution-types";
 import type { ProofRunState } from "./use-proof-run";
 
@@ -60,24 +63,48 @@ export function ProofRunPanel({
       </div>
 
       {run.quote && (
-        <div className="proofMetrics">
-          <span>
-            <b>Uniswap route</b>
-            {run.quote.routing}
-          </span>
-          <span>
-            <b>Estimated output</b>
-            {formatUnits(run.quote.quotedAmountOut, 18)} {run.ticker}
-          </span>
-          <span>
-            <b>Graph block</b>
-            {run.market?.blockNumber ?? "Pending"}
-          </span>
-          <span>
-            <b>Proof bundle</b>
-            {run.proofBundleRoot ? short(run.proofBundleRoot) : "Sealing"}
-          </span>
-        </div>
+        <>
+          <div className="proofMetrics">
+            <span>
+              <b>Uniswap route</b>
+              {run.quote.routing}
+            </span>
+            <span>
+              <b>Estimated output</b>
+              {formatUnits(run.quote.quotedAmountOut, 18)} {run.ticker}
+            </span>
+            <span>
+              <b>Graph block</b>
+              {run.market?.blockNumber ?? "Pending"}
+            </span>
+            <span>
+              <b>Proof bundle</b>
+              {run.proofBundleRoot ? short(run.proofBundleRoot) : "Sealing"}
+            </span>
+          </div>
+          {run.market && (
+            <div className="proofEvidence">
+              {run.market.transactionHash && (
+                <a
+                  href={transactionUrl(run.market.transactionHash)}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  <span>Graph source transaction</span>
+                  <code>{short(run.market.transactionHash)}</code>
+                </a>
+              )}
+              <a
+                href={graphEvidenceUrl(run.ticker)}
+                rel="noreferrer"
+                target="_blank"
+              >
+                <span>Graph evidence</span>
+                <b>Open Substreams JSON</b>
+              </a>
+            </div>
+          )}
+        </>
       )}
 
       {run.status === "approved" && (

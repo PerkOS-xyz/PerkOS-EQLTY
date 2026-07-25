@@ -76,6 +76,7 @@ export type TradeRun = {
     blockNumber: string;
     graphProvider?: string;
     graphLagBlocks?: number;
+    transactionHash?: `0x${string}`;
   };
   quote?: {
     routing: string;

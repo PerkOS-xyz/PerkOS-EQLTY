@@ -107,6 +107,7 @@ describe("stock catalog", () => {
           routing: "V4",
         }),
       },
+      graph: healthyGraph(),
     });
 
     const asset = await service.assessTicker("amzn");
@@ -118,6 +119,11 @@ describe("stock catalog", () => {
       uniswapImpliedPrice: 100,
       deviationBps: 0,
       orchestrationReady: true,
+      graphEvidence: {
+        source: "the-graph-substreams",
+        healthy: true,
+        protocol: "v4",
+      },
     });
   });
 
@@ -129,6 +135,7 @@ describe("stock catalog", () => {
         ready: () => true,
         quote: vi.fn().mockRejectedValue(new Error("unavailable")),
       },
+      graph: healthyGraph(),
     });
 
     const asset = await service.assessTicker("AMZN");
@@ -137,6 +144,39 @@ describe("stock catalog", () => {
     expect(asset?.orchestrationReady).toBe(false);
     expect(asset?.reasons).toContain("Fresh Uniswap quote failed");
   });
+
+  it("blocks orchestration when Graph evidence is stale", async () => {
+    const graph = healthyGraph();
+    graph.evidence = vi.fn().mockResolvedValue({
+      ...(await graph.evidence("AMZN")),
+      health: {
+        healthy: false,
+        heartbeatAgeSeconds: 300,
+        swapAgeSeconds: 30,
+        reasons: ["provider heartbeat is 300s old"],
+      },
+    });
+    const service = new StockCatalogService(loadConfig({}), {
+      fetchFn: fixtureFetch(),
+      now: () => now,
+      uniswap: {
+        ready: () => true,
+        quote: vi.fn().mockResolvedValue({
+          amountOut: "10000000000000000",
+          requestId: "quote-1",
+          routing: "V4",
+        }),
+      },
+      graph,
+    });
+
+    const asset = await service.assessTicker("AMZN");
+
+    expect(asset?.orchestrationReady).toBe(false);
+    expect(asset?.reasons).toContain(
+      "The Graph: provider heartbeat is 300s old",
+    );
+  });
 });
 
 function fixtureFetch() {
@@ -144,4 +184,44 @@ function fixtureFetch() {
     const url = String(input);
     return Response.json(url.endsWith("/assets") ? assets : prices);
   });
+}
+
+function healthyGraph() {
+  return {
+    ready: () => true,
+    evidence: vi.fn(async (ticker: string) => ({
+      source: "the-graph-substreams" as const,
+      ticker,
+      chainId: "eip155:4663" as const,
+      protocol: "v4" as const,
+      blockNumber: "1000",
+      liquidityUsd: 250_000,
+      lastSwapPrice: 100,
+      poolAddress:
+        "0x1111111111111111111111111111111111111111" as const,
+      poolIdentifier: `0x${"22".repeat(32)}`,
+      transactionHash: `0x${"33".repeat(32)}` as const,
+      topic: `0x${"44".repeat(32)}`,
+      capturedAt: "2026-07-25T11:59:30.000Z",
+      evaluatedAt: "2026-07-25T12:00:00.000Z",
+      stream: {
+        mode: "live" as const,
+        provider: "substreams.example",
+        package: "eqlty_robinhood_stock_v4@v0.1.0",
+        module: "map_pool_events" as const,
+        startedAt: "2026-07-25T10:00:00.000Z",
+        updatedAt: "2026-07-25T11:59:50.000Z",
+        checkpointBlock: "1000",
+        processedBlock: "1000",
+        providerHeadBlock: "1002",
+        lagBlocks: 2,
+      },
+      health: {
+        healthy: true,
+        heartbeatAgeSeconds: 10,
+        swapAgeSeconds: 30,
+        reasons: [],
+      },
+    })),
+  };
 }

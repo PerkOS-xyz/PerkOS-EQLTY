@@ -3,9 +3,19 @@ import express from "express";
 import type { Express } from "express";
 import type { ApiConfig } from "./config.js";
 import { publicConfig } from "./public-config.js";
+import { StockCatalogService } from "./stock-catalog.js";
 
-export function createApp(config: ApiConfig): Express {
+type AppDependencies = {
+  stockCatalog?: Pick<StockCatalogService, "assessTicker" | "catalog">;
+};
+
+export function createApp(
+  config: ApiConfig,
+  dependencies: AppDependencies = {},
+): Express {
   const app = express();
+  const stockCatalog =
+    dependencies.stockCatalog ?? new StockCatalogService(config);
 
   app.disable("x-powered-by");
   app.use(
@@ -29,6 +39,29 @@ export function createApp(config: ApiConfig): Express {
   app.get("/api/config", (_request, response) => {
     response.setHeader("cache-control", "public, max-age=30");
     response.json(publicConfig(config));
+  });
+
+  app.get("/api/assets", async (request, response, next) => {
+    const catalog = String(request.query.catalog ?? "");
+    const ticker = String(request.query.ticker ?? "").trim();
+    if (catalog && catalog !== "uniswap-v4-universe") {
+      return response.status(400).json({ error: "unknown_catalog" });
+    }
+
+    try {
+      response.setHeader("cache-control", "no-store");
+      if (ticker) {
+        const asset = await stockCatalog.assessTicker(ticker);
+        return asset
+          ? response.json(asset)
+          : response.status(404).json({ error: "asset_not_found" });
+      }
+      return response.json(
+        await stockCatalog.catalog(request.query.refresh === "true"),
+      );
+    } catch (error) {
+      return next(error);
+    }
   });
 
   app.use((_request, response) => {

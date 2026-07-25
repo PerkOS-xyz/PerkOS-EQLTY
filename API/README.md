@@ -19,5 +19,6 @@ Current endpoints:
 
 - `GET /health`
 - `GET /api/config`
+- `GET /api/assets?catalog=uniswap-v4-universe`
 
 Run `pnpm test`, `pnpm typecheck` and `pnpm build` before publishing changes.

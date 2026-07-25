@@ -22,7 +22,7 @@ export type PublicApiConfig = {
     ens: "pending";
     oneclaw: "pending";
     theGraph: "pending";
-    uniswap: "pending";
+    uniswap: "ready" | "pending";
     world: "pending";
   };
 };
@@ -55,7 +55,10 @@ export function publicConfig(config: ApiConfig): PublicApiConfig {
       ens: "pending",
       oneclaw: "pending",
       theGraph: "pending",
-      uniswap: "pending",
+      uniswap:
+        config.UNISWAP_API_KEY && config.SWAPPER_ADDRESS
+          ? "ready"
+          : "pending",
       world: "pending",
     },
   };

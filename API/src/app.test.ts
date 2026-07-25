@@ -100,6 +100,40 @@ describe("API foundation", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual(catalog);
   });
+
+  it("serves the PerkOS owner challenge", async () => {
+    const challenge = {
+      nonce: "nonce-1",
+      message: "Sign this message",
+      expiresAt: 1_800_000_000_000,
+    };
+    const response = await request(
+      "/api/auth/perkos/nonce?address=0x1234567890abcdef1234567890abcdef12345678",
+      {
+        ownerAuth: {
+          challenge: async () => challenge,
+          verify: async () => {
+            throw new Error("not called");
+          },
+          session: () => undefined,
+          logout: () => undefined,
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    await expect(response.json()).resolves.toEqual(challenge);
+  });
+
+  it("rejects malformed owner addresses before proxying", async () => {
+    const response = await request("/api/auth/perkos/nonce?address=invalid");
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "invalid_wallet_address",
+    });
+  });
 });
 
 async function request(

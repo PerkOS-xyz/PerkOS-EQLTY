@@ -2,11 +2,24 @@ import cors from "cors";
 import express from "express";
 import type { Express } from "express";
 import type { ApiConfig } from "./config.js";
+import { OwnerAuth } from "./owner-auth.js";
 import { publicConfig } from "./public-config.js";
 import { StockCatalogService } from "./stock-catalog.js";
+import { z } from "zod";
+
+const address = z.string().regex(/^0x[0-9a-fA-F]{40}$/);
+const ownerVerification = z.object({
+  address,
+  nonce: z.string().min(1).max(256),
+  signature: z.string().regex(/^0x[0-9a-fA-F]+$/),
+});
 
 type AppDependencies = {
   stockCatalog?: Pick<StockCatalogService, "assessTicker" | "catalog">;
+  ownerAuth?: Pick<
+    OwnerAuth,
+    "challenge" | "logout" | "session" | "verify"
+  >;
 };
 
 export function createApp(
@@ -16,6 +29,7 @@ export function createApp(
   const app = express();
   const stockCatalog =
     dependencies.stockCatalog ?? new StockCatalogService(config);
+  const ownerAuth = dependencies.ownerAuth ?? new OwnerAuth(config);
 
   app.disable("x-powered-by");
   app.use(
@@ -39,6 +53,61 @@ export function createApp(
   app.get("/api/config", (_request, response) => {
     response.setHeader("cache-control", "public, max-age=30");
     response.json(publicConfig(config));
+  });
+
+  app.get("/api/auth/perkos/nonce", async (request, response) => {
+    const parsed = address.safeParse(request.query.address);
+    if (!parsed.success) {
+      return response.status(400).json({ error: "invalid_wallet_address" });
+    }
+    try {
+      response.setHeader("cache-control", "no-store");
+      return response.json(
+        await ownerAuth.challenge(parsed.data as `0x${string}`),
+      );
+    } catch (error) {
+      return response.status(503).json({
+        error: "wallet_login_unavailable",
+        message: safeMessage(error),
+      });
+    }
+  });
+
+  app.post("/api/auth/perkos/verify", async (request, response) => {
+    const parsed = ownerVerification.safeParse(request.body);
+    if (!parsed.success) {
+      return response.status(400).json({
+        error: "invalid_wallet_signature",
+        issues: parsed.error.issues,
+      });
+    }
+    try {
+      return response.json(
+        await ownerAuth.verify(response, {
+          address: parsed.data.address as `0x${string}`,
+          nonce: parsed.data.nonce,
+          signature: parsed.data.signature as `0x${string}`,
+        }),
+      );
+    } catch (error) {
+      return response.status(401).json({
+        error: "wallet_login_failed",
+        message: safeMessage(error),
+      });
+    }
+  });
+
+  app.get("/api/auth/session", (request, response) => {
+    response.setHeader("cache-control", "no-store");
+    const session = ownerAuth.session(request);
+    return session
+      ? response.json(session)
+      : response.status(401).json({ error: "owner_session_required" });
+  });
+
+  app.post("/api/auth/logout", (_request, response) => {
+    ownerAuth.logout(response);
+    return response.json({ ok: true });
   });
 
   app.get("/api/assets", async (request, response, next) => {
@@ -81,4 +150,8 @@ export function createApp(
   );
 
   return app;
+}
+
+function safeMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Authentication failed";
 }

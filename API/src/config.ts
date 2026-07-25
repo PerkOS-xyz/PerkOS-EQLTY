@@ -50,6 +50,15 @@ const schema = z.object({
     .min(60)
     .max(172_800)
     .default(86_400),
+  EQLTY_SESSION_SECRET: optional(z.string().min(32)),
+  SESSION_TTL_SECONDS: z.coerce
+    .number()
+    .int()
+    .min(300)
+    .max(86_400)
+    .default(3_600),
+  PERKOS_API_URL: z.string().url().default("https://api.perkos.xyz"),
+  PERKOS_FIREBASE_API_KEY: optional(z.string().min(20)),
 });
 
 export type ApiConfig = z.infer<typeof schema>;

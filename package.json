@@ -1,0 +1,18 @@
+{
+  "name": "eqlty",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.30.1",
+  "scripts": {
+    "dev:app": "pnpm --dir App dev",
+    "dev:api": "pnpm --dir API dev",
+    "typecheck": "pnpm --dir App typecheck && pnpm --dir API typecheck",
+    "build": "pnpm --dir App build && pnpm --dir API build && forge build --root Contracts",
+    "format:contracts": "forge fmt --check --root Contracts",
+    "test:api": "pnpm --dir API test",
+    "test:contracts": "forge test --root Contracts",
+    "test:plugins": "node --test Plugins/*/test/*.test.mjs",
+    "test": "pnpm test:api && pnpm test:contracts && pnpm test:plugins",
+    "check": "pnpm typecheck && pnpm format:contracts && pnpm build && pnpm test"
+  }
+}

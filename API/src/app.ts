@@ -8,8 +8,11 @@ import { FleetActivationService } from "./fleet-activation.js";
 import { GraphEvidenceService } from "./graph-evidence.js";
 import { OwnerAuth } from "./owner-auth.js";
 import { OpportunityAnalysisService } from "./opportunity-analysis.js";
+import { ProofRunService } from "./proof-run.js";
 import { publicConfig } from "./public-config.js";
 import { StockCatalogService } from "./stock-catalog.js";
+import { StrategyService } from "./strategy-service.js";
+import { StrategyStore } from "./strategy-store.js";
 import { z } from "zod";
 
 const address = z.string().regex(/^0x[0-9a-fA-F]{40}$/);
@@ -40,6 +43,29 @@ const goalInput = z
   })
   .strict();
 const goalId = z.string().regex(/^[A-Za-z0-9-]{1,128}$/);
+const strategyInput = z
+  .object({
+    owner: address,
+    agent: address,
+    ticker: z.string().regex(/^[A-Za-z][A-Za-z0-9.-]{0,11}$/),
+    inputToken: address,
+    outputToken: address,
+    router: address,
+    maxAmountPerTrade: uint256,
+    maxTotalSpend: uint256,
+    maxSlippageBps: z.number().int().min(1).max(1_000),
+    expiresAt: z.string().datetime(),
+    humanVerified: z.boolean(),
+  })
+  .strict();
+const runInput = z
+  .object({
+    strategyId: goalId,
+    strategy: z.unknown().optional(),
+    amountIn: uint256,
+    execute: z.boolean().default(false),
+  })
+  .strict();
 
 type AppDependencies = {
   stockCatalog?: Pick<StockCatalogService, "assessTicker" | "catalog">;
@@ -52,6 +78,8 @@ type AppDependencies = {
   fleetActivation?: Pick<FleetActivationService, "activate">;
   graphEvidence?: Pick<GraphEvidenceService, "evidence">;
   goals?: Pick<AutonomousGoalService, "read" | "start" | "tick">;
+  strategies?: Pick<StrategyService, "create">;
+  proofRuns?: Pick<ProofRunService, "run">;
 };
 
 export function createApp(
@@ -77,6 +105,18 @@ export function createApp(
         controlPlane: ensControlPlane,
       }),
     );
+  const strategyStore = new StrategyStore();
+  const strategies =
+    dependencies.strategies ??
+    new StrategyService(config, strategyStore, {
+      catalog: stockCatalog,
+    });
+  const proofRuns =
+    dependencies.proofRuns ??
+    new ProofRunService(config, strategyStore, {
+      catalog: stockCatalog,
+      controlPlane: ensControlPlane,
+    });
 
   app.disable("x-powered-by");
   app.use(
@@ -337,6 +377,93 @@ export function createApp(
     response.setHeader("cache-control", "no-store");
     return response.json(goal);
   }
+
+  app.post("/api/strategies", async (request, response) => {
+    const session = ownerAuth.session(request);
+    if (!session) {
+      return response
+        .status(401)
+        .json({ error: "owner_session_required" });
+    }
+    const parsed = strategyInput.safeParse(request.body);
+    if (!parsed.success) {
+      return response.status(400).json({
+        error: "invalid_strategy",
+        issues: parsed.error.issues,
+      });
+    }
+    if (
+      parsed.data.owner.toLowerCase() !==
+      session.walletAddress.toLowerCase()
+    ) {
+      return response.status(403).json({ error: "strategy_owner_mismatch" });
+    }
+    try {
+      response.setHeader("cache-control", "no-store");
+      return response.status(201).json(
+        await strategies.create({
+          ...parsed.data,
+          owner: session.walletAddress,
+          agent: parsed.data.agent as `0x${string}`,
+          inputToken: parsed.data.inputToken as `0x${string}`,
+          outputToken: parsed.data.outputToken as `0x${string}`,
+          router: parsed.data.router as `0x${string}`,
+        }),
+      );
+    } catch (error) {
+      return response.status(400).json({
+        error: "strategy_rejected",
+        message: safeMessage(error),
+      });
+    }
+  });
+
+  app.post("/api/runs", async (request, response) => {
+    const session = ownerAuth.session(request);
+    if (!session) {
+      return response
+        .status(401)
+        .json({ error: "owner_session_required" });
+    }
+    const parsed = runInput.safeParse(request.body);
+    if (!parsed.success) {
+      return response.status(400).json({
+        error: "invalid_run",
+        issues: parsed.error.issues,
+      });
+    }
+    try {
+      const activation = await fleetActivation.activate({
+        userId: session.fleetUserId,
+        owner: session.walletAddress,
+        perkosIdToken: ownerAuth.perkosIdToken?.(request),
+      });
+      if (activation.status === "provisioning") {
+        throw new Error("The Hermes fleet is still provisioning");
+      }
+      const executionAuthorized =
+        activation.runtime?.agents.length === 4 &&
+        activation.runtime.agents.every(
+          (agent) => agent.oneclaw === "linked",
+        );
+      response.setHeader("cache-control", "no-store");
+      return response.status(201).json(
+        await proofRuns.run({
+          strategyId: parsed.data.strategyId,
+          amountIn: parsed.data.amountIn,
+          execute: parsed.data.execute,
+          userId: session.fleetUserId,
+          owner: session.walletAddress,
+          executionAuthorized,
+        }),
+      );
+    } catch (error) {
+      return response.status(503).json({
+        error: "proof_run_failed",
+        message: safeMessage(error),
+      });
+    }
+  });
 
   app.get("/api/assets", async (request, response, next) => {
     const catalog = String(request.query.catalog ?? "");

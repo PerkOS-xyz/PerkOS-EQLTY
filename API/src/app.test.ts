@@ -398,7 +398,166 @@ describe("API foundation", () => {
       status: "active",
     });
   });
+
+  it("creates an execution strategy for the session owner", async () => {
+    const session = testSession();
+    const create = vi.fn(async (input) => ({
+      ...input,
+      id: "strategy-1",
+      spent: "0",
+      status: "active" as const,
+      humanProof: {
+        provider: "owner-wallet-session" as const,
+        status: "verified" as const,
+        proofHash: `0x${"aa".repeat(32)}` as const,
+      },
+      executionMode: "full" as const,
+    }));
+    const response = await request(
+      "/api/strategies",
+      {
+        ownerAuth: testOwnerAuth(session),
+        strategies: { create },
+      },
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          owner: session.walletAddress,
+          agent: session.walletAddress,
+          ticker: "NVDA",
+          inputToken: "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+          outputToken: "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+          router: "0x8876789976decbfcbbbe364623c63652db8c0904",
+          maxAmountPerTrade: "1000000",
+          maxTotalSpend: "1000000",
+          maxSlippageBps: 100,
+          expiresAt: "2026-07-26T12:00:00.000Z",
+          humanVerified: true,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: session.walletAddress,
+        ticker: "NVDA",
+      }),
+    );
+    await expect(response.json()).resolves.toMatchObject({
+      id: "strategy-1",
+      executionMode: "full",
+    });
+  });
+
+  it("runs the authenticated four-agent proof path", async () => {
+    const session = testSession();
+    const run = vi.fn(async (input) => ({
+      id: "run-1",
+      strategyId: input.strategyId,
+      ticker: "NVDA",
+      amountIn: input.amountIn,
+      executeRequested: input.execute,
+      status: "approved" as const,
+      createdAt: "2026-07-25T12:00:00.000Z",
+      steps: [],
+      handoffs: [],
+      proofBundleRoot: `0x${"bb".repeat(32)}` as const,
+    }));
+    const response = await request(
+      "/api/runs",
+      {
+        ownerAuth: testOwnerAuth(session),
+        fleetActivation: {
+          activate: async () => ({
+            status: "reactivated",
+            userId: session.fleetUserId,
+            owner: session.walletAddress,
+            rootName: "u-12345678.demo.eth",
+            agents: {
+              scout: "agent-scout",
+              risk: "agent-risk",
+              trader: "agent-trader",
+              auditor: "agent-auditor",
+            },
+            manifestHash: `0x${"aa".repeat(32)}`,
+            transactions: [],
+            verified: true,
+            runtime: {
+              provider: "perkos",
+              mode: "live",
+              status: "ready",
+              agents: ["scout", "risk", "trader", "auditor"].map(
+                (role) => ({
+                  role: role as
+                    | "scout"
+                    | "risk"
+                    | "trader"
+                    | "auditor",
+                  agentId: `agent-${role}`,
+                  name: `eqlty-${role}-12345678`,
+                  runtime: "Hermes" as const,
+                  state: "ready" as const,
+                  plugins: [],
+                  oneclaw: "linked" as const,
+                }),
+              ),
+            },
+          }),
+        },
+        proofRuns: { run },
+      },
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          strategyId: "strategy-1",
+          strategy: { ignored: true },
+          amountIn: "1000000",
+          execute: false,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(run).toHaveBeenCalledWith({
+      strategyId: "strategy-1",
+      amountIn: "1000000",
+      execute: false,
+      userId: session.fleetUserId,
+      owner: session.walletAddress,
+      executionAuthorized: true,
+    });
+    await expect(response.json()).resolves.toMatchObject({
+      id: "run-1",
+      status: "approved",
+    });
+  });
 });
+
+function testSession() {
+  return {
+    sub: "eip155:4663:0x1234567890abcdef1234567890abcdef12345678",
+    provider: "wallet" as const,
+    walletAddress:
+      "0x1234567890abcdef1234567890abcdef12345678" as const,
+    fleetUserId: "u-12345678",
+    expiresAt: "2026-07-25T13:00:00.000Z",
+  };
+}
+
+function testOwnerAuth(session: ReturnType<typeof testSession>) {
+  return {
+    challenge: async () => {
+      throw new Error("not called");
+    },
+    verify: async () => session,
+    session: () => session,
+    perkosIdToken: () => "firebase-token",
+    logout: () => undefined,
+  };
+}
 
 async function request(
   path: string,

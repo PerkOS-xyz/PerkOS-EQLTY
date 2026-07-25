@@ -177,6 +177,40 @@ describe("stock catalog", () => {
       "The Graph: provider heartbeat is 300s old",
     );
   });
+
+  it("blocks a Graph swap price from an intermediate pool", async () => {
+    const graph = healthyGraph();
+    graph.evidence = vi.fn().mockResolvedValue({
+      ...(await graph.evidence("AMZN")),
+      lastSwapPrice: 50_000_000_000,
+    });
+    const service = new StockCatalogService(loadConfig({}), {
+      fetchFn: fixtureFetch(),
+      now: () => now,
+      uniswap: {
+        ready: () => true,
+        quote: vi.fn().mockResolvedValue({
+          amountOut: "10000000000000000",
+          requestId: "quote-1",
+          routing: "V4",
+        }),
+      },
+      graph,
+    });
+
+    const asset = await service.assessTicker("AMZN");
+
+    expect(asset?.orchestrationReady).toBe(false);
+    expect(asset?.graphEvidence).toMatchObject({
+      healthy: false,
+    });
+    expect(asset?.graphEvidence?.priceDeviationBps).toBeGreaterThan(
+      1_000,
+    );
+    expect(asset?.reasons[0]).toContain(
+      "The Graph: swap price differs",
+    );
+  });
 });
 
 function fixtureFetch() {

@@ -459,7 +459,10 @@ export function createApp(
         await strategies.create({
           ...parsed.data,
           owner: session.walletAddress,
-          agent: parsed.data.agent as `0x${string}`,
+          agent: (
+            config.ENS_TRADER_ADDRESS ??
+            session.walletAddress
+          ) as `0x${string}`,
           inputToken: parsed.data.inputToken as `0x${string}`,
           outputToken: parsed.data.outputToken as `0x${string}`,
           router: parsed.data.router as `0x${string}`,

@@ -3,23 +3,29 @@ import { createApp } from "./app.js";
 import { loadConfig } from "./config.js";
 
 const config = loadConfig();
-const server = createServer(createApp(config));
+const app = createApp(config);
 
-server.listen(config.PORT, () => {
-  console.log(
-    `${config.PUBLIC_SERVICE_SLUG} listening on http://localhost:${config.PORT}`,
-  );
-});
+export default app;
 
-function close(signal: string) {
-  console.log(`${signal} received, closing API`);
-  server.close((error) => {
-    if (error) {
-      console.error(error);
-      process.exitCode = 1;
-    }
+if (!process.env.VERCEL) {
+  const server = createServer(app);
+
+  server.listen(config.PORT, () => {
+    console.log(
+      `${config.PUBLIC_SERVICE_SLUG} listening on http://localhost:${config.PORT}`,
+    );
   });
-}
 
-process.once("SIGINT", () => close("SIGINT"));
-process.once("SIGTERM", () => close("SIGTERM"));
+  function close(signal: string) {
+    console.log(`${signal} received, closing API`);
+    server.close((error) => {
+      if (error) {
+        console.error(error);
+        process.exitCode = 1;
+      }
+    });
+  }
+
+  process.once("SIGINT", () => close("SIGINT"));
+  process.once("SIGTERM", () => close("SIGTERM"));
+}

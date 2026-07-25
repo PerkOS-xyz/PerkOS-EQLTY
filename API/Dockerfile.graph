@@ -1,0 +1,35 @@
+FROM node:22-bookworm-slim AS build
+
+RUN corepack enable
+WORKDIR /workspace
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY API/package.json API/package.json
+RUN pnpm install --frozen-lockfile --filter @eqlty/api...
+COPY API API
+RUN pnpm --dir API build
+
+FROM node:22-bookworm-slim
+
+ARG SUBSTREAMS_VERSION=1.20.1
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates curl \
+  && curl -fsSL \
+    "https://github.com/streamingfast/substreams/releases/download/v${SUBSTREAMS_VERSION}/substreams_linux_x86_64.tar.gz" \
+    | tar -xz -C /usr/local/bin substreams \
+  && apt-get purge -y curl \
+  && apt-get autoremove -y \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+COPY --from=build /workspace/node_modules node_modules
+COPY --from=build /workspace/API/node_modules API/node_modules
+COPY --from=build /workspace/API/dist API/dist
+COPY Plugins/EQLTY-The-Graph-Plugin/skills/robinhood-stock-substreams/assets \
+  Plugins/EQLTY-The-Graph-Plugin/skills/robinhood-stock-substreams/assets
+
+ENV EQLTY_GRAPH_PORT=4022
+ENV EQLTY_GRAPH_PACKAGE_PATH=/workspace/Plugins/EQLTY-The-Graph-Plugin/skills/robinhood-stock-substreams/assets/eqlty-robinhood-stock-v4-v0.1.0.spkg
+ENV EQLTY_GRAPH_POOL_REGISTRY_PATH=/workspace/Plugins/EQLTY-The-Graph-Plugin/skills/robinhood-stock-substreams/assets/pool-registry.json
+
+EXPOSE 4022
+CMD ["node", "API/dist/graph-adapter.js"]

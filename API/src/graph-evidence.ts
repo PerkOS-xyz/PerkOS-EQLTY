@@ -72,7 +72,9 @@ export class GraphEvidenceService {
   }
 
   ready(): boolean {
-    return Boolean(this.config.GRAPH_RISK_URL);
+    return Boolean(
+      this.config.EQLTY_GRAPH_ADAPTER_URL ?? this.config.GRAPH_RISK_URL,
+    );
   }
 
   async evidence(ticker: string): Promise<GraphEvidence> {
@@ -80,10 +82,12 @@ export class GraphEvidenceService {
     if (!/^[A-Z][A-Z0-9.-]{0,11}$/.test(normalizedTicker)) {
       throw new Error("Ticker is invalid");
     }
-    if (!this.config.GRAPH_RISK_URL) {
+    const adapterUrl =
+      this.config.EQLTY_GRAPH_ADAPTER_URL ?? this.config.GRAPH_RISK_URL;
+    if (!adapterUrl) {
       throw new Error("The Graph evidence provider is not configured");
     }
-    const response = await this.fetchFn(this.config.GRAPH_RISK_URL, {
+    const response = await this.fetchFn(adapterUrl, {
       method: "POST",
       headers: {
         accept: "application/json",

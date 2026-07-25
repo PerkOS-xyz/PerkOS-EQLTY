@@ -1,3 +1,5 @@
+#![allow(clippy::not_unsafe_ptr_arg_deref)]
+
 mod pb;
 
 use anyhow::anyhow;
@@ -13,12 +15,12 @@ fn map_pool_events(pool_params: String, block: Block) -> Result<Events, Error> {
     let events = block
         .logs()
         .filter_map(|log| {
-            let matched = selectors.find(log.address(), &log.topics())?;
+            let matched = selectors.find(log.address(), log.topics())?;
             Some(Event {
                 address: format!("0x{}", Hex::encode(log.address())),
                 topics: log
                     .topics()
-                    .into_iter()
+                    .iter()
                     .map(|topic| format!("0x{}", Hex::encode(topic)))
                     .collect(),
                 transaction_hash: format!("0x{}", Hex::encode(&log.receipt.transaction.hash)),

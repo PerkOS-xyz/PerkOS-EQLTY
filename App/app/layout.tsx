@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
 import "./shell.css";
+import "./fleet-runtime.css";
 import "./market.css";
 import "./market-mobile.css";
 import { Providers } from "./providers";

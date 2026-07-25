@@ -1,0 +1,329 @@
+.fleetRuntime {
+  position: relative;
+}
+
+.runtimeHeader {
+  align-items: center;
+}
+
+.runtimeHeader > div {
+  min-width: 0;
+}
+
+.fleetCopy {
+  margin: 5px 0 0;
+  color: #7d8a82;
+  font-size: 9px;
+}
+
+.fleetCount {
+  flex: 0 0 auto;
+  padding: 6px 9px;
+  border: 1px solid #445248;
+  border-radius: 999px;
+  color: #a3afa7;
+  font: 8px "DM Mono", monospace;
+  text-transform: uppercase;
+}
+
+.fleetCount.ready {
+  border-color: #315c3e;
+  color: #83e9a4;
+}
+
+.fleetCount.working {
+  border-color: #6b5832;
+  color: #e4bd68;
+}
+
+.fleetCount.failed {
+  border-color: #673b38;
+  color: #f08780;
+}
+
+.fleetProgress {
+  height: 3px;
+  margin: -2px 0 13px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: #1b2720;
+}
+
+.fleetProgress i {
+  display: block;
+  min-width: 8%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #3d8a58, #7bf0a2);
+  transition: width 0.55s ease;
+}
+
+.isActivating .fleetProgress i {
+  background-size: 200% 100%;
+  animation: fleetProgress 1.2s linear infinite;
+}
+
+.runtimeGrid .agentCard {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  overflow: hidden;
+  transition:
+    border-color 0.3s,
+    box-shadow 0.3s;
+}
+
+.runtimeGrid .agentCard.ready {
+  border-color: #315c3e;
+  box-shadow: inset 0 0 24px rgb(23 58 34 / 20%);
+}
+
+.runtimeGrid .agentCard.provisioning,
+.runtimeGrid .agentCard.waking,
+.runtimeGrid .agentCard.planned {
+  border-color: #51492f;
+}
+
+.runtimeGrid .agentCard.failed {
+  border-color: #673b38;
+}
+
+.runtimeGrid .agentCard.provisioning::after,
+.runtimeGrid .agentCard.waking::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    rgb(135 242 160 / 6%) 50%,
+    transparent 65%
+  );
+  content: "";
+  pointer-events: none;
+  transform: translateX(-100%);
+  animation: fleetScan 1.8s ease-in-out infinite;
+}
+
+.runtimeGrid .roleMark {
+  position: relative;
+  width: 29px;
+  height: 29px;
+  margin: 0;
+  border: 1px solid #365442;
+  background: radial-gradient(circle, #1c3526, #0d1210);
+}
+
+.runtimeGrid .roleMark > i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #e3b85e;
+  box-shadow: 0 0 0 0 rgb(227 184 94 / 40%);
+  animation: fleetPulse 1.35s ease-out infinite;
+}
+
+.runtimeGrid .ready .roleMark > i {
+  background: #72ee9d;
+  box-shadow: 0 0 10px #72ee9d;
+  animation: none;
+}
+
+.runtimeGrid .failed .roleMark > i {
+  background: #ee7771;
+  animation: none;
+}
+
+.agentIdentity {
+  min-width: 0;
+}
+
+.agentIdentity strong {
+  text-transform: uppercase;
+}
+
+.agentIdentity small {
+  display: block;
+  overflow: hidden;
+  margin-top: 3px;
+  color: #6f8175;
+  font: 7px "DM Mono", monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agentIdentity p {
+  min-height: 29px;
+  margin: 7px 0 0;
+  color: #819087;
+  font-size: 7px;
+  line-height: 1.45;
+}
+
+.agentState {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 8px;
+  border-top: 1px solid #203027;
+}
+
+.agentState b {
+  color: #e4bd68;
+  font: 7px "DM Mono", monospace;
+  text-transform: uppercase;
+}
+
+.agentState b.ready {
+  color: #83e9a4;
+}
+
+.agentState b.failed {
+  color: #f08780;
+}
+
+.agentState small {
+  color: #6f8175;
+  font: 7px "DM Mono", monospace;
+}
+
+.agentSteps {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  margin: 0;
+  padding: 8px 0 0;
+  border-top: 1px solid #203027;
+  list-style: none;
+}
+
+.agentSteps li {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: #4f5d54;
+  font: 6px "DM Mono", monospace;
+  text-transform: uppercase;
+}
+
+.agentSteps li > i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #344039;
+}
+
+.agentSteps li.complete {
+  color: #6f9b7c;
+}
+
+.agentSteps li.complete > i {
+  background: #65d98a;
+}
+
+.agentSteps li.active {
+  color: #e2bd6b;
+}
+
+.agentSteps li.active > i {
+  background: #e2bd6b;
+  box-shadow: 0 0 8px #e2bd6b;
+  animation: fleetPulse 1.2s infinite;
+}
+
+.fleetNote {
+  margin: 11px 0 0;
+  color: #998f67;
+  font: 8px "DM Mono", monospace;
+}
+
+.fleetError {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 11px;
+  padding: 9px 10px;
+  border: 1px solid #673b38;
+  border-radius: 7px;
+  background: #1c1010;
+}
+
+.fleetError span {
+  color: #f08780;
+  font: 8px "DM Mono", monospace;
+}
+
+.fleetError button {
+  flex: 0 0 auto;
+  padding: 6px 9px;
+  border: 1px solid #754743;
+  border-radius: 6px;
+  background: #241514;
+  color: #ef9a94;
+  cursor: pointer;
+  font-size: 8px;
+}
+
+@keyframes fleetProgress {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes fleetScan {
+  55%,
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes fleetPulse {
+  70% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+@media (max-width: 560px) {
+  .runtimeHeader {
+    align-items: flex-start;
+  }
+
+  .runtimeGrid .agentCard {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .agentState {
+    grid-column: auto;
+    align-items: flex-end;
+    flex-direction: column;
+    justify-content: center;
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .agentIdentity p {
+    min-height: 0;
+  }
+
+  .fleetError {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .isActivating .fleetProgress i,
+  .runtimeGrid .agentCard::after,
+  .runtimeGrid .roleMark > i,
+  .agentSteps li.active > i {
+    animation: none;
+  }
+}

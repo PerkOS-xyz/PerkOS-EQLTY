@@ -63,6 +63,24 @@ const schema = z.object({
     .enum(["disabled", "preview", "live"])
     .default("preview"),
   PERKOS_HERMES_IMAGE_TAG: optional(z.string().min(3).max(256)),
+  ENS_ROOT_NAME: optional(z.string().min(3).max(255)),
+  EQLTY_ENS_RECORDS_CHAIN_ID: z.coerce
+    .number()
+    .int()
+    .refine((value) => value === 8453 || value === 84532)
+    .default(84532),
+  EQLTY_ENS_RECORDS_RPC_URL: optional(z.string().url()),
+  EQLTY_ENS_L2_REGISTRY_ADDRESS: optional(address),
+  ENS_POLICY_TTL_SECONDS: z.coerce
+    .number()
+    .int()
+    .min(300)
+    .max(2_592_000)
+    .default(604_800),
+  ENS_SCOUT_ADDRESS: optional(address),
+  ENS_RISK_ADDRESS: optional(address),
+  ENS_TRADER_ADDRESS: optional(address),
+  ENS_AUDITOR_ADDRESS: optional(address),
 });
 
 export type ApiConfig = z.infer<typeof schema>;

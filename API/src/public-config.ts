@@ -19,7 +19,7 @@ export type PublicApiConfig = {
     };
   };
   integrations: {
-    ens: "pending";
+    ens: "ready" | "pending";
     oneclaw: "pending";
     perkos: "disabled" | "live" | "preview";
     theGraph: "pending";
@@ -53,7 +53,12 @@ export function publicConfig(config: ApiConfig): PublicApiConfig {
       },
     },
     integrations: {
-      ens: "pending",
+      ens:
+        config.ENS_ROOT_NAME &&
+        config.EQLTY_ENS_RECORDS_RPC_URL &&
+        config.EQLTY_ENS_L2_REGISTRY_ADDRESS
+          ? "ready"
+          : "pending",
       oneclaw: "pending",
       perkos: config.PERKOS_FLEET_MODE,
       theGraph: "pending",

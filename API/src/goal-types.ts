@@ -1,12 +1,11 @@
-import type { AgentRole } from "./fleet-types";
-
-export type CandidateStatus = "recommended" | "eligible" | "rejected";
+import type { FleetRole } from "./fleet-types.js";
+import type { EvmAddress } from "./market-types.js";
 
 export type OpportunityCandidate = {
   ticker: string;
   name: string;
-  tokenAddress?: `0x${string}`;
-  status: CandidateStatus;
+  tokenAddress?: EvmAddress;
+  status: "recommended" | "eligible" | "rejected";
   score: number;
   reason: string;
   referencePrice?: string;
@@ -17,20 +16,18 @@ export type OpportunityCandidate = {
   orchestrationReady: boolean;
 };
 
-export type GoalPolicy = {
-  source: "ens" | "durin" | "local";
-  version?: number | string;
-  manifestHash?: `0x${string}`;
-  allowedTickers: string[];
-  paused: boolean;
-};
-
 export type OpportunityAnalysis = {
   id: string;
   goal: string;
   amountIn: string;
   mode: "analysis";
-  policy: GoalPolicy;
+  policy: {
+    source: "durin";
+    version: number;
+    manifestHash: `0x${string}`;
+    allowedTickers: string[];
+    paused: boolean;
+  };
   evaluatedAt: string;
   recommendedTicker?: string;
   candidates: OpportunityCandidate[];
@@ -39,19 +36,11 @@ export type OpportunityAnalysis = {
 
 export type GoalGates = {
   ens: "resolve-every-cycle";
-  oneclaw: "enforced" | "preview";
-  linkedRoles: AgentRole[];
-  requiredRoles: AgentRole[];
+  oneclaw: "enforced";
+  linkedRoles: FleetRole[];
+  requiredRoles: FleetRole[];
   executionAuthorized: boolean;
   detail: string;
-};
-
-export type GoalHistoryItem = {
-  cycle: number;
-  evaluatedAt: string;
-  recommendedTicker?: string;
-  proofRoot: `0x${string}`;
-  policyManifestHash?: `0x${string}`;
 };
 
 export type AutonomousGoal = {
@@ -66,15 +55,27 @@ export type AutonomousGoal = {
   cyclesCompleted: number;
   gates: GoalGates;
   latest?: OpportunityAnalysis;
-  history: GoalHistoryItem[];
+  history: Array<{
+    cycle: number;
+    evaluatedAt: string;
+    recommendedTicker?: string;
+    proofRoot: `0x${string}`;
+    policyManifestHash?: `0x${string}`;
+  }>;
   error?: string;
 };
 
-export type StartGoalInput = {
+export type GoalIdentity = {
+  userId: string;
+  owner: EvmAddress;
+};
+
+export type GoalInput = GoalIdentity & {
   goal: string;
   amountIn: string;
   windowMinutes: number;
-  cadenceSeconds?: number;
-  maxCandidates?: number;
+  cadenceSeconds: number;
+  maxCandidates: number;
   candidateTickers?: string[];
+  linkedRoles: readonly FleetRole[];
 };

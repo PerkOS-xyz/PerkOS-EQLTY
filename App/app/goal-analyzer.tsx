@@ -159,8 +159,9 @@ function GoalProgress({
       <div className="goalGateRow">
         <span>
           <b>ENS</b>
-          {analysis?.policy.source === "ens"
-            ? "Resolved this cycle"
+          {analysis &&
+          ["ens", "durin"].includes(analysis.policy.source)
+            ? "Resolved from ENS L2"
             : "Local policy fallback"}
         </span>
         <span>
@@ -174,6 +175,8 @@ function GoalProgress({
           {analysis ? short(analysis.proofRoot) : "Waiting for first cycle"}
         </span>
       </div>
+
+      {session.error && <p className="goalError">{session.error}</p>}
 
       {analysis && (
         <div className="candidateResult">

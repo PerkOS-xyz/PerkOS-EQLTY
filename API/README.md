@@ -25,6 +25,10 @@ Current endpoints:
 - `GET /api/auth/session`
 - `POST /api/auth/logout`
 - `GET /api/orchestration`
+- `POST /api/orchestration/prepare`
 - `GET /api/fleet/metadata/:role`
+
+ENS policy preparation returns hash-bound records for review. It does not
+publish changes before wallet and World authorization are complete.
 
 Run `pnpm test`, `pnpm typecheck` and `pnpm build` before publishing changes.

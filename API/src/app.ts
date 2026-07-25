@@ -4,6 +4,7 @@ import type { Express } from "express";
 import { AutonomousGoalService } from "./autonomous-goals.js";
 import type { ApiConfig } from "./config.js";
 import { EnsControlPlaneService } from "./ens-control-plane.js";
+import { EnsPolicyPreparationService } from "./ens-policy-preparation.js";
 import { FleetActivationService } from "./fleet-activation.js";
 import { GraphEvidenceService } from "./graph-evidence.js";
 import { OwnerAuth } from "./owner-auth.js";
@@ -23,6 +24,9 @@ const ownerVerification = z.object({
 });
 const fleetRole = z.enum(["scout", "risk", "trader", "auditor"]);
 const ticker = z.string().regex(/^[A-Za-z][A-Za-z0-9.-]{0,11}$/);
+const normalizedTicker = ticker.transform((value) =>
+  value.toUpperCase(),
+);
 const uint256 = z
   .string()
   .max(78)
@@ -66,6 +70,20 @@ const runInput = z
     execute: z.boolean().default(false),
   })
   .strict();
+const ensPolicyChange = z
+  .object({
+    paused: z.boolean(),
+    allowedTickers: z.array(normalizedTicker).min(1).max(96),
+    maxAmountPerTrade: uint256,
+    maxDeviationBps: z.number().int().min(1).max(2_000),
+    minLiquidityUsd: z
+      .number()
+      .finite()
+      .min(0)
+      .max(1_000_000_000_000),
+    maxOracleAgeSeconds: z.number().int().min(1).max(86_400),
+  })
+  .strict();
 
 type AppDependencies = {
   stockCatalog?: Pick<StockCatalogService, "assessTicker" | "catalog">;
@@ -75,6 +93,7 @@ type AppDependencies = {
   > &
     Partial<Pick<OwnerAuth, "perkosIdToken">>;
   ensControlPlane?: Pick<EnsControlPlaneService, "resolve">;
+  ensPolicyPreparation?: Pick<EnsPolicyPreparationService, "prepare">;
   fleetActivation?: Pick<FleetActivationService, "activate">;
   graphEvidence?: Pick<GraphEvidenceService, "evidence">;
   goals?: Pick<AutonomousGoalService, "read" | "start" | "tick">;
@@ -92,6 +111,11 @@ export function createApp(
   const ownerAuth = dependencies.ownerAuth ?? new OwnerAuth(config);
   const ensControlPlane =
     dependencies.ensControlPlane ?? new EnsControlPlaneService(config);
+  const ensPolicyPreparation =
+    dependencies.ensPolicyPreparation ??
+    new EnsPolicyPreparationService(config, {
+      controlPlane: ensControlPlane,
+    });
   const fleetActivation =
     dependencies.fleetActivation ??
     new FleetActivationService(config, { controlPlane: ensControlPlane });
@@ -211,6 +235,37 @@ export function createApp(
         owner: session.walletAddress,
       }),
     );
+  });
+
+  app.post("/api/orchestration/prepare", async (request, response) => {
+    const session = ownerAuth.session(request);
+    if (!session) {
+      return response
+        .status(401)
+        .json({ error: "owner_session_required" });
+    }
+    const parsed = ensPolicyChange.safeParse(request.body);
+    if (!parsed.success) {
+      return response.status(400).json({
+        error: "invalid_ens_policy_change",
+        issues: parsed.error.issues,
+      });
+    }
+    try {
+      response.setHeader("cache-control", "no-store");
+      return response.json(
+        await ensPolicyPreparation.prepare({
+          userId: session.fleetUserId,
+          owner: session.walletAddress,
+          change: parsed.data,
+        }),
+      );
+    } catch (error) {
+      return response.status(409).json({
+        error: "ens_policy_change_rejected",
+        message: safeMessage(error),
+      });
+    }
   });
 
   app.post("/api/fleet/activate", async (request, response) => {

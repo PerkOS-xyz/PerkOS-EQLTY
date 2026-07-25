@@ -1,4 +1,5 @@
 import type { EvmAddress } from "./market-types.js";
+import type { OneClawGate } from "./oneclaw-policy.js";
 
 export type ProofMode = "preview" | "live";
 
@@ -60,6 +61,7 @@ export type TradeRun = {
   createdAt: string;
   steps: RunStep[];
   handoffs: AgentHandoff[];
+  oneclaw: OneClawGate;
   proofBundleRoot?: `0x${string}`;
   rejectionReason?: string;
   transactionHash?: `0x${string}`;
@@ -78,7 +80,11 @@ export type TradeRun = {
     blockNumber: string;
     graphProvider?: string;
     graphLagBlocks?: number;
+    poolAddress: EvmAddress;
+    poolIdentifier: string;
     transactionHash?: `0x${string}`;
+    eventTopic: `0x${string}`;
+    capturedAt: string;
   };
   quote?: {
     routing: string;

@@ -63,7 +63,9 @@ Click **Run four agent proof**. Walk through the visible order:
 6. Auditor proof bundle.
 
 For the current safe demo, stop at `approved` and say that no funds moved. Use
-the proof root, Uniswap request ID and Graph block as the verifiable result.
+the verification logs to open the indexed Swap event, source block,
+PoolManager and Substreams JSON. Keep the Uniswap request ID and proof root
+labeled as offchain artifacts.
 
 ### 2:35 — Close
 
@@ -77,14 +79,16 @@ Open `docs/INTEGRATIONS.md` if a sponsor asks where its technology is used.
 
 ## Live-purchase rule
 
-Only click **Execute purchase** when all four 1Claw rails are linked, x401 and
-x402 are live, and the vault executor is configured. Only call it a purchase
-when the UI returns `executed` with a Robinhood Chain transaction link.
+For purchases of 3 USDG or more, only click **Execute purchase** when all four
+1Claw rails are linked. Every amount still requires live x401 and x402 plus a
+configured vault executor. Only call it a purchase when the UI returns
+`executed` with a Robinhood Chain transaction link.
 
 ## Fail-closed moments worth showing
 
 - Paused ENS policy: the fleet rejects every candidate before market calls.
-- Missing 1Claw link: analysis continues, but execution stays locked.
+- Missing 1Claw link: analysis continues, but execution from 3 USDG stays
+  locked.
 - Stale Graph stream: the candidate is blocked instead of using unverifiable
   evidence.
 - Missing Uniswap route: the token remains visible with a clear status, but

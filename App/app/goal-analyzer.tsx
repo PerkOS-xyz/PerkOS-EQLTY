@@ -166,9 +166,7 @@ function GoalProgress({
         </span>
         <span>
           <b>1Claw</b>
-          {session.gates.executionAuthorized
-            ? "Rails linked"
-            : "Execution locked"}
+          {oneclawLabel(session)}
         </span>
         <span>
           <b>Proof</b>
@@ -214,7 +212,6 @@ function GoalProgress({
             <span>Proof required</span>
           </footer>
           <ProofRunPanel
-            executionAuthorized={session.gates.executionAuthorized}
             hasCandidate={analysis.candidates.some(
               (candidate) =>
                 candidate.status === "recommended" &&
@@ -226,6 +223,13 @@ function GoalProgress({
       )}
     </div>
   );
+}
+
+function oneclawLabel(session: AutonomousGoal): string {
+  if (!session.gates.oneclawRequired) return "Optional below 3 USDG";
+  return session.gates.oneclawLinked
+    ? "Rails linked"
+    : "Locked from 3 USDG";
 }
 
 function CandidateCard({

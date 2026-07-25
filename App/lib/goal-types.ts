@@ -42,6 +42,9 @@ export type GoalGates = {
   oneclaw: "enforced" | "preview";
   linkedRoles: AgentRole[];
   requiredRoles: AgentRole[];
+  oneclawRequired: boolean;
+  oneclawLinked: boolean;
+  oneclawMinimumAmount: string;
   executionAuthorized: boolean;
   detail: string;
 };

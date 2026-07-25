@@ -8,6 +8,7 @@ import type {
   TradeRun,
 } from "./execution-types.js";
 import type { EvmAddress, StockCatalogAsset } from "./market-types.js";
+import type { OneClawGate } from "./oneclaw-policy.js";
 import { createHandoff, hashPayload } from "./proof-handoff.js";
 import type { StockCatalogService } from "./stock-catalog.js";
 import { StockCatalogService as Catalog } from "./stock-catalog.js";
@@ -56,7 +57,7 @@ export class ProofRunService {
     execute: boolean;
     userId: string;
     owner: EvmAddress;
-    executionAuthorized: boolean;
+    oneclaw: OneClawGate;
   }): Promise<TradeRun> {
     const strategy = this.store.strategy(input.strategyId, input.owner);
     const run: TradeRun = {
@@ -69,6 +70,7 @@ export class ProofRunService {
       createdAt: this.timestamp(),
       steps: [],
       handoffs: [],
+      oneclaw: input.oneclaw,
     };
     if (!strategy) return this.reject(run, "Strategy not found");
     if (strategy.status !== "active") {
@@ -192,7 +194,11 @@ export class ProofRunService {
       blockNumber: graph.blockNumber,
       graphProvider: "the-graph-substreams",
       graphLagBlocks: graph.lagBlocks,
+      poolAddress: graph.poolAddress,
+      poolIdentifier: graph.poolIdentifier,
       transactionHash: graph.transactionHash,
+      eventTopic: graph.topic,
+      capturedAt: graph.capturedAt,
     };
     run.handoffs.push(
       createHandoff({
@@ -249,8 +255,11 @@ export class ProofRunService {
     );
 
     if (input.execute) {
-      if (!input.executionAuthorized) {
-        return this.reject(run, "1Claw has not authorized every fleet rail");
+      if (!input.oneclaw.executionAuthorized) {
+        return this.reject(
+          run,
+          "Purchases of 3 USDG or more require every 1Claw fleet rail",
+        );
       }
       if (strategy.executionMode !== "full") {
         return this.reject(run, "Strategy is analysis-only");

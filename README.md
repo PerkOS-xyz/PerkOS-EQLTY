@@ -33,6 +33,7 @@ EQLTY coordinates four specialized roles:
 
 The fleet uses PerkOS infrastructure for managed Hermes runtimes. Each runtime
 can receive independent 1Claw security controls appropriate to its role.
+Purchases of 3 USDG or more require all four 1Claw rails to be linked.
 
 ## Sponsor integrations
 

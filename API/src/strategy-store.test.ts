@@ -21,6 +21,12 @@ describe("strategy store", () => {
       createdAt: "2026-07-25T12:00:00.000Z",
       steps: [],
       handoffs: [],
+      oneclaw: {
+        required: false,
+        linked: false,
+        minimumAmount: "3000000",
+        executionAuthorized: true,
+      },
     });
 
     expect(strategy).toMatchObject({

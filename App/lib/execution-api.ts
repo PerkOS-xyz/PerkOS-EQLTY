@@ -68,6 +68,18 @@ export function transactionUrl(hash: string): string {
   return `https://robinhoodchain.blockscout.com/tx/${hash}`;
 }
 
+export function transactionEventsUrl(hash: string): string {
+  return `${transactionUrl(hash)}?tab=logs`;
+}
+
+export function blockUrl(blockNumber: string): string {
+  return `https://robinhoodchain.blockscout.com/block/${blockNumber}`;
+}
+
+export function addressUrl(address: string): string {
+  return `https://robinhoodchain.blockscout.com/address/${address}`;
+}
+
 export function graphEvidenceUrl(ticker: string): string {
   return `${apiUrl()}/api/evidence/${encodeURIComponent(ticker)}`;
 }

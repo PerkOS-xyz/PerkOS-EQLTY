@@ -9,6 +9,7 @@ import { FleetActivationService } from "./fleet-activation.js";
 import { GraphEvidenceService } from "./graph-evidence.js";
 import { OwnerAuth } from "./owner-auth.js";
 import { OpportunityAnalysisService } from "./opportunity-analysis.js";
+import { oneClawGate } from "./oneclaw-policy.js";
 import { ProofRunService } from "./proof-run.js";
 import { publicConfig } from "./public-config.js";
 import { StockCatalogService } from "./stock-catalog.js";
@@ -128,6 +129,10 @@ export function createApp(
         catalog: stockCatalog,
         controlPlane: ensControlPlane,
       }),
+      {
+        oneclawMinimumAmount:
+          config.EQLTY_ONECLAW_MIN_AMOUNT_USDG,
+      },
     );
   const strategyStore = new StrategyStore();
   const strategies =
@@ -499,11 +504,22 @@ export function createApp(
       if (activation.status === "provisioning") {
         throw new Error("The Hermes fleet is still provisioning");
       }
-      const executionAuthorized =
-        activation.runtime?.agents.length === 4 &&
-        activation.runtime.agents.every(
-          (agent) => agent.oneclaw === "linked",
-        );
+      const linkedRoles =
+        activation.runtime?.agents
+          .filter((agent) => agent.oneclaw === "linked")
+          .map((agent) => agent.role) ?? [];
+      const requiredRoles = [
+        "scout",
+        "risk",
+        "trader",
+        "auditor",
+      ] as const;
+      const oneclaw = oneClawGate({
+        amountIn: parsed.data.amountIn,
+        linkedRoles,
+        requiredRoles,
+        minimumAmount: config.EQLTY_ONECLAW_MIN_AMOUNT_USDG,
+      });
       response.setHeader("cache-control", "no-store");
       return response.status(201).json(
         await proofRuns.run({
@@ -512,7 +528,7 @@ export function createApp(
           execute: parsed.data.execute,
           userId: session.fleetUserId,
           owner: session.walletAddress,
-          executionAuthorized,
+          oneclaw,
         }),
       );
     } catch (error) {

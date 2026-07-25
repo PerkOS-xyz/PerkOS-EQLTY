@@ -27,8 +27,16 @@ Current endpoints:
 - `GET /api/orchestration`
 - `POST /api/orchestration/prepare`
 - `GET /api/fleet/metadata/:role`
+- `POST /api/goals`
+- `POST /api/strategies`
+- `POST /api/runs`
+- `GET /api/evidence/:ticker`
 
 ENS policy preparation returns hash-bound records for review. It does not
 publish changes before wallet and World authorization are complete.
+
+`EQLTY_ONECLAW_MIN_AMOUNT_USDG` stores the 1Claw purchase threshold in
+six-decimal USDG atomic units. The default `3000000` applies the rail lock to
+amounts of 3 USDG or more.
 
 Run `pnpm test`, `pnpm typecheck` and `pnpm build` before publishing changes.

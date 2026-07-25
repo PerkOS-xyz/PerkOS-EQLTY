@@ -187,35 +187,99 @@
   text-transform: uppercase;
 }
 
-.proofEvidence {
+.verificationLogs {
+  margin-top: 10px;
+  padding: 11px;
+  border: 1px solid #304c39;
+  border-radius: 9px;
+  background: #0b110d;
+}
+
+.verificationLogs > header {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.verificationLogs > header > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.verificationLogs > header span,
+.verificationLogGrid a > span {
+  color: #75e69a;
+  font: 500 7px "DM Mono", monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.verificationLogs > header strong {
+  font-size: 10px;
+}
+
+.verificationLogs > header > b {
+  color: #77837c;
+  font: 500 7px "DM Mono", monospace;
+}
+
+.verificationLogGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
   margin-top: 9px;
 }
 
-.proofEvidence a {
-  display: flex;
-  flex: 1 1 190px;
+.verificationLogGrid a {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 3px 8px;
   min-width: 0;
-  flex-direction: column;
-  gap: 3px;
   padding: 9px 10px;
-  border: 1px solid #304c39;
+  border: 1px solid #25362b;
   border-radius: 8px;
-  background: #101c14;
-  color: #7ce69e;
-  font-size: 8px;
+  background: #101914;
+  color: #dbe8df;
   text-decoration: none;
 }
 
-.proofEvidence span {
-  color: #89948d;
+.verificationLogGrid a:hover {
+  border-color: #64c985;
 }
 
-.proofEvidence code {
-  color: #7ce69e;
+.verificationLogGrid a > span,
+.verificationLogGrid a > strong,
+.verificationLogGrid a > code {
+  grid-column: 1;
+}
+
+.verificationLogGrid a > strong {
   font-size: 8px;
+}
+
+.verificationLogGrid a > code {
+  overflow: hidden;
+  color: #78857d;
+  font-size: 7px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.verificationLogGrid a > b {
+  grid-column: 2;
+  grid-row: 1 / 4;
+  align-self: center;
+  color: #78e49b;
+  font: 600 7px "DM Mono", monospace;
+  white-space: nowrap;
+}
+
+.verificationLogs > p {
+  margin: 8px 0 0;
+  color: #68736c;
+  font-size: 7px;
 }
 
 .liveAuthorization {

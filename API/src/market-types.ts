@@ -36,7 +36,10 @@ export type GraphEvidenceSummary = {
   liquidityUsd: number;
   lastSwapPrice: number;
   priceDeviationBps?: number;
+  poolAddress: EvmAddress;
+  poolIdentifier: string;
   transactionHash: `0x${string}`;
+  topic: `0x${string}`;
   capturedAt: string;
   processedBlock: string;
   providerHeadBlock: string;

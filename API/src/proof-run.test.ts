@@ -36,7 +36,10 @@ describe("proof runs", () => {
       graphMode: "live",
       blockNumber: "1000",
       liquidityUsd: 250_000,
+      poolAddress:
+        "0x8366a39cc670b4001a1121b8f6a443a643e40951",
       transactionHash: `0x${"33".repeat(32)}`,
+      eventTopic: `0x${"44".repeat(32)}`,
     });
     expect(run.quote).toMatchObject({
       routing: "V4",
@@ -74,13 +77,44 @@ describe("proof runs", () => {
     const run = await service.run({
       ...runInput(strategyId),
       execute: true,
-      executionAuthorized: true,
     });
 
     expect(run.status).toBe("rejected");
     expect(run.rejectionReason).toContain("x401 and x402");
     expect(execute).not.toHaveBeenCalled();
     expect(run.transactionHash).toBeUndefined();
+  });
+
+  it("rejects a 3 USDG purchase without every 1Claw rail", async () => {
+    const execute = vi.fn();
+    const { service, strategyId } = setup(
+      {
+        controlPlane: {
+          resolve: async () => controlPlane(false, "3000000"),
+        },
+        executor: {
+          ready: () => true,
+          execute,
+        },
+      },
+      "3000000",
+    );
+
+    const run = await service.run({
+      ...runInput(strategyId),
+      amountIn: "3000000",
+      execute: true,
+      oneclaw: {
+        required: true,
+        linked: false,
+        minimumAmount: "3000000",
+        executionAuthorized: false,
+      },
+    });
+
+    expect(run.status).toBe("rejected");
+    expect(run.rejectionReason).toContain("3 USDG");
+    expect(execute).not.toHaveBeenCalled();
   });
 
   it("rejects stale or incomplete market evidence", async () => {
@@ -102,6 +136,7 @@ describe("proof runs", () => {
 
 function setup(
   dependencies: ConstructorParameters<typeof ProofRunService>[2] = {},
+  maxAmount = "1000000",
 ) {
   const store = new StrategyStore({
     id: () => "strategy-1",
@@ -116,15 +151,15 @@ function setup(
     outputToken:
       "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
     router: "0x8876789976decbfcbbbe364623c63652db8c0904",
-    maxAmountPerTrade: "1000000",
-    maxTotalSpend: "1000000",
+    maxAmountPerTrade: maxAmount,
+    maxTotalSpend: maxAmount,
     maxSlippageBps: 100,
     expiresAt: "2026-07-26T12:00:00.000Z",
     executionMode: "full",
   });
   const service = new ProofRunService(loadConfig({}), store, {
     catalog: { assessTicker: async () => asset() },
-    controlPlane: { resolve: async () => controlPlane() },
+    controlPlane: { resolve: async () => controlPlane(false, maxAmount) },
     now: () => now,
     id: () => "run-1",
     ...dependencies,
@@ -139,11 +174,19 @@ function runInput(strategyId: string) {
     execute: false,
     userId: "u-12345678",
     owner,
-    executionAuthorized: false,
+    oneclaw: {
+      required: false,
+      linked: false,
+      minimumAmount: "3000000",
+      executionAuthorized: true,
+    },
   };
 }
 
-function controlPlane(paused = false): EnsControlPlane {
+function controlPlane(
+  paused = false,
+  maxAmountPerTrade = "1000000",
+): EnsControlPlane {
   return {
     source: "durin",
     mode: "live",
@@ -167,7 +210,7 @@ function controlPlane(paused = false): EnsControlPlane {
       },
       policy: {
         allowedTickers: ["NVDA", "AMZN"],
-        maxAmountPerTrade: "1000000",
+        maxAmountPerTrade,
         maxDeviationBps: 300,
         minLiquidityUsd: 50_000,
         maxOracleAgeSeconds: 300,
@@ -201,7 +244,11 @@ function asset(): StockCatalogAsset {
       blockNumber: "1000",
       liquidityUsd: 250_000,
       lastSwapPrice: 100.1,
+      poolAddress:
+        "0x8366a39cc670b4001a1121b8f6a443a643e40951",
+      poolIdentifier: `0x${"22".repeat(32)}`,
       transactionHash: `0x${"33".repeat(32)}`,
+      topic: `0x${"44".repeat(32)}`,
       capturedAt: "2026-07-25T11:59:30.000Z",
       processedBlock: "1000",
       providerHeadBlock: "1002",

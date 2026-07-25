@@ -58,6 +58,12 @@ export type TradeRun = {
   createdAt: string;
   steps: RunStep[];
   handoffs: AgentHandoff[];
+  oneclaw: {
+    required: boolean;
+    linked: boolean;
+    minimumAmount: string;
+    executionAuthorized: boolean;
+  };
   proofBundleRoot?: `0x${string}`;
   rejectionReason?: string;
   transactionHash?: `0x${string}`;
@@ -76,7 +82,11 @@ export type TradeRun = {
     blockNumber: string;
     graphProvider?: string;
     graphLagBlocks?: number;
+    poolAddress: `0x${string}`;
+    poolIdentifier: string;
     transactionHash?: `0x${string}`;
+    eventTopic: `0x${string}`;
+    capturedAt: string;
   };
   quote?: {
     routing: string;

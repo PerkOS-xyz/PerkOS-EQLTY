@@ -52,6 +52,7 @@ can be executed with a clear evidence trail.
 - [x] Request and review an executable Uniswap quote.
 - [x] Enforce contract and spending limits before execution.
 - [ ] Record the resulting transaction and explorer link.
+- [x] Expose indexed event, block and evidence links.
 - [x] Index transaction evidence with The Graph Substreams.
 - [x] Reconcile the proof bundle through the Auditor role.
 

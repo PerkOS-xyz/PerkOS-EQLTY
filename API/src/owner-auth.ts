@@ -4,7 +4,10 @@ import {
   createHash,
   randomBytes,
 } from "node:crypto";
-import type { Request, Response } from "express";
+import type {
+  Request,
+  Response as ExpressResponse,
+} from "express";
 import type { ApiConfig } from "./config.js";
 import { fleetUserIdForWallet } from "./fleet-identity.js";
 import type { EvmAddress } from "./market-types.js";
@@ -81,7 +84,7 @@ export class OwnerAuth {
   }
 
   async verify(
-    response: Response,
+    response: ExpressResponse,
     input: {
       address: EvmAddress;
       nonce: string;
@@ -169,7 +172,7 @@ export class OwnerAuth {
     return session.idToken;
   }
 
-  logout(response: Response): void {
+  logout(response: ExpressResponse): void {
     response.setHeader("set-cookie", [
       this.cookie(userCookie, "", 0),
       this.cookie(perkosCookie, "", 0),
@@ -276,7 +279,9 @@ function parseCookies(header?: string): Record<string, string> {
   );
 }
 
-async function jsonRecord(response: Response): Promise<Record<string, unknown>> {
+async function jsonRecord(
+  response: globalThis.Response,
+): Promise<Record<string, unknown>> {
   const body: unknown = await response.json().catch(() => ({}));
   return body && typeof body === "object" && !Array.isArray(body)
     ? (body as Record<string, unknown>)

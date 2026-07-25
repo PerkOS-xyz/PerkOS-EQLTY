@@ -36,6 +36,7 @@ describe("proof runs", () => {
       graphMode: "live",
       blockNumber: "1000",
       liquidityUsd: 250_000,
+      transactionHash: `0x${"33".repeat(32)}`,
     });
     expect(run.quote).toMatchObject({
       routing: "V4",

@@ -192,6 +192,7 @@ export class ProofRunService {
       blockNumber: graph.blockNumber,
       graphProvider: "the-graph-substreams",
       graphLagBlocks: graph.lagBlocks,
+      transactionHash: graph.transactionHash,
     };
     run.handoffs.push(
       createHandoff({

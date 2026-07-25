@@ -187,6 +187,37 @@
   text-transform: uppercase;
 }
 
+.proofEvidence {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 9px;
+}
+
+.proofEvidence a {
+  display: flex;
+  flex: 1 1 190px;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 10px;
+  border: 1px solid #304c39;
+  border-radius: 8px;
+  background: #101c14;
+  color: #7ce69e;
+  font-size: 8px;
+  text-decoration: none;
+}
+
+.proofEvidence span {
+  color: #89948d;
+}
+
+.proofEvidence code {
+  color: #7ce69e;
+  font-size: 8px;
+}
+
 .liveAuthorization {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

@@ -67,3 +67,7 @@ export function startProofRun(
 export function transactionUrl(hash: string): string {
   return `https://robinhoodchain.blockscout.com/tx/${hash}`;
 }
+
+export function graphEvidenceUrl(ticker: string): string {
+  return `${apiUrl()}/api/evidence/${encodeURIComponent(ticker)}`;
+}

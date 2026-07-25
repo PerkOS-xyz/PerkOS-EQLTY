@@ -1,0 +1,55 @@
+@media (max-width: 760px) {
+  .proofStart {
+    grid-template-columns: 1fr;
+  }
+
+  .proofStart button {
+    width: 100%;
+  }
+
+  .proofMetrics {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .liveAuthorization {
+    grid-template-columns: 1fr;
+  }
+
+  .liveAuthorization label,
+  .liveAuthorization button {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .executionLog {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .executionLog a {
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 420px) {
+  .proofRun {
+    padding: 12px;
+  }
+
+  .proofRun > header {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .proofMetrics {
+    grid-template-columns: 1fr;
+  }
+
+  .proofTimeline article {
+    grid-template-columns: 24px minmax(0, 1fr);
+  }
+
+  .proofTimeline article > b {
+    display: none;
+  }
+}

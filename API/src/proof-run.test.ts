@@ -36,7 +36,10 @@ describe("proof runs", () => {
       graphMode: "live",
       blockNumber: "1000",
       liquidityUsd: 250_000,
+      poolAddress:
+        "0x8366a39cc670b4001a1121b8f6a443a643e40951",
       transactionHash: `0x${"33".repeat(32)}`,
+      eventTopic: `0x${"44".repeat(32)}`,
     });
     expect(run.quote).toMatchObject({
       routing: "V4",
@@ -241,7 +244,11 @@ function asset(): StockCatalogAsset {
       blockNumber: "1000",
       liquidityUsd: 250_000,
       lastSwapPrice: 100.1,
+      poolAddress:
+        "0x8366a39cc670b4001a1121b8f6a443a643e40951",
+      poolIdentifier: `0x${"22".repeat(32)}`,
       transactionHash: `0x${"33".repeat(32)}`,
+      topic: `0x${"44".repeat(32)}`,
       capturedAt: "2026-07-25T11:59:30.000Z",
       processedBlock: "1000",
       providerHeadBlock: "1002",

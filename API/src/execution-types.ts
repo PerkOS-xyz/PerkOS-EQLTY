@@ -80,7 +80,11 @@ export type TradeRun = {
     blockNumber: string;
     graphProvider?: string;
     graphLagBlocks?: number;
+    poolAddress: EvmAddress;
+    poolIdentifier: string;
     transactionHash?: `0x${string}`;
+    eventTopic: `0x${string}`;
+    capturedAt: string;
   };
   quote?: {
     routing: string;

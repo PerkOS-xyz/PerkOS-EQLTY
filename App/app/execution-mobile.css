@@ -29,6 +29,10 @@
   .executionLog a {
     align-items: flex-start;
   }
+
+  .verificationLogGrid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 420px) {
@@ -51,5 +55,9 @@
 
   .proofTimeline article > b {
     display: none;
+  }
+
+  .verificationLogs > header {
+    flex-direction: column;
   }
 }

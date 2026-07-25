@@ -1,18 +1,19 @@
 "use client";
 
 import {
+  addressUrl,
+  blockUrl,
   graphEvidenceUrl,
+  transactionEventsUrl,
   transactionUrl,
 } from "../lib/execution-api";
 import type { TradeRun } from "../lib/execution-types";
 import type { ProofRunState } from "./use-proof-run";
 
 export function ProofRunPanel({
-  executionAuthorized,
   hasCandidate,
   state,
 }: {
-  executionAuthorized: boolean;
   hasCandidate: boolean;
   state: ProofRunState;
 }) {
@@ -82,34 +83,14 @@ export function ProofRunPanel({
               {run.proofBundleRoot ? short(run.proofBundleRoot) : "Sealing"}
             </span>
           </div>
-          {run.market && (
-            <div className="proofEvidence">
-              {run.market.transactionHash && (
-                <a
-                  href={transactionUrl(run.market.transactionHash)}
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  <span>Graph source transaction</span>
-                  <code>{short(run.market.transactionHash)}</code>
-                </a>
-              )}
-              <a
-                href={graphEvidenceUrl(run.ticker)}
-                rel="noreferrer"
-                target="_blank"
-              >
-                <span>Graph evidence</span>
-                <b>Open Substreams JSON</b>
-              </a>
-            </div>
-          )}
+          {run.market && <VerificationLogs run={run} />}
         </>
       )}
 
       {run.status === "approved" && (
         <LiveAuthorization
-          executionAuthorized={executionAuthorized}
+          executionAuthorized={run.oneclaw.executionAuthorized}
+          oneclawRequired={run.oneclaw.required}
           state={state}
         />
       )}
@@ -146,11 +127,93 @@ export function ProofRunPanel({
   );
 }
 
+function VerificationLogs({ run }: { run: TradeRun }) {
+  const market = run.market!;
+  return (
+    <section
+      aria-label="Verifiable transaction and event logs"
+      className="verificationLogs"
+    >
+      <header>
+        <div>
+          <span>Verification logs</span>
+          <strong>Real transactions and indexed events</strong>
+        </div>
+        <b>Robinhood Chain</b>
+      </header>
+
+      <div className="verificationLogGrid">
+        {market.transactionHash && (
+          <a
+            href={transactionEventsUrl(market.transactionHash)}
+            rel="noreferrer"
+            target="_blank"
+          >
+            <span>Indexed event</span>
+            <strong>Uniswap V4 Swap</strong>
+            <code>{short(market.eventTopic)}</code>
+            <b>Verify event ↗</b>
+          </a>
+        )}
+        <a
+          href={blockUrl(market.blockNumber)}
+          rel="noreferrer"
+          target="_blank"
+        >
+          <span>Onchain block</span>
+          <strong>Graph checkpoint {market.blockNumber}</strong>
+          <code>{new Date(market.capturedAt).toLocaleString()}</code>
+          <b>Open block ↗</b>
+        </a>
+        <a
+          href={addressUrl(market.poolAddress)}
+          rel="noreferrer"
+          target="_blank"
+        >
+          <span>Verified contract</span>
+          <strong>Uniswap V4 PoolManager</strong>
+          <code>{short(market.poolIdentifier)}</code>
+          <b>Open contract ↗</b>
+        </a>
+        <a
+          href={graphEvidenceUrl(run.ticker)}
+          rel="noreferrer"
+          target="_blank"
+        >
+          <span>Substreams payload</span>
+          <strong>The Graph evidence</strong>
+          <code>{run.ticker} · block {market.blockNumber}</code>
+          <b>Open JSON ↗</b>
+        </a>
+        {run.transactionHash && (
+          <a
+            href={transactionUrl(run.transactionHash)}
+            rel="noreferrer"
+            target="_blank"
+          >
+            <span>Executed transaction</span>
+            <strong>{run.ticker} purchase</strong>
+            <code>{short(run.transactionHash)}</code>
+            <b>Verify purchase ↗</b>
+          </a>
+        )}
+      </div>
+
+      <p>
+        Explorer links are onchain evidence. Quote and proof identifiers remain
+        labeled as API artifacts until a purchase transaction exists.
+      </p>
+    </section>
+  );
+}
+
 function LiveAuthorization({
   executionAuthorized,
+  oneclawRequired,
   state,
 }: {
   executionAuthorized: boolean;
+  oneclawRequired: boolean;
   state: ProofRunState;
 }) {
   return (
@@ -159,11 +222,14 @@ function LiveAuthorization({
         <span>Final authorization</span>
         <strong>
           {executionAuthorized
-            ? "Proof passed. Live purchase is available."
-            : "Proof passed. 1Claw still blocks execution."}
+            ? oneclawRequired
+              ? "Proof passed. 1Claw rails are linked."
+              : "Proof passed. This purchase is below the 1Claw lock."
+            : "Proof passed. 1Claw still blocks this purchase."}
         </strong>
         <small>
-          Mainnet also requires live identity, x401 and x402 evidence.
+          Purchases from 3 USDG require 1Claw. Mainnet also requires live
+          identity, x401 and x402 evidence.
         </small>
       </div>
       <label>

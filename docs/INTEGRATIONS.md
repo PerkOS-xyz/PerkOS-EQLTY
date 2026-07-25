@@ -24,7 +24,7 @@ App/
   app/market-catalog.tsx            Stock Token universe and route status
   app/fleet-panel.tsx               Hermes lifecycle and 1Claw state
   app/goal-analyzer.tsx             Two-minute autonomous workflow
-  app/proof-run-panel.tsx           Four-agent proof and transaction receipt
+  app/proof-run-panel.tsx           Four-agent proof and verification logs
 API/
   src/stock-catalog.ts              Robinhood, Uniswap and Graph composition
   src/uniswap-client.ts             Uniswap Trading API quotes
@@ -90,7 +90,7 @@ World authorization.
 |---|---|---|
 | Robinhood Chain | Stock Token assets, prices, chain IDs and receipts | `API/src/stock-catalog.ts:20-22`, `App/app/wallet-networks.ts`, `App/lib/execution-api.ts` |
 | PerkOS | Create, locate and wake managed Hermes agents | `API/src/perkos-fleet.ts:36-223` |
-| 1Claw | Report per-agent security links and block execution until all four are linked | `API/src/perkos-fleet.ts:124-166`, `API/src/autonomous-goals.ts:38-69` |
+| 1Claw | Require all four security links for purchases from 3 USDG | `API/src/oneclaw-policy.ts`, `API/src/autonomous-goals.ts`, `API/src/proof-run.ts` |
 | Dynamic | Single user wallet modal and message signing | `App/app/dynamic-wallet-provider.tsx:15-84` |
 | EQLTY Vault | Limits, nonce protection, risk signature and router call | `Contracts/src/EQLTYVault.sol:214-289` |
 
@@ -106,9 +106,13 @@ The following path is implemented and testable now:
 6. repeated two-minute recommendation;
 7. four-agent proof bundle with a dry execution decision.
 
+The proof panel exposes the indexed Swap event, source block, PoolManager,
+Substreams JSON and final purchase receipt when present. Explorer links are
+kept separate from quote request IDs and offchain proof hashes.
+
 Live purchase submission remains fail-closed until all of these are connected:
 
-- production 1Claw links for every role;
+- production 1Claw links for every role when the amount is 3 USDG or more;
 - live x401 and x402 authorization;
 - the vault-backed `TradeExecutor`;
 - deployed contract addresses and funded strategy;

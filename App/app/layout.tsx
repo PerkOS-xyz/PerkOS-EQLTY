@@ -5,6 +5,8 @@ import "./shell.css";
 import "./fleet-runtime.css";
 import "./market.css";
 import "./market-mobile.css";
+import "./goals.css";
+import "./goals-mobile.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {

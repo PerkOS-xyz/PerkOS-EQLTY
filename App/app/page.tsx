@@ -1,5 +1,6 @@
 import { AccessButton } from "./access-button";
 import { FleetPanel } from "./fleet-panel";
+import { GoalAnalyzer } from "./goal-analyzer";
 import { MarketCatalog } from "./market-catalog";
 
 const journey = [
@@ -75,6 +76,8 @@ export default function HomePage() {
         <MarketCatalog />
 
         <FleetPanel />
+
+        <GoalAnalyzer />
       </main>
     </div>
   );

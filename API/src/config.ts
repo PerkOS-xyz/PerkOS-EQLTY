@@ -6,10 +6,11 @@ dotenv.config({
   quiet: true,
 });
 
-const booleanValue = z
-  .enum(["true", "false"])
-  .default("false")
-  .transform((value) => value === "true");
+const booleanValue = (fallback: "true" | "false") =>
+  z
+    .enum(["true", "false"])
+    .default(fallback)
+    .transform((value) => value === "true");
 
 const schema = z.object({
   PORT: z.coerce.number().int().min(1).max(65_535).default(4021),
@@ -19,8 +20,8 @@ const schema = z.object({
     .string()
     .regex(/^[a-z0-9-]+$/)
     .default("eqlty-api"),
-  DEMO_MODE: booleanValue.default("true"),
-  REQUIRE_LIVE_DATA: booleanValue,
+  DEMO_MODE: booleanValue("true"),
+  REQUIRE_LIVE_DATA: booleanValue("false"),
   ROBINHOOD_CHAIN_ID: z.coerce.number().int().positive().default(4663),
   UNISWAP_CHAIN_ID: z.coerce.number().int().positive().default(4663),
 });

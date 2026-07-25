@@ -134,6 +134,65 @@ describe("API foundation", () => {
       error: "invalid_wallet_address",
     });
   });
+
+  it("serves authenticated agent metadata", async () => {
+    const session = {
+      sub: "eip155:4663:0x1234567890abcdef1234567890abcdef12345678",
+      provider: "wallet" as const,
+      walletAddress:
+        "0x1234567890abcdef1234567890abcdef12345678" as const,
+      fleetUserId: "u-12345678",
+      expiresAt: "2026-07-25T13:00:00.000Z",
+    };
+    const settings = {
+      schema: "urn:eqlty:agent-settings:v1" as const,
+      version: 1,
+      role: "scout" as const,
+      perkosAgentId: "agent-scout",
+      ensName: "scout.u-12345678.demo.eth",
+      behavior: {
+        objective: "Discover eligible assets",
+        inputs: ["ens" as const],
+        actions: ["recommend" as const],
+        requiresWorldSelfieForChanges: true as const,
+      },
+      security: {
+        provider: "1claw" as const,
+        enforcement: "required-before-spend" as const,
+        policyRef: "perkos:agent-scout:1claw",
+      },
+    };
+    const response = await request("/api/fleet/metadata/scout", {
+      ownerAuth: {
+        challenge: async () => {
+          throw new Error("not called");
+        },
+        verify: async () => session,
+        session: () => session,
+        logout: () => undefined,
+      },
+      ensControlPlane: {
+        resolve: async () => ({
+          source: "durin",
+          mode: "live",
+          status: "active",
+          rootName: "u-12345678.demo.eth",
+          manifestHash: `0x${"ab".repeat(32)}` as const,
+          resolvedAt: "2026-07-25T12:00:00.000Z",
+          owner: session.walletAddress,
+          agentSettings: { scout: settings },
+        }),
+      },
+    });
+    const body = (await response.json()) as Record<string, unknown>;
+
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({
+      schema: "urn:eqlty:ens-agent-metadata:v1",
+      role: "scout",
+      name: "scout.u-12345678.demo.eth",
+    });
+  });
 });
 
 async function request(

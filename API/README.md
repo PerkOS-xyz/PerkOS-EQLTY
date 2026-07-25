@@ -24,5 +24,7 @@ Current endpoints:
 - `POST /api/auth/perkos/verify`
 - `GET /api/auth/session`
 - `POST /api/auth/logout`
+- `GET /api/orchestration`
+- `GET /api/fleet/metadata/:role`
 
 Run `pnpm test`, `pnpm typecheck` and `pnpm build` before publishing changes.

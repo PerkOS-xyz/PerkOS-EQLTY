@@ -21,6 +21,7 @@ export type PublicApiConfig = {
   integrations: {
     ens: "pending";
     oneclaw: "pending";
+    perkos: "disabled" | "live" | "preview";
     theGraph: "pending";
     uniswap: "ready" | "pending";
     world: "pending";
@@ -54,6 +55,7 @@ export function publicConfig(config: ApiConfig): PublicApiConfig {
     integrations: {
       ens: "pending",
       oneclaw: "pending",
+      perkos: config.PERKOS_FLEET_MODE,
       theGraph: "pending",
       uniswap:
         config.UNISWAP_API_KEY && config.SWAPPER_ADDRESS

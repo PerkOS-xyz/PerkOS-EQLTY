@@ -64,6 +64,32 @@ describe("fleet activation", () => {
     expect(provision).not.toHaveBeenCalled();
   });
 
+  it("keeps the runtime available while ENS records are resolving", async () => {
+    const provision = vi.fn();
+    const service = new FleetActivationService(config(), {
+      perkos: { activate: async () => runtime(true) },
+      controlPlane: {
+        resolve: async () => await new Promise<never>(() => undefined),
+      },
+      provisioner: { provision },
+      ensResolveTimeoutMs: 1,
+    });
+
+    const activation = await service.activate({
+      userId: "u-12345678",
+      owner,
+      perkosIdToken: "firebase-token",
+    });
+
+    expect(activation).toMatchObject({
+      status: "provisioning",
+      verified: false,
+      rootName: "u-12345678.demo.eth",
+      runtime: { status: "ready" },
+    });
+    expect(provision).not.toHaveBeenCalled();
+  });
+
   it("provisions missing names and verifies them by rereading", async () => {
     const resolve = vi
       .fn()

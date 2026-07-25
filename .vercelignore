@@ -1,0 +1,17 @@
+.git/
+.vercel/
+
+**/.next/
+**/node_modules/
+**/dist/
+**/coverage/
+**/target/
+
+Contracts/broadcast/
+Contracts/cache/
+Contracts/out/
+
+.env
+.env.*
+*.log
+*.tsbuildinfo

@@ -2,6 +2,7 @@ import cors from "cors";
 import express from "express";
 import type { Express } from "express";
 import type { ApiConfig } from "./config.js";
+import { EnsControlPlaneService } from "./ens-control-plane.js";
 import { OwnerAuth } from "./owner-auth.js";
 import { publicConfig } from "./public-config.js";
 import { StockCatalogService } from "./stock-catalog.js";
@@ -13,6 +14,7 @@ const ownerVerification = z.object({
   nonce: z.string().min(1).max(256),
   signature: z.string().regex(/^0x[0-9a-fA-F]+$/),
 });
+const fleetRole = z.enum(["scout", "risk", "trader", "auditor"]);
 
 type AppDependencies = {
   stockCatalog?: Pick<StockCatalogService, "assessTicker" | "catalog">;
@@ -20,6 +22,7 @@ type AppDependencies = {
     OwnerAuth,
     "challenge" | "logout" | "session" | "verify"
   >;
+  ensControlPlane?: Pick<EnsControlPlaneService, "resolve">;
 };
 
 export function createApp(
@@ -30,6 +33,8 @@ export function createApp(
   const stockCatalog =
     dependencies.stockCatalog ?? new StockCatalogService(config);
   const ownerAuth = dependencies.ownerAuth ?? new OwnerAuth(config);
+  const ensControlPlane =
+    dependencies.ensControlPlane ?? new EnsControlPlaneService(config);
 
   app.disable("x-powered-by");
   app.use(
@@ -108,6 +113,64 @@ export function createApp(
   app.post("/api/auth/logout", (_request, response) => {
     ownerAuth.logout(response);
     return response.json({ ok: true });
+  });
+
+  app.get("/api/orchestration", async (request, response) => {
+    const session = ownerAuth.session(request);
+    if (!session) {
+      return response
+        .status(401)
+        .json({ error: "owner_session_required" });
+    }
+    response.setHeader("cache-control", "no-store");
+    return response.json(
+      await ensControlPlane.resolve({
+        userId: session.fleetUserId,
+        owner: session.walletAddress,
+      }),
+    );
+  });
+
+  app.get("/api/fleet/metadata/:role", async (request, response) => {
+    const session = ownerAuth.session(request);
+    if (!session) {
+      return response
+        .status(401)
+        .json({ error: "owner_session_required" });
+    }
+    const parsedRole = fleetRole.safeParse(request.params.role);
+    if (!parsedRole.success) {
+      return response.status(404).json({ error: "agent_role_not_found" });
+    }
+
+    const controlPlane = await ensControlPlane.resolve({
+      userId: session.fleetUserId,
+      owner: session.walletAddress,
+    });
+    const settings = controlPlane.agentSettings?.[parsedRole.data];
+    if (controlPlane.status !== "active" || !settings) {
+      return response.status(503).json({
+        error: "agent_metadata_unavailable",
+        detail: controlPlane.error,
+      });
+    }
+
+    response.setHeader("cache-control", "no-store");
+    return response.json({
+      schema: "urn:eqlty:ens-agent-metadata:v1",
+      source:
+        config.EQLTY_ENS_RECORDS_CHAIN_ID === 84532
+          ? "durin-base-sepolia"
+          : "durin-base",
+      registry: config.EQLTY_ENS_L2_REGISTRY_ADDRESS,
+      chainId: config.EQLTY_ENS_RECORDS_CHAIN_ID,
+      rootName: controlPlane.rootName,
+      manifestHash: controlPlane.manifestHash,
+      role: parsedRole.data,
+      name: settings.ensName,
+      owner: session.walletAddress,
+      settings,
+    });
   });
 
   app.get("/api/assets", async (request, response, next) => {

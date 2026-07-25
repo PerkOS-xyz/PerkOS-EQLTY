@@ -17,6 +17,7 @@ const optional = <T extends z.ZodType>(schema: T) =>
     schema.optional(),
   );
 const address = z.string().regex(/^0x[0-9a-fA-F]{40}$/);
+const privateKey = z.string().regex(/^0x[0-9a-fA-F]{64}$/);
 
 const schema = z.object({
   PORT: z.coerce.number().int().min(1).max(65_535).default(4021),
@@ -71,12 +72,39 @@ const schema = z.object({
     .default(84532),
   EQLTY_ENS_RECORDS_RPC_URL: optional(z.string().url()),
   EQLTY_ENS_L2_REGISTRY_ADDRESS: optional(address),
+  EQLTY_ENS_REGISTRAR_PRIVATE_KEY: optional(privateKey),
+  ENS_POLICY_VERSION: z.coerce.number().int().positive().default(1),
   ENS_POLICY_TTL_SECONDS: z.coerce
     .number()
     .int()
     .min(300)
     .max(2_592_000)
     .default(604_800),
+  ENS_POLICY_ALLOWED_TICKERS: z.string().default("NVDA,AMZN,ORCL"),
+  ENS_POLICY_MAX_AMOUNT_PER_TRADE: z
+    .string()
+    .max(78)
+    .regex(/^(0|[1-9]\d*)$/)
+    .default("1000000"),
+  ENS_POLICY_PAUSED: booleanValue("false"),
+  ENS_POLICY_MAX_DEVIATION_BPS: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(2_000)
+    .default(300),
+  ENS_POLICY_MIN_LIQUIDITY_USD: z.coerce
+    .number()
+    .finite()
+    .min(0)
+    .max(1_000_000_000_000)
+    .default(50_000),
+  ENS_POLICY_MAX_ORACLE_AGE_SECONDS: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(86_400)
+    .default(300),
   ENS_SCOUT_ADDRESS: optional(address),
   ENS_RISK_ADDRESS: optional(address),
   ENS_TRADER_ADDRESS: optional(address),

@@ -59,6 +59,10 @@ const schema = z.object({
     .default(3_600),
   PERKOS_API_URL: z.string().url().default("https://api.perkos.xyz"),
   PERKOS_FIREBASE_API_KEY: optional(z.string().min(20)),
+  PERKOS_FLEET_MODE: z
+    .enum(["disabled", "preview", "live"])
+    .default("preview"),
+  PERKOS_HERMES_IMAGE_TAG: optional(z.string().min(3).max(256)),
 });
 
 export type ApiConfig = z.infer<typeof schema>;

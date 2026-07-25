@@ -1,0 +1,4 @@
+interface:
+  display_name: "Robinhood Stock Substreams"
+  short_description: "Verify Stock Token pools with live Graph evidence."
+  default_prompt: "Verify AMZN pool freshness and cite its latest Substreams evidence."

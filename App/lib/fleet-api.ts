@@ -7,6 +7,15 @@ import type {
 
 const fallbackUrl = "http://localhost:4021";
 
+class FleetRequestError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
 function apiUrl(): string {
   return process.env.NEXT_PUBLIC_AGENT_API_URL?.trim() || fallbackUrl;
 }
@@ -27,9 +36,20 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       body && typeof body === "object" && "message" in body
         ? String(body.message)
         : `Fleet request failed with status ${response.status}`;
-    throw new Error(message);
+    throw new FleetRequestError(response.status, message);
   }
   return body as T;
+}
+
+export async function loadFleetSession(): Promise<UserSession | undefined> {
+  try {
+    return await request<UserSession>("/api/auth/session");
+  } catch (error) {
+    if (error instanceof FleetRequestError && error.status === 401) {
+      return undefined;
+    }
+    throw error;
+  }
 }
 
 export async function requestFleetChallenge(address: `0x${string}`) {

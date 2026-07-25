@@ -8,6 +8,7 @@ import {
 } from "react";
 import {
   activateFleet,
+  loadFleetSession,
   requestFleetChallenge,
   verifyFleetOwner,
 } from "../lib/fleet-api";
@@ -50,16 +51,22 @@ export function useFleetActivation(): FleetActivationState {
     setPhase("locating");
 
     try {
-      const challenge = await requestFleetChallenge(wallet.address);
-      const signature = await wallet.signMessage(challenge.message);
-      if (activeRun.current !== run) {
-        return;
+      let nextSession = await loadFleetSession();
+      if (
+        !nextSession ||
+        nextSession.walletAddress.toLowerCase() !== wallet.address.toLowerCase()
+      ) {
+        const challenge = await requestFleetChallenge(wallet.address);
+        const signature = await wallet.signMessage(challenge.message);
+        if (activeRun.current !== run) {
+          return;
+        }
+        nextSession = await verifyFleetOwner(
+          wallet.address,
+          challenge.nonce,
+          signature,
+        );
       }
-      const nextSession = await verifyFleetOwner(
-        wallet.address,
-        challenge.nonce,
-        signature,
-      );
       setSession(nextSession);
       setPhase("creating");
 

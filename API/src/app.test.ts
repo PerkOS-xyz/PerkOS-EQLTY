@@ -491,6 +491,8 @@ describe("API foundation", () => {
 
   it("creates an execution strategy for the session owner", async () => {
     const session = testSession();
+    const trader =
+      "0x9999999999999999999999999999999999999999" as const;
     const create = vi.fn(async (input) => ({
       ...input,
       id: "strategy-1",
@@ -526,12 +528,14 @@ describe("API foundation", () => {
           humanVerified: true,
         }),
       },
+      { ENS_TRADER_ADDRESS: trader },
     );
 
     expect(response.status).toBe(201);
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({
         owner: session.walletAddress,
+        agent: trader,
         ticker: "NVDA",
       }),
     );
@@ -653,8 +657,11 @@ async function request(
   path: string,
   dependencies?: Parameters<typeof createApp>[1],
   init?: RequestInit,
+  environment?: NodeJS.ProcessEnv,
 ): Promise<Response> {
-  const server = createServer(createApp(loadConfig({}), dependencies));
+  const server = createServer(
+    createApp(loadConfig(environment ?? {}), dependencies),
+  );
   servers.push(server);
   await new Promise<void>((resolve) => {
     server.listen(0, "127.0.0.1", resolve);

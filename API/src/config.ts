@@ -40,6 +40,9 @@ const schema = z.object({
     "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
   ),
   SWAPPER_ADDRESS: optional(address),
+  UNISWAP_UNIVERSAL_ROUTER_ADDRESS: address.default(
+    "0x8876789976decbfcbbbe364623c63652db8c0904",
+  ),
   MAINNET_QUOTE_AMOUNT: z
     .string()
     .max(78)

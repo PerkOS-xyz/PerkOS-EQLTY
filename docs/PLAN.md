@@ -16,7 +16,7 @@ can be executed with a clear evidence trail.
 - [x] Define the main package boundaries.
 - [x] Add repository and package safety rules.
 - [x] Document the product roles and sponsor focus.
-- [ ] Add shared workspace commands.
+- [x] Add shared workspace commands.
 
 ### 2. User experience
 

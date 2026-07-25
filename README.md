@@ -54,6 +54,18 @@ docs/       Product and development documentation
 The repository is being developed in small reviewable milestones. See
 [the development plan](docs/PLAN.md) for the current direction.
 
+## Local development
+
+Install JavaScript dependencies from the repository root:
+
+```bash
+pnpm install
+```
+
+Run the app and API in separate terminals with `pnpm dev:app` and
+`pnpm dev:api`. Use `pnpm check` for the shared type, format, build and test
+gates. Foundry must be installed for contract checks.
+
 ## Security
 
 Local environment files, credentials, private keys and deployment records are

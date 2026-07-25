@@ -48,6 +48,9 @@ const schema = z.object({
     "0x000000000022D473030F116dDEE9F6B43aC78BA3",
   ),
   EQLTY_VAULT_ADDRESS: optional(address),
+  EQLTY_VAULT_DEPLOYMENT_BLOCK: optional(
+    z.string().max(78).regex(/^(0|[1-9]\d*)$/),
+  ),
   EQLTY_VAULT_STRATEGY_ID: z
     .string()
     .max(78)

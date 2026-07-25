@@ -1,4 +1,5 @@
 import type { ApiConfig } from "./config.js";
+import { executionTraderAddress } from "./execution-addresses.js";
 
 export type PublicApiConfig = {
   demoMode: boolean;
@@ -60,7 +61,7 @@ export function publicConfig(config: ApiConfig): PublicApiConfig {
       eqltyVault: config.EQLTY_VAULT_ADDRESS as
         | `0x${string}`
         | undefined,
-      trader: config.ENS_TRADER_ADDRESS as `0x${string}` | undefined,
+      trader: executionTraderAddress(config),
     },
     integrations: {
       ens:

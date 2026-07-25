@@ -6,6 +6,7 @@ import { loadConfig, type ApiConfig } from "./config.js";
 import { EnsControlPlaneService } from "./ens-control-plane.js";
 import { EnsPolicyPreparationService } from "./ens-policy-preparation.js";
 import { EqltyVaultExecutor } from "./eqlty-vault-executor.js";
+import { executionTraderAddress } from "./execution-addresses.js";
 import { FleetActivationService } from "./fleet-activation.js";
 import { GraphEvidenceService } from "./graph-evidence.js";
 import { OwnerAuth } from "./owner-auth.js";
@@ -494,7 +495,7 @@ export function createApp(
           ...parsed.data,
           owner: session.walletAddress,
           agent: (
-            config.ENS_TRADER_ADDRESS ??
+            executionTraderAddress(config) ??
             session.walletAddress
           ) as `0x${string}`,
           inputToken: parsed.data.inputToken as `0x${string}`,

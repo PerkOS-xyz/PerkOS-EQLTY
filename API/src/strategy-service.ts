@@ -3,6 +3,7 @@ import type {
   ExecutionStrategy,
   OnchainStrategy,
 } from "./execution-types.js";
+import { executionTraderAddress } from "./execution-addresses.js";
 import type { EvmAddress } from "./market-types.js";
 import type { StockCatalogService } from "./stock-catalog.js";
 import { StockCatalogService as Catalog } from "./stock-catalog.js";
@@ -39,7 +40,7 @@ export class StrategyService {
     expiresAt: string;
   }): Promise<ExecutionStrategy> {
     const expectedAgent =
-      this.config.ENS_TRADER_ADDRESS ?? input.owner;
+      executionTraderAddress(this.config) ?? input.owner;
     if (!sameAddress(input.agent, expectedAgent)) {
       throw new Error("Strategy agent is not the authorized trader");
     }

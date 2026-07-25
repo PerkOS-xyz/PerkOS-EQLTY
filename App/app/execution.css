@@ -334,6 +334,83 @@
   background: #101c14;
 }
 
+.walletStrategyLogs {
+  margin-top: 11px;
+  padding: 12px;
+  border: 1px solid #304c39;
+  border-radius: 9px;
+  background: #0d1611;
+}
+
+.walletStrategyLogs > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.walletStrategyLogs > header > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.walletStrategyLogs > header span {
+  color: #75e69a;
+  font: 500 7px "DM Mono", monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.walletStrategyLogs > header strong {
+  font-size: 10px;
+}
+
+.walletStrategyLogs > header > b {
+  color: #77837c;
+  font: 500 7px "DM Mono", monospace;
+}
+
+.walletStrategyLogs > div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 9px;
+}
+
+.walletStrategyLogs a {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid #25362b;
+  border-radius: 8px;
+  color: #dbe8df;
+  text-decoration: none;
+}
+
+.walletStrategyLogs a:hover {
+  border-color: #64c985;
+}
+
+.walletStrategyLogs a span {
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.walletStrategyLogs a code {
+  overflow: hidden;
+  color: #78857d;
+  font-size: 7px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.walletStrategyLogs a b {
+  color: #78e49b;
+  font: 600 7px "DM Mono", monospace;
+}
+
 .executionLog > div,
 .executionLog a {
   display: flex;

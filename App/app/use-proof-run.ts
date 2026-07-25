@@ -7,10 +7,16 @@ import {
 } from "react";
 import {
   createExecutionStrategy,
+  linkExecutionStrategy,
+  readExecutionConfig,
   robinhoodUsdG,
   startProofRun,
   universalRouter,
 } from "../lib/execution-api";
+import {
+  provisionWalletStrategy,
+  type PurchaseStage,
+} from "../lib/eqlty-vault";
 import type {
   ExecutionStrategy,
   TradeRun,
@@ -23,6 +29,7 @@ export type ProofRunState = {
   strategy?: ExecutionStrategy;
   proofBusy: boolean;
   purchaseBusy: boolean;
+  purchaseStage: PurchaseStage;
   acknowledged: boolean;
   error?: string;
   runProof: () => void;
@@ -36,6 +43,8 @@ export function useProofRun(session?: AutonomousGoal): ProofRunState {
   const [run, setRun] = useState<TradeRun>();
   const [proofBusy, setProofBusy] = useState(false);
   const [purchaseBusy, setPurchaseBusy] = useState(false);
+  const [purchaseStage, setPurchaseStage] =
+    useState<PurchaseStage>("idle");
   const [acknowledged, setAcknowledged] = useState(false);
   const [error, setError] = useState<string>();
 
@@ -91,22 +100,58 @@ export function useProofRun(session?: AutonomousGoal): ProofRunState {
     }
 
     setPurchaseBusy(true);
+    setPurchaseStage("checking");
     setError(undefined);
     try {
-      setRun(await startProofRun(strategy, run.amountIn, true));
+      let activeStrategy = strategy;
+      if (!activeStrategy.onchain) {
+        const config = await readExecutionConfig();
+        if (
+          config.network.chainId !== 4663 ||
+          !config.contracts.eqltyVault
+        ) {
+          throw new Error(
+            "Wallet strategy funding is not configured on Robinhood Chain",
+          );
+        }
+        if (
+          config.contracts.trader &&
+          config.contracts.trader.toLowerCase() !==
+            activeStrategy.agent.toLowerCase()
+        ) {
+          throw new Error("The configured Hermes trader does not match");
+        }
+        const onchain = await provisionWalletStrategy({
+          wallet,
+          strategy: activeStrategy,
+          vault: config.contracts.eqltyVault,
+          amountIn: run.amountIn,
+          onStage: setPurchaseStage,
+        });
+        setPurchaseStage("linking");
+        activeStrategy = await linkExecutionStrategy(
+          activeStrategy,
+          onchain,
+        );
+        setStrategy(activeStrategy);
+      }
+      setPurchaseStage("executing");
+      setRun(await startProofRun(activeStrategy, run.amountIn, true));
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : "Purchase execution failed",
       );
     } finally {
       setPurchaseBusy(false);
+      setPurchaseStage("idle");
     }
-  }, [acknowledged, run, strategy]);
+  }, [acknowledged, run, strategy, wallet]);
 
   useEffect(() => {
     setStrategy(undefined);
     setRun(undefined);
     setAcknowledged(false);
+    setPurchaseStage("idle");
     setError(undefined);
   }, [session?.id]);
 
@@ -115,6 +160,7 @@ export function useProofRun(session?: AutonomousGoal): ProofRunState {
     strategy,
     proofBusy,
     purchaseBusy,
+    purchaseStage,
     acknowledged,
     error,
     runProof: () => void runProof(),

@@ -1,6 +1,7 @@
 import type {
   CreateStrategyInput,
   ExecutionStrategy,
+  OnchainStrategy,
   TradeRun,
 } from "./execution-types";
 
@@ -46,6 +47,33 @@ export function createExecutionStrategy(
     method: "POST",
     body: JSON.stringify(input),
   });
+}
+
+export function linkExecutionStrategy(
+  strategy: ExecutionStrategy,
+  onchain: OnchainStrategy,
+): Promise<ExecutionStrategy> {
+  return request<ExecutionStrategy>(
+    `/api/strategies/${encodeURIComponent(strategy.id)}/onchain`,
+    {
+      method: "POST",
+      body: JSON.stringify(onchain),
+    },
+  );
+}
+
+export type ExecutionConfig = {
+  network: {
+    chainId: number;
+  };
+  contracts: {
+    eqltyVault?: `0x${string}`;
+    trader?: `0x${string}`;
+  };
+};
+
+export function readExecutionConfig(): Promise<ExecutionConfig> {
+  return request<ExecutionConfig>("/api/config", { method: "GET" });
 }
 
 export function startProofRun(

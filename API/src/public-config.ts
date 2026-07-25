@@ -1,4 +1,5 @@
 import type { ApiConfig } from "./config.js";
+import { executionTraderAddress } from "./execution-addresses.js";
 
 export type PublicApiConfig = {
   demoMode: boolean;
@@ -17,6 +18,10 @@ export type PublicApiConfig = {
       name: "Robinhood";
       chainId: number;
     };
+  };
+  contracts: {
+    eqltyVault?: `0x${string}`;
+    trader?: `0x${string}`;
   };
   integrations: {
     ens: "ready" | "pending";
@@ -51,6 +56,12 @@ export function publicConfig(config: ApiConfig): PublicApiConfig {
         name: "Robinhood",
         chainId: config.UNISWAP_CHAIN_ID,
       },
+    },
+    contracts: {
+      eqltyVault: config.EQLTY_VAULT_ADDRESS as
+        | `0x${string}`
+        | undefined,
+      trader: executionTraderAddress(config),
     },
     integrations: {
       ens:

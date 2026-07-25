@@ -59,6 +59,38 @@ describe("strategy store", () => {
 
     expect(store.strategy("strategy-1", owner)?.status).toBe("expired");
   });
+
+  it("binds one immutable onchain strategy to its owner", () => {
+    const store = new StrategyStore({
+      id: () => "strategy-1",
+      now: () => Date.parse("2026-07-25T12:00:00.000Z"),
+    });
+    store.create(strategyInput());
+    const onchain = {
+      chainId: 4663 as const,
+      strategyId: "7",
+      creationTransactionHash: `0x${"11".repeat(32)}` as const,
+      approvalTransactionHash: `0x${"22".repeat(32)}` as const,
+      fundingTransactionHash: `0x${"33".repeat(32)}` as const,
+    };
+
+    expect(
+      store.bindOnchain("strategy-1", owner, onchain)?.onchain,
+    ).toEqual(onchain);
+    expect(
+      store.bindOnchain(
+        "strategy-1",
+        "0x2222222222222222222222222222222222222222",
+        onchain,
+      ),
+    ).toBeUndefined();
+    expect(
+      store.bindOnchain("strategy-1", owner, {
+        ...onchain,
+        strategyId: "8",
+      }),
+    ).toBeUndefined();
+  });
 });
 
 function strategyInput() {

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "./app.js";
 import { loadConfig } from "./config.js";
 import type { EnsPolicyPreparationService } from "./ens-policy-preparation.js";
+import type { ExecutionStrategy } from "./execution-types.js";
 
 const servers: ReturnType<typeof createServer>[] = [];
 
@@ -545,6 +546,66 @@ describe("API foundation", () => {
     await expect(response.json()).resolves.toMatchObject({
       id: "strategy-1",
       executionMode: "full",
+    });
+  });
+
+  it("links the wallet-created onchain strategy", async () => {
+    const session = testSession();
+    const bindOnchain = vi.fn(
+      (id, owner, onchain): ExecutionStrategy => ({
+        id,
+        owner,
+        onchain,
+        ticker: "AMZN",
+        agent: "0x9999999999999999999999999999999999999999",
+        inputToken: "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        outputToken: "0x12f190a9F9d7D37a250758b26824B97CE941bF54",
+        router: "0x8876789976decbfcbbbe364623c63652db8c0904",
+        maxAmountPerTrade: "1000000",
+        maxTotalSpend: "1000000",
+        spent: "0",
+        maxSlippageBps: 100,
+        expiresAt: "2026-07-26T12:00:00.000Z",
+        status: "active",
+        humanProof: {
+          provider: "owner-wallet-session",
+          status: "verified",
+          proofHash: `0x${"44".repeat(32)}`,
+        },
+        executionMode: "full",
+      }),
+    );
+    const response = await request(
+      "/api/strategies/strategy-1/onchain",
+      {
+        ownerAuth: testOwnerAuth(session),
+        strategies: {
+          create: vi.fn(),
+          bindOnchain,
+        },
+      },
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          chainId: 4663,
+          strategyId: "2",
+          creationTransactionHash: `0x${"11".repeat(32)}`,
+          approvalTransactionHash: `0x${"22".repeat(32)}`,
+          fundingTransactionHash: `0x${"33".repeat(32)}`,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(bindOnchain).toHaveBeenCalledWith(
+      "strategy-1",
+      session.walletAddress,
+      expect.objectContaining({ strategyId: "2" }),
+    );
+    await expect(response.json()).resolves.toMatchObject({
+      id: "strategy-1",
+      onchain: { chainId: 4663, strategyId: "2" },
     });
   });
 

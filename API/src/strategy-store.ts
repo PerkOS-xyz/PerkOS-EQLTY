@@ -3,6 +3,7 @@ import { keccak256, stringToHex } from "viem";
 import type {
   ExecutionStrategy,
   NewStrategy,
+  OnchainStrategy,
   TradeRun,
 } from "./execution-types.js";
 import type { EvmAddress } from "./market-types.js";
@@ -59,6 +60,28 @@ export class StrategyStore {
     ) {
       strategy.status = "expired";
     }
+    return structuredClone(strategy);
+  }
+
+  bindOnchain(
+    id: string,
+    owner: EvmAddress,
+    onchain: OnchainStrategy,
+  ): ExecutionStrategy | undefined {
+    const strategy = this.strategies.get(id);
+    if (
+      !strategy ||
+      strategy.owner.toLowerCase() !== owner.toLowerCase()
+    ) {
+      return undefined;
+    }
+    if (
+      strategy.onchain &&
+      JSON.stringify(strategy.onchain) !== JSON.stringify(onchain)
+    ) {
+      return undefined;
+    }
+    strategy.onchain = onchain;
     return structuredClone(strategy);
   }
 

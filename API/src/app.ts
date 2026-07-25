@@ -6,6 +6,7 @@ import { loadConfig, type ApiConfig } from "./config.js";
 import { EnsControlPlaneService } from "./ens-control-plane.js";
 import { EnsPolicyPreparationService } from "./ens-policy-preparation.js";
 import { EqltyVaultExecutor } from "./eqlty-vault-executor.js";
+import { executionTraderAddress } from "./execution-addresses.js";
 import { FleetActivationService } from "./fleet-activation.js";
 import { GraphEvidenceService } from "./graph-evidence.js";
 import { OwnerAuth } from "./owner-auth.js";
@@ -74,6 +75,19 @@ const runInput = z
     execute: z.boolean().default(false),
   })
   .strict();
+const transactionHash = z
+  .string()
+  .regex(/^0x[0-9a-fA-F]{64}$/)
+  .transform((value) => value as `0x${string}`);
+const onchainStrategyInput = z
+  .object({
+    chainId: z.literal(4663),
+    strategyId: uint256,
+    creationTransactionHash: transactionHash,
+    approvalTransactionHash: transactionHash,
+    fundingTransactionHash: transactionHash,
+  })
+  .strict();
 const ensPolicyChange = z
   .object({
     paused: z.boolean(),
@@ -101,7 +115,8 @@ type AppDependencies = {
   fleetActivation?: Pick<FleetActivationService, "activate">;
   graphEvidence?: Pick<GraphEvidenceService, "evidence">;
   goals?: Pick<AutonomousGoalService, "read" | "start" | "tick">;
-  strategies?: Pick<StrategyService, "create">;
+  strategies?: Pick<StrategyService, "create"> &
+    Partial<Pick<StrategyService, "bindOnchain">>;
   proofRuns?: Pick<ProofRunService, "run">;
   purchaseHistory?: Pick<PurchaseHistoryService, "list">;
   portfolio?: Pick<PortfolioService, "read">;
@@ -480,7 +495,7 @@ export function createApp(
           ...parsed.data,
           owner: session.walletAddress,
           agent: (
-            config.ENS_TRADER_ADDRESS ??
+            executionTraderAddress(config) ??
             session.walletAddress
           ) as `0x${string}`,
           inputToken: parsed.data.inputToken as `0x${string}`,
@@ -495,6 +510,49 @@ export function createApp(
       });
     }
   });
+
+  app.post(
+    "/api/strategies/:id/onchain",
+    async (request, response) => {
+      const session = ownerAuth.session(request);
+      if (!session) {
+        return response
+          .status(401)
+          .json({ error: "owner_session_required" });
+      }
+      const parsedId = goalId.safeParse(request.params.id);
+      const parsed = onchainStrategyInput.safeParse(request.body);
+      if (!parsedId.success || !parsed.success) {
+        return response.status(400).json({
+          error: "invalid_onchain_strategy",
+          issues: [
+            ...(parsedId.success ? [] : parsedId.error.issues),
+            ...(parsed.success ? [] : parsed.error.issues),
+          ],
+        });
+      }
+      if (!strategies.bindOnchain) {
+        return response.status(503).json({
+          error: "strategy_link_unavailable",
+        });
+      }
+      try {
+        response.setHeader("cache-control", "no-store");
+        return response.json(
+          strategies.bindOnchain(
+            parsedId.data,
+            session.walletAddress,
+            parsed.data,
+          ),
+        );
+      } catch (error) {
+        return response.status(400).json({
+          error: "strategy_link_rejected",
+          message: safeMessage(error),
+        });
+      }
+    },
+  );
 
   app.post("/api/runs", async (request, response) => {
     const session = ownerAuth.session(request);

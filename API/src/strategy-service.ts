@@ -1,5 +1,9 @@
 import type { ApiConfig } from "./config.js";
-import type { ExecutionStrategy } from "./execution-types.js";
+import type {
+  ExecutionStrategy,
+  OnchainStrategy,
+} from "./execution-types.js";
+import { executionTraderAddress } from "./execution-addresses.js";
 import type { EvmAddress } from "./market-types.js";
 import type { StockCatalogService } from "./stock-catalog.js";
 import { StockCatalogService as Catalog } from "./stock-catalog.js";
@@ -36,7 +40,7 @@ export class StrategyService {
     expiresAt: string;
   }): Promise<ExecutionStrategy> {
     const expectedAgent =
-      this.config.ENS_TRADER_ADDRESS ?? input.owner;
+      executionTraderAddress(this.config) ?? input.owner;
     if (!sameAddress(input.agent, expectedAgent)) {
       throw new Error("Strategy agent is not the authorized trader");
     }
@@ -77,6 +81,18 @@ export class StrategyService {
       ticker,
       executionMode: asset.orchestrationReady ? "full" : "analysis",
     });
+  }
+
+  bindOnchain(
+    id: string,
+    owner: EvmAddress,
+    onchain: OnchainStrategy,
+  ): ExecutionStrategy {
+    const strategy = this.store.bindOnchain(id, owner, onchain);
+    if (!strategy) {
+      throw new Error("Strategy cannot be linked to this onchain record");
+    }
+    return strategy;
   }
 }
 

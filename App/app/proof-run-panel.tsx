@@ -95,6 +95,10 @@ export function ProofRunPanel({
         />
       )}
 
+      {state.strategy?.onchain && (
+        <WalletStrategyLogs strategy={state.strategy} />
+      )}
+
       {run.status === "executed" && run.transactionHash && (
         <div className="executionLog">
           <div>
@@ -228,8 +232,8 @@ function LiveAuthorization({
             : "Proof passed. 1Claw still blocks this purchase."}
         </strong>
         <small>
-          Your wallet session authorizes smaller purchases. From 3 USDG,
-          1Claw plus live x401 and x402 evidence are required.
+          Your wallet will create, approve and fund this exact strategy.
+          From 3 USDG, 1Claw plus live x401 and x402 evidence are required.
         </small>
       </div>
       <label>
@@ -250,10 +254,63 @@ function LiveAuthorization({
         onClick={state.executePurchase}
         type="button"
       >
-        {state.purchaseBusy ? "Submitting to Uniswap..." : "Execute purchase"}
+        {state.purchaseBusy
+          ? purchaseLabel(state.purchaseStage)
+          : "Prepare wallet and execute"}
       </button>
     </div>
   );
+}
+
+function WalletStrategyLogs({
+  strategy,
+}: {
+  strategy: NonNullable<ProofRunState["strategy"]>;
+}) {
+  const onchain = strategy.onchain!;
+  const entries = [
+    ["Strategy created", onchain.creationTransactionHash],
+    ["USDG approved", onchain.approvalTransactionHash],
+    ["Strategy funded", onchain.fundingTransactionHash],
+  ] as const;
+  return (
+    <section className="walletStrategyLogs">
+      <header>
+        <div>
+          <span>Wallet authorization</span>
+          <strong>Strategy #{onchain.strategyId} belongs to your wallet</strong>
+        </div>
+        <b>3 confirmed transactions</b>
+      </header>
+      <div>
+        {entries.map(([label, hash]) => (
+          <a
+            href={transactionUrl(hash)}
+            key={label}
+            rel="noreferrer"
+            target="_blank"
+          >
+            <span>{label}</span>
+            <code>{short(hash)}</code>
+            <b>Verify ↗</b>
+          </a>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function purchaseLabel(stage: ProofRunState["purchaseStage"]): string {
+  const labels = {
+    idle: "Preparing wallet...",
+    checking: "Checking wallet...",
+    creating: "Create strategy in wallet...",
+    approving: "Approve USDG in wallet...",
+    funding: "Fund strategy in wallet...",
+    linking: "Linking strategy...",
+    executing: "Submitting to Uniswap...",
+  };
+  return labels[stage];
 }
 
 function runLabel(run: TradeRun): string {

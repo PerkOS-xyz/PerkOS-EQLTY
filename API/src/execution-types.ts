@@ -3,6 +3,14 @@ import type { OneClawGate } from "./oneclaw-policy.js";
 
 export type ProofMode = "preview" | "live";
 
+export type OnchainStrategy = {
+  chainId: 4663;
+  strategyId: string;
+  creationTransactionHash: `0x${string}`;
+  approvalTransactionHash: `0x${string}`;
+  fundingTransactionHash: `0x${string}`;
+};
+
 export type ExecutionStrategy = {
   id: string;
   ticker: string;
@@ -23,6 +31,7 @@ export type ExecutionStrategy = {
     proofHash: `0x${string}`;
   };
   executionMode: "analysis" | "full";
+  onchain?: OnchainStrategy;
 };
 
 export type RunStep = {

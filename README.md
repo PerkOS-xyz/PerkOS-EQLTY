@@ -52,7 +52,9 @@ docs/       Product and development documentation
 ```
 
 The repository is being developed in small reviewable milestones. See
-[the development plan](docs/PLAN.md) for the current direction.
+[the development plan](docs/PLAN.md) for the current direction,
+[the integration map](docs/INTEGRATIONS.md) for implementation evidence and
+[the demo guide](docs/DEMO.md) for the presentation flow.
 
 ## Local development
 

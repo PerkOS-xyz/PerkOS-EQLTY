@@ -70,6 +70,12 @@ const schema = z.object({
     .min(5)
     .max(86_400)
     .default(3_600),
+  GRAPH_MAX_PRICE_DEVIATION_BPS: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(10_000)
+    .default(1_000),
   GRAPH_MAX_LAG_BLOCKS: z.coerce
     .number()
     .int()

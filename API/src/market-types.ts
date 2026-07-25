@@ -35,6 +35,7 @@ export type GraphEvidenceSummary = {
   blockNumber: string;
   liquidityUsd: number;
   lastSwapPrice: number;
+  priceDeviationBps?: number;
   transactionHash: `0x${string}`;
   capturedAt: string;
   processedBlock: string;

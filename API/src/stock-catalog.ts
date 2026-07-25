@@ -129,18 +129,42 @@ export class StockCatalogService {
           `Price deviation ${deviationBps.toFixed(1)} bps exceeds policy`,
         );
       }
-      const graphEvidence =
+      let graphEvidence =
         graphResult.status === "fulfilled"
           ? summarizeGraph(graphResult.value)
           : undefined;
       if (graphResult.status === "rejected") {
         reasons.push(errorMessage(graphResult.reason));
-      } else if (!graphResult.value.health.healthy) {
-        reasons.push(
-          ...graphResult.value.health.reasons.map(
-            (reason) => `The Graph: ${reason}`,
-          ),
+      } else {
+        const graphPriceDeviationBps = priceDeviationBps(
+          graphResult.value.lastSwapPrice,
+          impliedPrice,
         );
+        graphEvidence = {
+          ...graphEvidence!,
+          priceDeviationBps: graphPriceDeviationBps,
+        };
+        if (
+          graphPriceDeviationBps >
+          this.config.GRAPH_MAX_PRICE_DEVIATION_BPS
+        ) {
+          const reason =
+            `swap price differs from the executable quote by ` +
+            `${graphPriceDeviationBps.toFixed(1)} bps`;
+          reasons.push(`The Graph: ${reason}`);
+          graphEvidence = {
+            ...graphEvidence,
+            healthy: false,
+            reasons: [...graphEvidence.reasons, reason],
+          };
+        }
+        if (!graphResult.value.health.healthy) {
+          reasons.push(
+            ...graphResult.value.health.reasons.map(
+              (reason) => `The Graph: ${reason}`,
+            ),
+          );
+        }
       }
       const status = classify(reasons, deviationBps);
 
@@ -363,4 +387,16 @@ function isAddress(value: string): value is EvmAddress {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "The Graph evidence failed";
+}
+
+function priceDeviationBps(price: number, reference: number): number {
+  if (
+    !Number.isFinite(price) ||
+    !Number.isFinite(reference) ||
+    price <= 0 ||
+    reference <= 0
+  ) {
+    return Number.POSITIVE_INFINITY;
+  }
+  return (Math.abs(price - reference) / reference) * 10_000;
 }

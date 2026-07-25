@@ -171,7 +171,10 @@ describe("PerkOS fleet", () => {
 });
 
 function fleetApi(existing: unknown[]) {
-  return vi.fn(async (input: URL | string, init: RequestInit = {}) => {
+  return vi.fn(async (
+    input: URL | string | Request,
+    init: RequestInit = {},
+  ) => {
     const url = String(input);
     const authorization = new Headers(init.headers).get("authorization");
     if (url.endsWith("/runtimes")) {

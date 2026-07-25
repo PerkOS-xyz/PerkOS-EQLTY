@@ -61,7 +61,10 @@ export function publicConfig(config: ApiConfig): PublicApiConfig {
           : "pending",
       oneclaw: "pending",
       perkos: config.PERKOS_FLEET_MODE,
-      theGraph: config.GRAPH_RISK_URL ? "ready" : "pending",
+      theGraph:
+        config.EQLTY_GRAPH_ADAPTER_URL || config.GRAPH_RISK_URL
+          ? "ready"
+          : "pending",
       uniswap:
         config.UNISWAP_API_KEY && config.SWAPPER_ADDRESS
           ? "ready"

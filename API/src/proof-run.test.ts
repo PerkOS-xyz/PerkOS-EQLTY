@@ -65,11 +65,19 @@ describe("proof runs", () => {
     expect(run.handoffs.at(-1)?.kind).toBe("audit-bundle");
   });
 
-  it("does not execute with preview x401 and x402 evidence", async () => {
+  it("executes a wallet-authorized purchase below the 1Claw lock", async () => {
+    const prepare = vi.fn().mockResolvedValue(preparedSwap());
     const execute = vi.fn();
+    execute.mockResolvedValue({
+      transactionHash: `0x${"55".repeat(32)}`,
+      requestId: "execution-quote",
+      routing: "CLASSIC",
+      quotedAmountOut: "9900000000000000",
+    });
     const { service, strategyId } = setup({
       executor: {
         ready: () => true,
+        prepare,
         execute,
       },
     });
@@ -79,10 +87,46 @@ describe("proof runs", () => {
       execute: true,
     });
 
+    expect(run.status).toBe("executed");
+    expect(prepare).toHaveBeenCalledOnce();
+    expect(execute).toHaveBeenCalledOnce();
+    expect(run.quote?.requestId).toBe("execution-quote");
+    expect(run.transactionHash).toBe(`0x${"55".repeat(32)}`);
+  });
+
+  it("keeps x401 and x402 required for a protected purchase", async () => {
+    const prepare = vi.fn();
+    const execute = vi.fn();
+    const { service, strategyId } = setup(
+      {
+        controlPlane: {
+          resolve: async () => controlPlane(false, "3000000"),
+        },
+        executor: {
+          ready: () => true,
+          prepare,
+          execute,
+        },
+      },
+      "3000000",
+    );
+
+    const run = await service.run({
+      ...runInput(strategyId),
+      amountIn: "3000000",
+      execute: true,
+      oneclaw: {
+        required: true,
+        linked: true,
+        minimumAmount: "3000000",
+        executionAuthorized: true,
+      },
+    });
+
     expect(run.status).toBe("rejected");
     expect(run.rejectionReason).toContain("x401 and x402");
+    expect(prepare).not.toHaveBeenCalled();
     expect(execute).not.toHaveBeenCalled();
-    expect(run.transactionHash).toBeUndefined();
   });
 
   it("rejects a 3 USDG purchase without every 1Claw rail", async () => {
@@ -94,6 +138,7 @@ describe("proof runs", () => {
         },
         executor: {
           ready: () => true,
+          prepare: vi.fn(),
           execute,
         },
       },
@@ -165,6 +210,27 @@ function setup(
     ...dependencies,
   });
   return { service, strategyId: strategy.id };
+}
+
+function preparedSwap() {
+  return {
+    amountOut: "9900000000000000",
+    requestId: "execution-quote",
+    routing: "CLASSIC",
+    rawQuote: {
+      input: {
+        token: "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        amount: "1000000",
+      },
+    },
+    transaction: {
+      to: "0x8876789976decbfcbbbe364623c63652db8c0904" as const,
+      from: "0x9999999999999999999999999999999999999999" as const,
+      data: "0x1234" as const,
+      value: "0",
+      chainId: 4663,
+    },
+  };
 }
 
 function runInput(strategyId: string) {

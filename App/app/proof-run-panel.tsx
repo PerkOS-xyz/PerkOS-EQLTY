@@ -228,8 +228,8 @@ function LiveAuthorization({
             : "Proof passed. 1Claw still blocks this purchase."}
         </strong>
         <small>
-          Purchases from 3 USDG require 1Claw. Mainnet also requires live
-          identity, x401 and x402 evidence.
+          Your wallet session authorizes smaller purchases. From 3 USDG,
+          1Claw plus live x401 and x402 evidence are required.
         </small>
       </div>
       <label>

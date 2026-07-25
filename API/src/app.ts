@@ -5,6 +5,7 @@ import { AutonomousGoalService } from "./autonomous-goals.js";
 import { loadConfig, type ApiConfig } from "./config.js";
 import { EnsControlPlaneService } from "./ens-control-plane.js";
 import { EnsPolicyPreparationService } from "./ens-policy-preparation.js";
+import { EqltyVaultExecutor } from "./eqlty-vault-executor.js";
 import { FleetActivationService } from "./fleet-activation.js";
 import { GraphEvidenceService } from "./graph-evidence.js";
 import { OwnerAuth } from "./owner-auth.js";
@@ -145,6 +146,7 @@ export function createApp(
     new ProofRunService(config, strategyStore, {
       catalog: stockCatalog,
       controlPlane: ensControlPlane,
+      executor: new EqltyVaultExecutor(config),
     });
 
   app.disable("x-powered-by");

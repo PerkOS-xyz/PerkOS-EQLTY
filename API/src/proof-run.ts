@@ -13,15 +13,10 @@ import { createHandoff, hashPayload } from "./proof-handoff.js";
 import type { StockCatalogService } from "./stock-catalog.js";
 import { StockCatalogService as Catalog } from "./stock-catalog.js";
 import type { StrategyStore } from "./strategy-store.js";
-
-export interface TradeExecutor {
-  ready(): boolean;
-  execute(input: {
-    strategyId: string;
-    amountIn: string;
-    requestId: string;
-  }): Promise<`0x${string}`>;
-}
+import {
+  disabledTradeExecutor,
+  type TradeExecutor,
+} from "./trade-executor.js";
 
 type Dependencies = {
   catalog?: Pick<StockCatalogService, "assessTicker">;
@@ -46,7 +41,7 @@ export class ProofRunService {
     this.catalog = dependencies.catalog ?? new Catalog(config);
     this.controlPlane =
       dependencies.controlPlane ?? new ControlPlane(config);
-    this.executor = dependencies.executor ?? disabledExecutor;
+    this.executor = dependencies.executor ?? disabledTradeExecutor;
     this.now = dependencies.now ?? (() => new Date());
     this.id = dependencies.id ?? randomUUID;
   }
@@ -230,6 +225,43 @@ export class ProofRunService {
       requestId: asset.uniswapRequestId!,
       mode: "live",
     };
+    let prepared;
+    if (input.execute) {
+      if (!input.oneclaw.executionAuthorized) {
+        return this.reject(
+          run,
+          "Purchases of 3 USDG or more require every 1Claw fleet rail",
+        );
+      }
+      if (strategy.executionMode !== "full") {
+        return this.reject(run, "Strategy is analysis-only");
+      }
+      if (
+        input.oneclaw.required &&
+        run.signal.payment.mode !== "live"
+      ) {
+        return this.reject(
+          run,
+          "Live x401 and x402 authorization is not configured",
+        );
+      }
+      if (!this.executor.ready()) {
+        return this.reject(
+          run,
+          "Live contract execution is not configured",
+        );
+      }
+      prepared = await this.executor.prepare({
+        strategy,
+        amountIn: input.amountIn,
+      });
+      run.quote = {
+        routing: prepared.routing,
+        quotedAmountOut: prepared.amountOut,
+        requestId: prepared.requestId,
+        mode: "live",
+      };
+    }
     run.handoffs.push(
       createHandoff({
         from: "trader",
@@ -255,32 +287,21 @@ export class ProofRunService {
     );
 
     if (input.execute) {
-      if (!input.oneclaw.executionAuthorized) {
-        return this.reject(
-          run,
-          "Purchases of 3 USDG or more require every 1Claw fleet rail",
-        );
-      }
-      if (strategy.executionMode !== "full") {
-        return this.reject(run, "Strategy is analysis-only");
-      }
-      if (run.signal.payment.mode !== "live") {
-        return this.reject(
-          run,
-          "Live x401 and x402 authorization is not configured",
-        );
-      }
-      if (!this.executor.ready()) {
-        return this.reject(
-          run,
-          "Live contract execution is not configured",
-        );
-      }
-      run.transactionHash = await this.executor.execute({
-        strategyId: strategy.id,
-        amountIn: input.amountIn,
-        requestId: run.quote.requestId,
-      });
+      const receipt = await this.executor.execute(
+        {
+          strategy,
+          amountIn: input.amountIn,
+          signalHash: hashPayload(run.signal),
+        },
+        prepared!,
+      );
+      run.transactionHash = receipt.transactionHash;
+      run.quote = {
+        routing: receipt.routing,
+        quotedAmountOut: receipt.quotedAmountOut,
+        requestId: receipt.requestId,
+        mode: "live",
+      };
       run.status = "executed";
       this.step(
         run,
@@ -396,10 +417,3 @@ function marketRejection(
   }
   return undefined;
 }
-
-const disabledExecutor: TradeExecutor = {
-  ready: () => false,
-  execute: async () => {
-    throw new Error("Live contract execution is not configured");
-  },
-};

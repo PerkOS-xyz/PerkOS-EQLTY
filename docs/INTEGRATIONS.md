@@ -50,7 +50,7 @@ Plugins/
 |---|---|
 | V4-only exact-input quote request on Robinhood Chain | `API/src/uniswap-client.ts:22-68` |
 | Quote, reference price and route comparison | `API/src/stock-catalog.ts:80-161` |
-| Quote handoff from Trader to Auditor | `API/src/proof-run.ts:220-248` |
+| Quote handoff from Trader to Auditor | `API/src/proof-run.ts:227-255` |
 | Reusable Hermes and OpenClaw commands | `Plugins/EQLTY-Uniswap-Plugin/skills/execute-stock-token-trade/scripts/uniswap-agent.mjs:48-145` |
 
 The API keeps the Uniswap request ID and quoted output in the proof run. A dry
@@ -61,8 +61,8 @@ run is never described as an executed swap.
 | Evidence | Location |
 |---|---|
 | Strict Substreams evidence and provider schema | `API/src/graph-evidence.ts:7-46` |
-| Freshness, lag and ticker validation | `API/src/graph-evidence.ts:78-151` |
-| Graph risk handoff and transaction evidence | `API/src/proof-run.ts:187-218` |
+| Freshness, lag and ticker validation | `API/src/graph-evidence.ts:80-153` |
+| Graph risk handoff and transaction evidence | `API/src/proof-run.ts:204-226` |
 | Robinhood Uniswap V4 event module | `Plugins/EQLTY-The-Graph-Plugin/substreams/src/lib.rs:1-56` |
 | Parameterized 94-pool agent tool | `Plugins/EQLTY-The-Graph-Plugin/skills/robinhood-stock-substreams/scripts/stock-substreams.mjs` |
 
@@ -118,5 +118,5 @@ Live purchase submission remains fail-closed until all of these are connected:
 - deployed contract addresses and funded strategy;
 - World Selfie authorization for ENS settings publication.
 
-`API/src/proof-run.ts:250-267` enforces this boundary. A live demo must show
+`API/src/proof-run.ts:257-284` enforces this boundary. A live demo must show
 `status: executed` and a transaction hash before claiming funds moved.

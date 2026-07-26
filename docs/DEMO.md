@@ -45,12 +45,16 @@ another user action.
 Point to:
 
 - the five-message agent decision room;
+- the live Scout and Risk runtime names and sealed A2A response hashes;
 - ENS policy version and manifest hash;
 - shortlist containing several Stock Tokens;
 - The Graph event, block and JSON links;
 - Uniswap request ID and V4 contract link;
 - the final proof root and the explicit `no funds moved` state;
 - current 1Claw execution state.
+
+Do not use the run for judging if the decision room reports deterministic
+fallback. Both Hermes handoffs must show as verified.
 
 Explain that changing the ENS record changes the next agent cycle without
 redeploying the fleet.

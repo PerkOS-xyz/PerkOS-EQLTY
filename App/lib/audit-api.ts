@@ -1,4 +1,8 @@
-import type { Portfolio, PurchaseHistory } from "./audit-types";
+import type {
+  Portfolio,
+  PurchaseAuditBundle,
+  PurchaseHistory,
+} from "./audit-types";
 
 const fallbackUrl = "http://localhost:4021";
 
@@ -38,6 +42,16 @@ export function loadPurchaseHistory(
   signal?: AbortSignal,
 ): Promise<PurchaseHistory> {
   return request<PurchaseHistory>("/api/history", signal);
+}
+
+export function loadPurchaseAudit(
+  transactionHash: string,
+  signal?: AbortSignal,
+): Promise<PurchaseAuditBundle> {
+  return request<PurchaseAuditBundle>(
+    `/api/audits/${encodeURIComponent(transactionHash)}`,
+    signal,
+  );
 }
 
 export function loadPortfolio(signal?: AbortSignal): Promise<Portfolio> {

@@ -154,6 +154,9 @@ function PurchaseCard({ entry }: { entry: PurchaseHistoryEntry }) {
         </div>
       </dl>
       <footer>
+        <Link href={`/history/${entry.transactionHash}`}>
+          Audit details
+        </Link>
         <a
           href={transactionUrl(entry.transactionHash)}
           rel="noreferrer"

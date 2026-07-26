@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   addressUrl,
   blockUrl,
@@ -116,6 +117,19 @@ export function ProofRunPanel({
             <code>{short(run.transactionHash)}</code>
             <b>Open transaction ↗</b>
           </a>
+          {run.audit?.status === "stored" && (
+            <Link href={`/history/${run.transactionHash}`}>
+              <code>{short(run.audit.bundleHash ?? run.transactionHash)}</code>
+              <b>Open full audit →</b>
+            </Link>
+          )}
+        </div>
+      )}
+
+      {run.audit?.status === "failed" && (
+        <div className="proofRejected">
+          <strong>Audit storage needs attention</strong>
+          <span>{run.audit.error ?? "The onchain purchase still succeeded."}</span>
         </div>
       )}
 

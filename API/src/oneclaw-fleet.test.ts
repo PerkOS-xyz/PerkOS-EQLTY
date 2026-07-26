@@ -36,7 +36,7 @@ describe("1Claw Platform API provisioning", () => {
         requests.push({ body, method, url });
 
         if (url.endsWith(`/v1/platform/apps/${appId}/users`)) {
-          return json([]);
+          return json({ users: [] });
         }
         if (url.endsWith("/v1/platform/users/upsert")) {
           return json(

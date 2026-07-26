@@ -97,7 +97,7 @@ World authorization.
 |---|---|---|
 | Robinhood Chain | Stock Token assets, prices, chain IDs and receipts | `API/src/stock-catalog.ts:20-22`, `App/app/wallet-networks.ts`, `App/lib/execution-api.ts` |
 | PerkOS | Create, locate and wake managed Hermes agents | `API/src/perkos-fleet.ts:36-223` |
-| 1Claw | Require all four security links for purchases from 3 USDG | `API/src/oneclaw-policy.ts`, `API/src/autonomous-goals.ts`, `API/src/proof-run.ts` |
+| 1Claw | Provision four isolated Hermes credentials and require every link for purchases from 3 USDG | `API/src/oneclaw-fleet.ts`, `API/src/oneclaw-policy.ts`, `API/src/autonomous-goals.ts`, `API/src/proof-run.ts`, `App/app/fleet-panel.tsx` |
 | Dynamic | Single user wallet modal and message signing | `App/app/dynamic-wallet-provider.tsx:15-84` |
 | EQLTY Vault | Limits, nonce protection, risk signature and router call | `Contracts/src/EQLTYVault.sol:214-289` |
 | PerkOS Firestore | Wallet-scoped audit bundle keyed by purchase hash | `API/src/firestore-audit.ts` |
@@ -138,6 +138,15 @@ Substreams JSON and final purchase receipt when present. Explorer links are
 kept separate from quote request IDs and offchain proof hashes.
 
 Purchases of 3 USDG or more remain fail-closed until all four 1Claw rails are
-linked. World Selfie authorization remains required for future ENS settings
+linked. The API uses 1Claw batch provisioning because self-enrollment requires
+a separate human approval and credential handoff for every agent. The trader's
+Ethereum signing key remains inside 1Claw, while each one-time agent credential
+is passed directly to PerkOS.
+
+Robinhood EIP-712 restrictions remain disabled for the MVP. Transaction
+guardrails still limit the trader to Robinhood Chain, the EQLTY vault, Uniswap
+contracts, USDG and six transactions per day.
+
+World Selfie authorization remains required for future ENS settings
 publication, not for reading the current policy or demonstrating a 1 USDG
 purchase.

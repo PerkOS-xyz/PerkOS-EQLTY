@@ -1,8 +1,12 @@
 import dotenv from "dotenv";
+import { fileURLToPath } from "node:url";
 import { z } from "zod";
 
 dotenv.config({
-  path: new URL("../../.env", import.meta.url),
+  path: [
+    fileURLToPath(new URL("../../.env.local", import.meta.url)),
+    fileURLToPath(new URL("../../.env", import.meta.url)),
+  ],
   quiet: true,
 });
 

@@ -453,6 +453,311 @@
   color: #cbd6cf;
 }
 
+.fleetWorkflowBanner {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 0.7fr) minmax(0, 1.3fr);
+  gap: 12px;
+  align-items: center;
+  margin: 0 0 13px;
+  padding: 10px 12px;
+  border: 1px solid #3f4e2c;
+  border-radius: 9px;
+  background:
+    linear-gradient(100deg, rgb(179 220 61 / 8%), transparent 45%),
+    #0d130f;
+}
+
+.fleetWorkflowBanner > span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #d5eb75;
+  font: 7px "DM Mono", monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.fleetWorkflowBanner > span i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentcolor;
+  box-shadow: 0 0 8px currentcolor;
+  animation: workflowBeacon 1.2s ease-in-out infinite;
+}
+
+.fleetWorkflowBanner strong {
+  color: #dbe4de;
+  font-size: 9px;
+}
+
+.fleetWorkflowBanner > small {
+  color: #7e8b83;
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.fleetWorkflowBanner.blocked {
+  border-color: #78413d;
+  background:
+    linear-gradient(100deg, rgb(147 50 44 / 13%), transparent 48%),
+    #150d0d;
+}
+
+.fleetWorkflowBanner.blocked > span,
+.fleetWorkflowBanner.blocked strong {
+  color: #f08c84;
+}
+
+.fleetWorkflowBanner.complete {
+  border-color: #315c3e;
+}
+
+.fleetWorkflowBanner.complete > span {
+  color: #7fe6a0;
+}
+
+.fleetWorkflowBanner.complete > span i {
+  animation: none;
+}
+
+.workflowTechRail {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+  margin: 1px 0 0;
+  padding: 9px 0 0;
+  border-top: 1px solid #263126;
+  list-style: none;
+}
+
+.workflowTechRail li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr);
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+  padding: 6px 18px 6px 7px;
+  border: 1px solid #303a32;
+  border-radius: 6px;
+  background: #0b100d;
+}
+
+.workflowTechRail li > i {
+  width: 7px;
+  height: 7px;
+  border: 1px solid #727e75;
+  border-radius: 50%;
+}
+
+.workflowTechRail li > span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.workflowTechRail li b,
+.workflowTechRail li small {
+  overflow: hidden;
+  font: 6px "DM Mono", monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workflowTechRail li b {
+  color: #c0cac3;
+  text-transform: uppercase;
+}
+
+.workflowTechRail li small {
+  color: #68736c;
+}
+
+.workflowTechRail li > em {
+  position: absolute;
+  top: 50%;
+  right: -7px;
+  z-index: 2;
+  color: #59645d;
+  font: normal 13px "DM Mono", monospace;
+  transform: translateY(-52%);
+}
+
+.workflowTechRail li.checking {
+  border-color: #58602f;
+}
+
+.workflowTechRail li.checking > i {
+  border-color: #d6e66d;
+  border-top-color: transparent;
+  animation: ruleSpin 700ms linear infinite;
+}
+
+.workflowTechRail li.passed {
+  border-color: #31593f;
+}
+
+.workflowTechRail li.passed > i {
+  border-color: #6ddd91;
+  background: #6ddd91;
+  box-shadow: 0 0 7px rgb(109 221 145 / 42%);
+}
+
+.workflowTechRail li.passed b {
+  color: #8fe5a8;
+}
+
+.workflowTechRail li.blocked {
+  border-color: #74403c;
+  background: #170d0d;
+}
+
+.workflowTechRail li.blocked > i {
+  border-color: #ee8079;
+  background: #ee8079;
+}
+
+.workflowTechRail li.blocked b,
+.workflowTechRail li.blocked small {
+  color: #e98a83;
+}
+
+.workflowTechRail li.waiting {
+  opacity: 0.48;
+}
+
+.agentPolicyChecks {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 7px;
+  padding-top: 9px;
+  border-top: 1px solid #25342b;
+}
+
+.agentPolicyChecks > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.agentPolicyChecks > header span,
+.agentPolicyChecks > header b {
+  font: 7px "DM Mono", monospace;
+  text-transform: uppercase;
+}
+
+.agentPolicyChecks > header span {
+  color: #748078;
+}
+
+.agentPolicyChecks > header b {
+  color: #d7e775;
+}
+
+.agentPolicyChecks.passed > header b {
+  color: #7ee39d;
+}
+
+.agentPolicyChecks.blocked > header b {
+  color: #ee847c;
+}
+
+.agentPolicyChecks.result-unavailable > header b {
+  color: #d7b56c;
+}
+
+.agentPolicyChecks ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agentPolicyChecks li {
+  display: grid;
+  grid-template-columns: 8px 68px minmax(0, 1fr);
+  gap: 5px;
+  align-items: center;
+  min-width: 0;
+  padding: 4px 5px;
+  border-radius: 5px;
+  background: rgb(255 255 255 / 1.8%);
+  opacity: 0;
+  animation: ruleReveal 280ms ease forwards;
+}
+
+.agentPolicyChecks li > i {
+  width: 6px;
+  height: 6px;
+  border: 1px solid #536058;
+  border-radius: 50%;
+}
+
+.agentPolicyChecks li > span {
+  color: #86928a;
+  font: 6px "DM Mono", monospace;
+  text-transform: uppercase;
+}
+
+.agentPolicyChecks li > small {
+  min-width: 0;
+  overflow: hidden;
+  color: #9ba69f;
+  font: 6px "DM Mono", monospace;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agentPolicyChecks li.checking > i {
+  border-color: #d8e66e;
+  border-top-color: transparent;
+  animation: ruleSpin 700ms linear infinite;
+}
+
+.agentPolicyChecks li.passed > i {
+  border-color: #68dc8e;
+  background: #68dc8e;
+  box-shadow: 0 0 6px rgb(104 220 142 / 42%);
+}
+
+.agentPolicyChecks li.blocked {
+  background: rgb(130 41 37 / 14%);
+}
+
+.agentPolicyChecks li.blocked > i {
+  border-color: #ed7d75;
+  background: #ed7d75;
+  box-shadow: 0 0 6px rgb(237 125 117 / 38%);
+}
+
+.agentPolicyChecks li.blocked > span,
+.agentPolicyChecks li.blocked > small {
+  color: #ef918a;
+}
+
+.agentPolicyChecks li.waiting {
+  opacity: 0.48;
+}
+
+.agentPolicyChecks li.unavailable {
+  background: rgb(129 102 44 / 12%);
+}
+
+.agentPolicyChecks li.unavailable > i {
+  border-color: #c5a65e;
+  background: #c5a65e;
+}
+
+.agentPolicyChecks li.unavailable > span,
+.agentPolicyChecks li.unavailable > small {
+  color: #c4ad78;
+}
+
 .agentSteps {
   display: grid;
   grid-column: 1 / -1;

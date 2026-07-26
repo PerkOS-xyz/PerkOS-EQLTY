@@ -98,6 +98,12 @@ ENS is the behavior source of truth. Policy preparation produces the next
 manifest and role hashes but does not publish them before owner-wallet and
 World authorization.
 
+The testnet UI opens names in the current ENSv2 app at `app.ens.dev`. EQLTY's
+control plane still uses the deployed Durin L2 registry and does not claim that
+those records have already migrated to ENSv2. The hierarchical registry and
+per-name resolver model are tracked as the migration path:
+https://docs.ens.domains/contracts/ensv2/overview/
+
 ## Supporting infrastructure
 
 | Technology | Responsibility | Location |

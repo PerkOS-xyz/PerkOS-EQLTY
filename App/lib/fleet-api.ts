@@ -7,6 +7,7 @@ import type {
 } from "./fleet-types";
 
 const fallbackUrl = "http://localhost:4021";
+const fallbackEnsAppUrl = "https://app.ens.dev";
 
 class FleetRequestError extends Error {
   constructor(
@@ -105,7 +106,10 @@ export function fleetMetadataUrl(role: AgentRole): string {
 }
 
 export function ensManagerUrl(name: string): string {
-  return `https://sepolia.app.ens.domains/${encodeURIComponent(name)}`;
+  const baseUrl =
+    process.env.NEXT_PUBLIC_EQLTY_ENS_APP_URL?.trim() ||
+    fallbackEnsAppUrl;
+  return `${baseUrl.replace(/\/$/, "")}/${encodeURIComponent(name)}`;
 }
 
 export async function loadFleetMetadata(

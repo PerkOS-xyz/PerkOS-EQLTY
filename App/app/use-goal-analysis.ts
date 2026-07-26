@@ -6,6 +6,8 @@ import {
   useRef,
   useState,
 } from "react";
+import { loadFleetPolicy } from "../lib/fleet-api";
+import type { FleetPolicy } from "../lib/fleet-types";
 import { readGoal, startGoal } from "../lib/goal-api";
 import type { AutonomousGoal } from "../lib/goal-types";
 import { useWalletAccess } from "./wallet-access-context";
@@ -17,6 +19,10 @@ export type GoalAnalysisState = {
   goalText: string;
   amount: string;
   windowMinutes: number;
+  candidateTicker: string;
+  policy?: FleetPolicy;
+  policyLoading: boolean;
+  policyError?: string;
   session?: AutonomousGoal;
   busy: boolean;
   error?: string;
@@ -26,6 +32,7 @@ export type GoalAnalysisState = {
   setGoalText: (value: string) => void;
   setAmount: (value: string) => void;
   setWindowMinutes: (value: number) => void;
+  setCandidateTicker: (value: string) => void;
   analyze: () => void;
 };
 
@@ -35,6 +42,10 @@ export function useGoalAnalysis(): GoalAnalysisState {
   const [goalText, setGoalText] = useState(defaultGoal);
   const [amount, setAmount] = useState("1");
   const [windowMinutes, setWindowMinutes] = useState(2);
+  const [candidateTicker, setCandidateTicker] = useState("");
+  const [policy, setPolicy] = useState<FleetPolicy>();
+  const [policyLoading, setPolicyLoading] = useState(false);
+  const [policyError, setPolicyError] = useState<string>();
   const [session, setSession] = useState<AutonomousGoal>();
   const [runKey, setRunKey] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -70,7 +81,12 @@ export function useGoalAnalysis(): GoalAnalysisState {
         amountIn: atomicAmount.toString(),
         windowMinutes,
         cadenceSeconds: 30,
-        maxCandidates: 3,
+        maxCandidates: candidateTicker
+          ? 1
+          : Math.min(10, policy?.allowedTickers.length ?? 3),
+        candidateTickers: candidateTicker
+          ? [candidateTicker]
+          : undefined,
       });
       if (activeRun.current === run) {
         setSession(next);
@@ -87,7 +103,62 @@ export function useGoalAnalysis(): GoalAnalysisState {
         setBusy(false);
       }
     }
-  }, [amount, goalText, wallet.connected, windowMinutes]);
+  }, [
+    amount,
+    candidateTicker,
+    goalText,
+    policy?.allowedTickers.length,
+    wallet.connected,
+    windowMinutes,
+  ]);
+
+  useEffect(() => {
+    if (!wallet.connected) {
+      setPolicy(undefined);
+      setPolicyLoading(false);
+      setPolicyError(undefined);
+      setCandidateTicker("");
+      return;
+    }
+
+    let cancelled = false;
+    let timer: number | undefined;
+    let attempts = 0;
+    setPolicyLoading(true);
+    setPolicyError(undefined);
+
+    const load = async () => {
+      attempts += 1;
+      try {
+        const next = await loadFleetPolicy();
+        if (cancelled) return;
+        setPolicy(next);
+        setCandidateTicker((current) =>
+          next.allowedTickers.includes(current) ? current : "",
+        );
+        setPolicyError(undefined);
+        setPolicyLoading(false);
+      } catch (cause) {
+        if (cancelled) return;
+        if (attempts < 6) {
+          timer = window.setTimeout(load, 2_000);
+          return;
+        }
+        setPolicyLoading(false);
+        setPolicyError(
+          cause instanceof Error
+            ? cause.message
+            : "ENS policy is unavailable",
+        );
+      }
+    };
+
+    void load();
+    return () => {
+      cancelled = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, [wallet.connected]);
 
   useEffect(() => {
     if (!session || session.status !== "active") {
@@ -144,6 +215,10 @@ export function useGoalAnalysis(): GoalAnalysisState {
     goalText,
     amount,
     windowMinutes,
+    candidateTicker,
+    policy,
+    policyLoading,
+    policyError,
     session,
     busy,
     error,
@@ -153,6 +228,7 @@ export function useGoalAnalysis(): GoalAnalysisState {
     setGoalText,
     setAmount,
     setWindowMinutes,
+    setCandidateTicker,
     analyze: () => void analyze(),
   };
 }

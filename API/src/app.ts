@@ -548,6 +548,54 @@ export function createApp(
     });
   });
 
+  app.get("/api/fleet/policy", async (request, response) => {
+    const session = ownerAuth.session(request);
+    if (!session) {
+      return response
+        .status(401)
+        .json({ error: "owner_session_required" });
+    }
+
+    const controlPlane = await ensControlPlane.resolve({
+      userId: session.fleetUserId,
+      owner: session.walletAddress,
+    });
+    if (
+      controlPlane.status !== "active" ||
+      !controlPlane.rootName ||
+      !controlPlane.manifest ||
+      !controlPlane.manifestHash
+    ) {
+      return response.status(503).json({
+        error: "fleet_policy_unavailable",
+        detail: controlPlane.error,
+      });
+    }
+
+    response.setHeader("cache-control", "no-store");
+    return response.json({
+      schema: "urn:eqlty:ens-fleet-policy:v1",
+      source: "durin",
+      chainId: config.EQLTY_ENS_RECORDS_CHAIN_ID,
+      rootName: controlPlane.rootName,
+      manifestHash: controlPlane.manifestHash,
+      resolvedAt: controlPlane.resolvedAt,
+      version: controlPlane.manifest.version,
+      paused: controlPlane.manifest.paused,
+      allowedTickers: controlPlane.manifest.policy.allowedTickers,
+      limits: {
+        maxAmountPerTrade:
+          controlPlane.manifest.policy.maxAmountPerTrade,
+        maxDeviationBps:
+          controlPlane.manifest.policy.maxDeviationBps,
+        minLiquidityUsd:
+          controlPlane.manifest.policy.minLiquidityUsd,
+        maxOracleAgeSeconds:
+          controlPlane.manifest.policy.maxOracleAgeSeconds,
+      },
+    });
+  });
+
   app.get("/api/evidence/:ticker", async (request, response) => {
     if (!ownerAuth.session(request)) {
       return response

@@ -106,7 +106,7 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 9px;
-  margin: 0;
+  margin: 10px 0 0;
 }
 
 .goalControlStack {
@@ -120,6 +120,15 @@
 .goalForm select {
   height: 42px;
   padding: 0 12px;
+}
+
+.goalPolicyHint {
+  display: block;
+  min-height: 30px;
+  margin-top: 7px;
+  color: #77817c;
+  font-size: 9px;
+  line-height: 1.5;
 }
 
 .amountInput {

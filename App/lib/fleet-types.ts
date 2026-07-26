@@ -97,6 +97,24 @@ export type EnsAgentMetadata = {
   };
 };
 
+export type FleetPolicy = {
+  schema: "urn:eqlty:ens-fleet-policy:v1";
+  source: "durin";
+  chainId: number;
+  rootName: string;
+  manifestHash: `0x${string}`;
+  resolvedAt: string;
+  version: number;
+  paused: boolean;
+  allowedTickers: string[];
+  limits: {
+    maxAmountPerTrade: string;
+    maxDeviationBps: number;
+    minLiquidityUsd: number;
+    maxOracleAgeSeconds: number;
+  };
+};
+
 export type FleetPhase =
   | "idle"
   | "locating"

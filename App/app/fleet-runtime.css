@@ -75,6 +75,98 @@
     box-shadow 0.3s;
 }
 
+.runtimeGrid {
+  position: relative;
+  overflow: visible;
+}
+
+.agentNode {
+  position: relative;
+  min-width: 0;
+}
+
+.agentNode .agentCard {
+  height: 100%;
+}
+
+.agentConnector {
+  position: absolute;
+  z-index: 3;
+  top: 50%;
+  left: calc(100% - 2px);
+  width: 13px;
+  height: 14px;
+  color: #4a554e;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.agentConnector::before {
+  position: absolute;
+  top: 6px;
+  right: 0;
+  left: 0;
+  height: 1px;
+  background: currentcolor;
+  content: "";
+}
+
+.agentConnector b {
+  position: absolute;
+  top: -3px;
+  right: -1px;
+  font: 14px "DM Mono", monospace;
+}
+
+.agentConnector i {
+  position: absolute;
+  z-index: 1;
+  top: 4px;
+  left: 0;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentcolor;
+  opacity: 0;
+}
+
+.agentConnector.active {
+  color: #d5f55f;
+  filter: drop-shadow(0 0 5px rgb(213 245 95 / 55%));
+}
+
+.agentConnector.active i {
+  opacity: 1;
+  animation: agentSignal 1.05s linear infinite;
+}
+
+.agentConnector.passed {
+  color: #68d98d;
+}
+
+.agentConnector.blocked {
+  color: #f07971;
+}
+
+.agentConnector.blocked::after {
+  position: absolute;
+  top: 2px;
+  right: -2px;
+  display: grid;
+  width: 9px;
+  height: 9px;
+  place-items: center;
+  border-radius: 2px;
+  background: #f07971;
+  color: #210909;
+  content: "×";
+  font: 700 8px "DM Mono", monospace;
+}
+
+.agentConnector.blocked b {
+  display: none;
+}
+
 .runtimeGrid .agentCard.ready {
   border-color: #315c3e;
   box-shadow: inset 0 0 24px rgb(23 58 34 / 20%);
@@ -88,6 +180,32 @@
 
 .runtimeGrid .agentCard.failed {
   border-color: #673b38;
+}
+
+.runtimeGrid .agentCard.workflow-checking {
+  border-color: #7e8b3b;
+  box-shadow:
+    inset 0 0 30px rgb(185 231 68 / 8%),
+    0 0 20px rgb(185 231 68 / 5%);
+  animation: agentWorkGlow 1.7s ease-in-out infinite;
+}
+
+.runtimeGrid .agentCard.workflow-passed {
+  border-color: #366347;
+  box-shadow: inset 0 0 25px rgb(43 111 65 / 13%);
+}
+
+.runtimeGrid .agentCard.workflow-blocked {
+  border-color: #8a4540;
+  box-shadow:
+    inset 0 0 30px rgb(111 35 31 / 20%),
+    0 0 20px rgb(238 119 113 / 8%);
+  animation: agentStop 320ms ease-out;
+}
+
+.runtimeGrid .agentCard.workflow-waiting {
+  border-color: #2a332e;
+  opacity: 0.66;
 }
 
 .runtimeGrid .agentCard.provisioning::after,
@@ -132,6 +250,30 @@
 
 .runtimeGrid .failed .roleMark > i {
   background: #ee7771;
+  animation: none;
+}
+
+.runtimeGrid .agentCard.workflow-checking .roleMark > i {
+  background: #d7e96f;
+  box-shadow: 0 0 0 0 rgb(215 233 111 / 42%);
+  animation: fleetPulse 1.1s ease-out infinite;
+}
+
+.runtimeGrid .agentCard.workflow-passed .roleMark > i {
+  background: #72ee9d;
+  box-shadow: 0 0 10px #72ee9d;
+  animation: none;
+}
+
+.runtimeGrid .agentCard.workflow-blocked .roleMark > i {
+  background: #ee7771;
+  box-shadow: 0 0 10px rgb(238 119 113 / 48%);
+  animation: none;
+}
+
+.runtimeGrid .agentCard.workflow-waiting .roleMark > i {
+  background: #657069;
+  box-shadow: none;
   animation: none;
 }
 
@@ -224,6 +366,22 @@
 
 .agentState b.failed {
   color: #f08780;
+}
+
+.agentState b.checking {
+  color: #d5e971;
+}
+
+.agentState b.passed {
+  color: #83e9a4;
+}
+
+.agentState b.blocked {
+  color: #f08780;
+}
+
+.agentState b.waiting {
+  color: #737e77;
 }
 
 .agentState small {

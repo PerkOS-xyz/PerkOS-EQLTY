@@ -91,6 +91,127 @@ The product focuses on three sponsor integrations:
 - [`ens-fleet.mjs`](Plugins/EQLTY-ENS-Plugin/skills/ens-agent-fleet/scripts/ens-fleet.mjs#L93)
   is the reusable fleet directory and policy preset tool.
 
+## Architecture
+
+```mermaid
+flowchart LR
+  OWNER["Owner wallet<br/>Dynamic login"] --> APP["Next.js App<br/>catalog, goals, decision room,<br/>proof, portfolio, history"]
+  APP --> API["EQLTY API<br/>market, fleet, policy,<br/>proof runs, audits"]
+
+  subgraph FLEET["PerkOS managed Hermes fleet"]
+    SCOUT[Scout]
+    RISK[Risk]
+    TRADER[Trader]
+    AUDITOR[Auditor]
+  end
+
+  subgraph PROTOCOLS["Protocols"]
+    ENS["ENS, Durin L2 records<br/>policy control plane"]
+    UNI["Uniswap Trading API<br/>quotes, calldata, RWA series"]
+    GRAPH["The Graph Substreams<br/>swap evidence, price series"]
+    CLAW["1Claw<br/>security rails, trader wallet"]
+  end
+
+  subgraph CHAIN["Robinhood Chain"]
+    VAULT["EQLTY Vault<br/>limits, nonces, risk signature"]
+    ROUTER["Uniswap V4 router"]
+  end
+
+  API --> FLEET
+  API --> ENS
+  API --> UNI
+  API --> GRAPH
+  API --> CLAW
+  ENS -. "policy injected into agent prompts" .-> FLEET
+  API --> VAULT
+  VAULT --> ROUTER
+  OWNER -. "creates and funds strategies" .-> VAULT
+```
+
+| Technology | Role in EQLTY |
+|---|---|
+| Dynamic | Single wallet login and message signing for the owner session |
+| PerkOS | Creates, locates and wakes the four managed Hermes runtimes |
+| ENS (Durin L2) | Behavior source of truth: owner, manifest and per role policy records |
+| Uniswap | Stock token discovery, V4 quotes, swap calldata and RWA market series |
+| The Graph | Substreams evidence gating every decision and feeding price history |
+| 1Claw | Per agent security rails and the user claimed trader wallet |
+| Robinhood Chain | Stock token assets, receipts and the execution network |
+| EQLTY Vault | Holds funds per strategy and only executes risk signed trades |
+
+## How the app, protocols and agents interact
+
+```mermaid
+sequenceDiagram
+  actor Owner
+  participant App as Next.js App
+  participant API as EQLTY API
+  participant ENS as ENS Durin L2
+  participant Fleet as Hermes fleet
+  participant Uniswap as Uniswap APIs
+  participant Graph as The Graph Substreams
+  participant Vault as EQLTY Vault
+
+  Owner->>App: Dynamic sign in and investment goal
+  App->>API: Activate fleet
+  API->>Fleet: Locate, create, provision or wake four agents
+  API->>ENS: Resolve owner, manifest and role records
+
+  loop Consultation cycle inside the two minute window
+    API->>ENS: Re-read the policy manifest
+    API->>Uniswap: Stock token quotes and RWA market series
+    API->>Graph: Substreams evidence with block, liquidity and lag
+    API->>Fleet: Scout prompt with goal, candidates and ENS policy
+    Fleet-->>API: Scout recommendation, verified
+    API->>Fleet: Risk prompt with evidence and ENS policy
+    Fleet-->>API: Risk decision, verified against the manifest
+    API-->>App: Decision room events and shortlist
+  end
+
+  Owner->>App: Review and approve the purchase
+  App->>Vault: Create, approve and fund the strategy from the owner wallet
+  App->>API: Execute within the strategy
+  API->>API: Fail closed gates, see the decision workflow
+  API->>Vault: Risk signed EIP-712 execution
+  Vault->>Vault: Enforce limits, nonce and calldata hash
+  Vault-->>API: Swap receipt
+  API->>Graph: Auditor reconciles the indexed swap
+  API-->>App: Stored audit bundle in History
+```
+
+## Decision workflow
+
+Every proof run walks the same ordered gates. Any failed gate stops the run
+with a readable reason; nothing downgrades silently.
+
+```mermaid
+flowchart TD
+  START([Proof run requested]) --> S1{Strategy active and amount within limits?}
+  S1 -- no --> REJECT([Rejected, fail closed])
+  S1 -- yes --> S2{ENS policy active, ticker allowed, trade limit OK?}
+  S2 -- no --> REJECT
+  S2 -- yes --> S3{Robinhood asset and market data valid?}
+  S3 -- no --> REJECT
+  S3 -- yes --> S4{Graph evidence live and fresh?}
+  S4 -- no --> REJECT
+  S4 -- yes --> S5{Executable Uniswap V4 route?}
+  S5 -- no --> REJECT
+  S5 -- yes --> S6{Execution requested?}
+  S6 -- no --> APPROVED([Approved, dry proof bundle])
+  S6 -- yes --> S7{Three USDG or more?}
+  S7 -- yes --> S8{All four 1Claw rails linked?}
+  S8 -- no --> REJECT
+  S7 -- no --> S9
+  S8 -- yes --> S9{Strategy allows full execution?}
+  S9 -- no --> REJECT
+  S9 -- yes --> S10{Payment authorization live?}
+  S10 -- no --> REJECT
+  S10 -- yes --> S11{Vault executor configured?}
+  S11 -- no --> REJECT
+  S11 -- yes --> EXEC[Risk signs and the vault executes the guarded swap]
+  EXEC --> AUDIT([Auditor stores the reconciled audit bundle])
+```
+
 ## Screenshots
 
 | Stock Token catalog | Mobile experience | Wallet access |

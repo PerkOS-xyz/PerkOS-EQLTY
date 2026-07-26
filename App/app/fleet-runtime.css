@@ -75,6 +75,98 @@
     box-shadow 0.3s;
 }
 
+.runtimeGrid {
+  position: relative;
+  overflow: visible;
+}
+
+.agentNode {
+  position: relative;
+  min-width: 0;
+}
+
+.agentNode .agentCard {
+  height: 100%;
+}
+
+.agentConnector {
+  position: absolute;
+  z-index: 3;
+  top: 50%;
+  left: calc(100% - 2px);
+  width: 13px;
+  height: 14px;
+  color: #4a554e;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.agentConnector::before {
+  position: absolute;
+  top: 6px;
+  right: 0;
+  left: 0;
+  height: 1px;
+  background: currentcolor;
+  content: "";
+}
+
+.agentConnector b {
+  position: absolute;
+  top: -3px;
+  right: -1px;
+  font: 14px "DM Mono", monospace;
+}
+
+.agentConnector i {
+  position: absolute;
+  z-index: 1;
+  top: 4px;
+  left: 0;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentcolor;
+  opacity: 0;
+}
+
+.agentConnector.active {
+  color: #d5f55f;
+  filter: drop-shadow(0 0 5px rgb(213 245 95 / 55%));
+}
+
+.agentConnector.active i {
+  opacity: 1;
+  animation: agentSignal 1.05s linear infinite;
+}
+
+.agentConnector.passed {
+  color: #68d98d;
+}
+
+.agentConnector.blocked {
+  color: #f07971;
+}
+
+.agentConnector.blocked::after {
+  position: absolute;
+  top: 2px;
+  right: -2px;
+  display: grid;
+  width: 9px;
+  height: 9px;
+  place-items: center;
+  border-radius: 2px;
+  background: #f07971;
+  color: #210909;
+  content: "×";
+  font: 700 8px "DM Mono", monospace;
+}
+
+.agentConnector.blocked b {
+  display: none;
+}
+
 .runtimeGrid .agentCard.ready {
   border-color: #315c3e;
   box-shadow: inset 0 0 24px rgb(23 58 34 / 20%);
@@ -88,6 +180,32 @@
 
 .runtimeGrid .agentCard.failed {
   border-color: #673b38;
+}
+
+.runtimeGrid .agentCard.workflow-checking {
+  border-color: #7e8b3b;
+  box-shadow:
+    inset 0 0 30px rgb(185 231 68 / 8%),
+    0 0 20px rgb(185 231 68 / 5%);
+  animation: agentWorkGlow 1.7s ease-in-out infinite;
+}
+
+.runtimeGrid .agentCard.workflow-passed {
+  border-color: #366347;
+  box-shadow: inset 0 0 25px rgb(43 111 65 / 13%);
+}
+
+.runtimeGrid .agentCard.workflow-blocked {
+  border-color: #8a4540;
+  box-shadow:
+    inset 0 0 30px rgb(111 35 31 / 20%),
+    0 0 20px rgb(238 119 113 / 8%);
+  animation: agentStop 320ms ease-out;
+}
+
+.runtimeGrid .agentCard.workflow-waiting {
+  border-color: #2a332e;
+  opacity: 0.66;
 }
 
 .runtimeGrid .agentCard.provisioning::after,
@@ -132,6 +250,30 @@
 
 .runtimeGrid .failed .roleMark > i {
   background: #ee7771;
+  animation: none;
+}
+
+.runtimeGrid .agentCard.workflow-checking .roleMark > i {
+  background: #d7e96f;
+  box-shadow: 0 0 0 0 rgb(215 233 111 / 42%);
+  animation: fleetPulse 1.1s ease-out infinite;
+}
+
+.runtimeGrid .agentCard.workflow-passed .roleMark > i {
+  background: #72ee9d;
+  box-shadow: 0 0 10px #72ee9d;
+  animation: none;
+}
+
+.runtimeGrid .agentCard.workflow-blocked .roleMark > i {
+  background: #ee7771;
+  box-shadow: 0 0 10px rgb(238 119 113 / 48%);
+  animation: none;
+}
+
+.runtimeGrid .agentCard.workflow-waiting .roleMark > i {
+  background: #657069;
+  box-shadow: none;
   animation: none;
 }
 
@@ -226,6 +368,22 @@
   color: #f08780;
 }
 
+.agentState b.checking {
+  color: #d5e971;
+}
+
+.agentState b.passed {
+  color: #83e9a4;
+}
+
+.agentState b.blocked {
+  color: #f08780;
+}
+
+.agentState b.waiting {
+  color: #737e77;
+}
+
 .agentState small {
   color: #6f8175;
   font: 7px "DM Mono", monospace;
@@ -293,6 +451,311 @@
 .agentMetadata dd {
   overflow-wrap: anywhere;
   color: #cbd6cf;
+}
+
+.fleetWorkflowBanner {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 0.7fr) minmax(0, 1.3fr);
+  gap: 12px;
+  align-items: center;
+  margin: 0 0 13px;
+  padding: 10px 12px;
+  border: 1px solid #3f4e2c;
+  border-radius: 9px;
+  background:
+    linear-gradient(100deg, rgb(179 220 61 / 8%), transparent 45%),
+    #0d130f;
+}
+
+.fleetWorkflowBanner > span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #d5eb75;
+  font: 7px "DM Mono", monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.fleetWorkflowBanner > span i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentcolor;
+  box-shadow: 0 0 8px currentcolor;
+  animation: workflowBeacon 1.2s ease-in-out infinite;
+}
+
+.fleetWorkflowBanner strong {
+  color: #dbe4de;
+  font-size: 9px;
+}
+
+.fleetWorkflowBanner > small {
+  color: #7e8b83;
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.fleetWorkflowBanner.blocked {
+  border-color: #78413d;
+  background:
+    linear-gradient(100deg, rgb(147 50 44 / 13%), transparent 48%),
+    #150d0d;
+}
+
+.fleetWorkflowBanner.blocked > span,
+.fleetWorkflowBanner.blocked strong {
+  color: #f08c84;
+}
+
+.fleetWorkflowBanner.complete {
+  border-color: #315c3e;
+}
+
+.fleetWorkflowBanner.complete > span {
+  color: #7fe6a0;
+}
+
+.fleetWorkflowBanner.complete > span i {
+  animation: none;
+}
+
+.workflowTechRail {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+  margin: 1px 0 0;
+  padding: 9px 0 0;
+  border-top: 1px solid #263126;
+  list-style: none;
+}
+
+.workflowTechRail li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr);
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+  padding: 6px 18px 6px 7px;
+  border: 1px solid #303a32;
+  border-radius: 6px;
+  background: #0b100d;
+}
+
+.workflowTechRail li > i {
+  width: 7px;
+  height: 7px;
+  border: 1px solid #727e75;
+  border-radius: 50%;
+}
+
+.workflowTechRail li > span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.workflowTechRail li b,
+.workflowTechRail li small {
+  overflow: hidden;
+  font: 6px "DM Mono", monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workflowTechRail li b {
+  color: #c0cac3;
+  text-transform: uppercase;
+}
+
+.workflowTechRail li small {
+  color: #68736c;
+}
+
+.workflowTechRail li > em {
+  position: absolute;
+  top: 50%;
+  right: -7px;
+  z-index: 2;
+  color: #59645d;
+  font: normal 13px "DM Mono", monospace;
+  transform: translateY(-52%);
+}
+
+.workflowTechRail li.checking {
+  border-color: #58602f;
+}
+
+.workflowTechRail li.checking > i {
+  border-color: #d6e66d;
+  border-top-color: transparent;
+  animation: ruleSpin 700ms linear infinite;
+}
+
+.workflowTechRail li.passed {
+  border-color: #31593f;
+}
+
+.workflowTechRail li.passed > i {
+  border-color: #6ddd91;
+  background: #6ddd91;
+  box-shadow: 0 0 7px rgb(109 221 145 / 42%);
+}
+
+.workflowTechRail li.passed b {
+  color: #8fe5a8;
+}
+
+.workflowTechRail li.blocked {
+  border-color: #74403c;
+  background: #170d0d;
+}
+
+.workflowTechRail li.blocked > i {
+  border-color: #ee8079;
+  background: #ee8079;
+}
+
+.workflowTechRail li.blocked b,
+.workflowTechRail li.blocked small {
+  color: #e98a83;
+}
+
+.workflowTechRail li.waiting {
+  opacity: 0.48;
+}
+
+.agentPolicyChecks {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 7px;
+  padding-top: 9px;
+  border-top: 1px solid #25342b;
+}
+
+.agentPolicyChecks > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.agentPolicyChecks > header span,
+.agentPolicyChecks > header b {
+  font: 7px "DM Mono", monospace;
+  text-transform: uppercase;
+}
+
+.agentPolicyChecks > header span {
+  color: #748078;
+}
+
+.agentPolicyChecks > header b {
+  color: #d7e775;
+}
+
+.agentPolicyChecks.passed > header b {
+  color: #7ee39d;
+}
+
+.agentPolicyChecks.blocked > header b {
+  color: #ee847c;
+}
+
+.agentPolicyChecks.result-unavailable > header b {
+  color: #d7b56c;
+}
+
+.agentPolicyChecks ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agentPolicyChecks li {
+  display: grid;
+  grid-template-columns: 8px 68px minmax(0, 1fr);
+  gap: 5px;
+  align-items: center;
+  min-width: 0;
+  padding: 4px 5px;
+  border-radius: 5px;
+  background: rgb(255 255 255 / 1.8%);
+  opacity: 0;
+  animation: ruleReveal 280ms ease forwards;
+}
+
+.agentPolicyChecks li > i {
+  width: 6px;
+  height: 6px;
+  border: 1px solid #536058;
+  border-radius: 50%;
+}
+
+.agentPolicyChecks li > span {
+  color: #86928a;
+  font: 6px "DM Mono", monospace;
+  text-transform: uppercase;
+}
+
+.agentPolicyChecks li > small {
+  min-width: 0;
+  overflow: hidden;
+  color: #9ba69f;
+  font: 6px "DM Mono", monospace;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agentPolicyChecks li.checking > i {
+  border-color: #d8e66e;
+  border-top-color: transparent;
+  animation: ruleSpin 700ms linear infinite;
+}
+
+.agentPolicyChecks li.passed > i {
+  border-color: #68dc8e;
+  background: #68dc8e;
+  box-shadow: 0 0 6px rgb(104 220 142 / 42%);
+}
+
+.agentPolicyChecks li.blocked {
+  background: rgb(130 41 37 / 14%);
+}
+
+.agentPolicyChecks li.blocked > i {
+  border-color: #ed7d75;
+  background: #ed7d75;
+  box-shadow: 0 0 6px rgb(237 125 117 / 38%);
+}
+
+.agentPolicyChecks li.blocked > span,
+.agentPolicyChecks li.blocked > small {
+  color: #ef918a;
+}
+
+.agentPolicyChecks li.waiting {
+  opacity: 0.48;
+}
+
+.agentPolicyChecks li.unavailable {
+  background: rgb(129 102 44 / 12%);
+}
+
+.agentPolicyChecks li.unavailable > i {
+  border-color: #c5a65e;
+  background: #c5a65e;
+}
+
+.agentPolicyChecks li.unavailable > span,
+.agentPolicyChecks li.unavailable > small {
+  color: #c4ad78;
 }
 
 .agentSteps {
@@ -486,6 +949,91 @@
   }
 }
 
+@keyframes agentSignal {
+  from {
+    left: 0;
+    opacity: 0;
+  }
+
+  20%,
+  80% {
+    opacity: 1;
+  }
+
+  to {
+    left: calc(100% - 5px);
+    opacity: 0;
+  }
+}
+
+@keyframes agentWorkGlow {
+  50% {
+    box-shadow:
+      inset 0 0 38px rgb(185 231 68 / 13%),
+      0 0 25px rgb(185 231 68 / 9%);
+  }
+}
+
+@keyframes agentStop {
+  35% {
+    transform: translateX(-2px);
+  }
+
+  70% {
+    transform: translateX(2px);
+  }
+}
+
+@keyframes workflowBeacon {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes ruleReveal {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ruleSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 900px) and (min-width: 561px) {
+  .runtimeGrid .agentNode:nth-child(3) {
+    grid-row: 2;
+    grid-column: 2;
+  }
+
+  .runtimeGrid .agentNode:nth-child(4) {
+    grid-row: 2;
+    grid-column: 1;
+  }
+
+  .runtimeGrid .agentNode:nth-child(2) .agentConnector {
+    top: calc(100% - 1px);
+    left: 50%;
+    transform: rotate(90deg);
+    transform-origin: left center;
+  }
+
+  .runtimeGrid .agentNode:nth-child(3) .agentConnector {
+    right: calc(100% - 2px);
+    left: auto;
+    transform: rotate(180deg) translateY(50%);
+    transform-origin: center;
+  }
+}
+
 @media (max-width: 560px) {
   .runtimeHeader {
     align-items: flex-start;
@@ -493,6 +1041,34 @@
 
   .runtimeGrid .agentCard {
     grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .runtimeGrid .agentNode {
+    grid-row: auto !important;
+    grid-column: 1 !important;
+  }
+
+  .agentConnector,
+  .runtimeGrid .agentNode:nth-child(2) .agentConnector,
+  .runtimeGrid .agentNode:nth-child(3) .agentConnector {
+    top: calc(100% - 1px);
+    right: auto;
+    left: 50%;
+    transform: rotate(90deg);
+    transform-origin: left center;
+  }
+
+  .fleetWorkflowBanner {
+    grid-template-columns: 1fr;
+    gap: 5px;
+  }
+
+  .workflowTechRail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .workflowTechRail li:nth-child(2) > em {
+    display: none;
   }
 
   .agentState {
@@ -527,13 +1103,28 @@
   .fleetSecurityActions button {
     width: 100%;
   }
+
+  .agentPolicyChecks li {
+    grid-template-columns: 8px 82px minmax(0, 1fr);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .isActivating .fleetProgress i,
   .runtimeGrid .agentCard::after,
   .runtimeGrid .roleMark > i,
-  .agentSteps li.active > i {
+  .agentSteps li.active > i,
+  .agentConnector i,
+  .fleetWorkflowBanner > span i,
+  .workflowTechRail li.checking > i,
+  .agentPolicyChecks li,
+  .agentPolicyChecks li.checking > i,
+  .runtimeGrid .agentCard.workflow-checking,
+  .runtimeGrid .agentCard.workflow-blocked {
     animation: none;
+  }
+
+  .agentPolicyChecks li {
+    opacity: 1;
   }
 }

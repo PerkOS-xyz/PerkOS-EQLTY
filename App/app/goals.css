@@ -44,8 +44,8 @@
 
 .goalWorkspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 290px;
-  gap: 16px;
+  grid-template-columns: 1fr;
+  gap: 12px;
 }
 
 .goalForm,
@@ -54,6 +54,12 @@
   border: 1px solid #222b27;
   border-radius: 13px;
   background: #0a0d0b;
+}
+
+.goalForm {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 18px;
 }
 
 .goalForm label {
@@ -99,8 +105,15 @@
 .goalInputs {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-top: 14px;
+  gap: 9px;
+  margin: 0;
+}
+
+.goalControlStack {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: flex-end;
 }
 
 .goalForm input,
@@ -129,7 +142,7 @@
 .goalStart {
   width: 100%;
   min-height: 43px;
-  margin-top: 16px;
+  margin-top: 12px;
   border: 0;
   border-radius: 9px;
   background: #75efa0;
@@ -156,10 +169,23 @@
 
 .goalBoundaries ul {
   display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.goalBoundaries {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  align-items: center;
+  gap: 15px;
+  padding-block: 13px;
+}
+
+.goalBoundaries > span {
+  margin-bottom: 0;
 }
 
 .goalBoundaries li {

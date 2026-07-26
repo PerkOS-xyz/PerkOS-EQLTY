@@ -383,7 +383,8 @@
   background: #090c0a;
 }
 
-.marketCard > footer span {
+.marketCard > footer span,
+.marketCard > footer a {
   display: flex;
   min-width: 0;
   align-items: center;
@@ -391,6 +392,7 @@
   overflow: hidden;
   color: #68716c;
   font: 7px "DM Mono", monospace;
+  text-decoration: none;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -403,8 +405,14 @@
   background: #5b3f3d;
 }
 
-.marketCard > footer span.verified {
+.marketCard > footer span.verified,
+.marketCard > footer a.verified {
   color: #9aae9f;
+}
+
+.marketCard > footer a:hover,
+.marketCard > footer a:focus-visible {
+  color: #d5f55f;
 }
 
 .marketCard > footer .verified i {

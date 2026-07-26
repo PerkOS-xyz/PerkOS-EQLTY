@@ -12,6 +12,7 @@ const swapTopic =
   "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f";
 const moduleName = "map_pool_events";
 const packageName = "eqlty_robinhood_stock_v4@v0.1.0";
+const maxSeriesPoints = 64;
 
 type StreamRecord = {
   "@module": string;
@@ -36,6 +37,7 @@ export class GraphAdapterSink {
   private pools = new Map<string, GraphPool>();
   private poolManager = "";
   private evidenceByTicker = new Map<string, GraphSwapEvidence>();
+  private seriesByTicker = new Map<string, GraphSwapEvidence[]>();
 
   constructor(private readonly config: GraphAdapterConfig) {}
 
@@ -107,6 +109,38 @@ export class GraphAdapterSink {
         swapAgeSeconds,
         reasons,
       },
+    };
+  }
+
+  series(tickers: string[]) {
+    return {
+      source: "the-graph-substreams" as const,
+      chainId: "eip155:4663" as const,
+      observedAt: this.updatedAt,
+      stream: {
+        mode: "live" as const,
+        provider: this.config.EQLTY_GRAPH_PROVIDER,
+        package: packageName,
+        module: moduleName,
+        processedBlock: this.processedBlock,
+        providerHeadBlock: this.providerHeadBlock,
+        lagBlocks: blockLag(
+          this.providerHeadBlock,
+          this.processedBlock,
+        ),
+      },
+      series: tickers.map((ticker) => ({
+        ticker,
+        points: (this.seriesByTicker.get(ticker) ?? []).map(
+          (evidence) => ({
+            at: evidence.capturedAt,
+            price: evidence.lastSwapPrice,
+            blockNumber: evidence.blockNumber,
+            transactionHash: evidence.transactionHash,
+            poolIdentifier: evidence.poolIdentifier,
+          }),
+        ),
+      })),
     };
   }
 
@@ -203,10 +237,28 @@ export class GraphAdapterSink {
     for (const event of data.events ?? []) {
       const pool = this.pools.get(event.ticker);
       if (!pool || event.topics[0]?.toLowerCase() !== swapTopic) continue;
-      this.evidenceByTicker.set(
-        pool.ticker,
-        decodeGraphSwap(pool, event, blockNumber, capturedAt, this.poolManager),
+      const evidence = decodeGraphSwap(
+        pool,
+        event,
+        blockNumber,
+        capturedAt,
+        this.poolManager,
       );
+      this.evidenceByTicker.set(pool.ticker, evidence);
+      const series = this.seriesByTicker.get(pool.ticker) ?? [];
+      if (
+        !series.some(
+          (point) =>
+            point.transactionHash === evidence.transactionHash &&
+            point.blockNumber === evidence.blockNumber,
+        )
+      ) {
+        series.push(evidence);
+        this.seriesByTicker.set(
+          pool.ticker,
+          series.slice(-maxSeriesPoints),
+        );
+      }
     }
   }
 

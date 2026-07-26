@@ -17,16 +17,21 @@
     margin-top: 14px;
   }
 
-  .goalWorkspace {
+  .goalWorkspace,
+  .goalForm {
     grid-template-columns: 1fr;
   }
 
-  .goalInputs {
+  .goalBoundaries {
     grid-template-columns: 1fr;
+  }
+
+  .goalBoundaries > span {
+    margin-bottom: 1px;
   }
 
   .goalBoundaries ul {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .goalProgress > header,
@@ -74,6 +79,10 @@
   }
 
   .goalBoundaries ul {
+    grid-template-columns: 1fr;
+  }
+
+  .goalInputs {
     grid-template-columns: 1fr;
   }
 

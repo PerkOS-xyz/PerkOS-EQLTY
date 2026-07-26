@@ -6,13 +6,12 @@ import type {
   OpportunityCandidate,
 } from "../lib/goal-types";
 import { ProofRunPanel } from "./proof-run-panel";
-import { useGoalAnalysis } from "./use-goal-analysis";
+import type { GoalAnalysisState } from "./use-goal-analysis";
 import { useProofRun } from "./use-proof-run";
 
 const roles = ["Scout", "Risk", "Trader", "Auditor"];
 
-export function GoalAnalyzer() {
-  const state = useGoalAnalysis();
+export function GoalAnalyzer({ state }: { state: GoalAnalysisState }) {
   const analysis = state.session?.latest;
 
   return (
@@ -31,7 +30,7 @@ export function GoalAnalyzer() {
 
       <div className="goalWorkspace">
         <div className="goalForm">
-          <label>
+          <label className="goalObjective">
             <span>Investment objective</span>
             <textarea
               aria-label="Investment objective"
@@ -41,49 +40,51 @@ export function GoalAnalyzer() {
             />
           </label>
 
-          <div className="goalInputs">
-            <label>
-              <span>Fleet budget</span>
-              <div className="amountInput">
-                <input
-                  aria-label="Goal budget in USDG"
-                  inputMode="decimal"
-                  onChange={(event) => state.setAmount(event.target.value)}
-                  value={state.amount}
-                />
-                <b>USDG</b>
-              </div>
-            </label>
-            <label>
-              <span>Analysis window</span>
-              <select
-                aria-label="Autonomous analysis window"
-                onChange={(event) =>
-                  state.setWindowMinutes(Number(event.target.value))
-                }
-                value={state.windowMinutes}
-              >
-                <option value={2}>2 minutes</option>
-                <option value={5}>5 minutes</option>
-                <option value={20}>20 minutes</option>
-              </select>
-            </label>
+          <div className="goalControlStack">
+            <div className="goalInputs">
+              <label>
+                <span>Fleet budget</span>
+                <div className="amountInput">
+                  <input
+                    aria-label="Goal budget in USDG"
+                    inputMode="decimal"
+                    onChange={(event) => state.setAmount(event.target.value)}
+                    value={state.amount}
+                  />
+                  <b>USDG</b>
+                </div>
+              </label>
+              <label>
+                <span>Analysis window</span>
+                <select
+                  aria-label="Autonomous analysis window"
+                  onChange={(event) =>
+                    state.setWindowMinutes(Number(event.target.value))
+                  }
+                  value={state.windowMinutes}
+                >
+                  <option value={2}>2 minutes</option>
+                  <option value={5}>5 minutes</option>
+                  <option value={20}>20 minutes</option>
+                </select>
+              </label>
+            </div>
+
+            <button
+              className="goalStart"
+              disabled={state.busy || state.goalText.trim().length < 10}
+              onClick={state.analyze}
+              type="button"
+            >
+              {state.busy
+                ? "Starting the fleet..."
+                : state.connected
+                  ? `Compare for ${state.windowMinutes} minutes`
+                  : "Connect wallet to begin"}
+            </button>
+
+            {state.error && <p className="goalError">{state.error}</p>}
           </div>
-
-          <button
-            className="goalStart"
-            disabled={state.busy || state.goalText.trim().length < 10}
-            onClick={state.analyze}
-            type="button"
-          >
-            {state.busy
-              ? "Starting the fleet..."
-              : state.connected
-                ? `Compare for ${state.windowMinutes} minutes`
-                : "Connect wallet to begin"}
-          </button>
-
-          {state.error && <p className="goalError">{state.error}</p>}
         </div>
 
         <aside className="goalBoundaries">

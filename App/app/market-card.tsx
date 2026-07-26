@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
+import { transactionUrl } from "../lib/execution-api";
 import { money, relativeTime } from "../lib/market-format";
 import type {
   StockAvailability,
@@ -16,6 +17,13 @@ export function MarketCard({
   history?: ObservedPrice[];
 }) {
   const [imageFailed, setImageFailed] = useState(false);
+  const latestGraphPoint = [...history]
+    .reverse()
+    .find(
+      (point) =>
+        point.source === "the-graph-substreams" &&
+        point.transactionHash,
+    );
 
   return (
     <article className={`marketCard ${asset.status}`}>
@@ -65,12 +73,22 @@ export function MarketCard({
           <i />
           Uniswap {asset.uniswapRouting ?? "not observed"}
         </span>
-        {asset.graphEvidence && (
+        {latestGraphPoint?.transactionHash ? (
+          <a
+            className="verified"
+            href={transactionUrl(latestGraphPoint.transactionHash)}
+            rel="noreferrer"
+            target="_blank"
+          >
+            <i />
+            The Graph block {latestGraphPoint.blockNumber}
+          </a>
+        ) : asset.graphEvidence ? (
           <span className={asset.graphEvidence.healthy ? "verified" : ""}>
             <i />
             The Graph block {asset.graphEvidence.blockNumber}
           </span>
-        )}
+        ) : null}
       </footer>
     </article>
   );
@@ -87,11 +105,15 @@ function PriceHistory({
   const valid = points.filter(
     (point) => Number.isFinite(point.value) && point.value > 0,
   );
-  const path = linePath(valid);
+  const path = smoothPath(valid);
+  const graphPoints = valid.filter(
+    (point) => point.source === "the-graph-substreams",
+  ).length;
+  const quotePoints = valid.length - graphPoints;
 
   return (
     <div
-      aria-label={`${ticker} Robinhood price observations`}
+      aria-label={`${ticker} observed market prices`}
       className={`priceHistory ${valid.length < 2 ? "collecting" : ""}`}
     >
       <svg aria-hidden="true" role="img" viewBox="0 0 240 78">
@@ -123,26 +145,51 @@ function PriceHistory({
       </svg>
       <span>
         {valid.length < 2
-          ? "Collecting real price history"
-          : `${valid.length} Robinhood quotes · 24h browser window`}
+          ? "Collecting real market history"
+          : graphPoints > 0
+            ? `${graphPoints} The Graph swaps · ${quotePoints} Robinhood quotes`
+            : `${quotePoints} Robinhood quotes · The Graph series pending`}
       </span>
     </div>
   );
 }
 
-function linePath(points: ObservedPrice[]): string {
+export function smoothPath(points: ObservedPrice[]): string {
   if (points.length < 2) {
     return "";
   }
-  return points
-    .map((point, index) => {
-      const x = (index / (points.length - 1)) * 240;
-      return `${index === 0 ? "M" : "L"}${x.toFixed(2)} ${pointY(
-        point.value,
-        points,
-      ).toFixed(2)}`;
-    })
-    .join(" ");
+  const coordinates = points.map((point, index) => ({
+    x: (index / (points.length - 1)) * 240,
+    y: pointY(point.value, points),
+  }));
+  if (coordinates.length === 2) {
+    return `M${coordinates[0]!.x} ${coordinates[0]!.y} L${coordinates[1]!.x} ${coordinates[1]!.y}`;
+  }
+  let path = `M${coordinates[0]!.x.toFixed(2)} ${coordinates[0]!.y.toFixed(2)}`;
+  for (let index = 0; index < coordinates.length - 1; index += 1) {
+    const previous = coordinates[index - 1] ?? coordinates[index]!;
+    const current = coordinates[index]!;
+    const next = coordinates[index + 1]!;
+    const following = coordinates[index + 2] ?? next;
+    const lower = Math.min(current.y, next.y);
+    const upper = Math.max(current.y, next.y);
+    const firstControlY = clamp(
+      current.y + (next.y - previous.y) / 6,
+      lower,
+      upper,
+    );
+    const secondControlY = clamp(
+      next.y - (following.y - current.y) / 6,
+      lower,
+      upper,
+    );
+    path += ` C${(current.x + (next.x - previous.x) / 6).toFixed(2)} ${firstControlY.toFixed(2)} ${(next.x - (following.x - current.x) / 6).toFixed(2)} ${secondControlY.toFixed(2)} ${next.x.toFixed(2)} ${next.y.toFixed(2)}`;
+  }
+  return path;
+}
+
+function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.max(minimum, Math.min(maximum, value));
 }
 
 function pointY(value: number, points: ObservedPrice[]): number {

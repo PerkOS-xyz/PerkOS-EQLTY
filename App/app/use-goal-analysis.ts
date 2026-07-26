@@ -20,7 +20,9 @@ export type GoalAnalysisState = {
   session?: AutonomousGoal;
   busy: boolean;
   error?: string;
+  workflowError?: string;
   connected: boolean;
+  runKey: number;
   setGoalText: (value: string) => void;
   setAmount: (value: string) => void;
   setWindowMinutes: (value: number) => void;
@@ -34,8 +36,10 @@ export function useGoalAnalysis(): GoalAnalysisState {
   const [amount, setAmount] = useState("1");
   const [windowMinutes, setWindowMinutes] = useState(2);
   const [session, setSession] = useState<AutonomousGoal>();
+  const [runKey, setRunKey] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  const [workflowError, setWorkflowError] = useState<string>();
 
   const analyze = useCallback(async () => {
     if (!wallet.connected) {
@@ -54,8 +58,10 @@ export function useGoalAnalysis(): GoalAnalysisState {
 
     const run = activeRun.current + 1;
     activeRun.current = run;
+    setRunKey(run);
     setBusy(true);
     setError(undefined);
+    setWorkflowError(undefined);
     setSession(undefined);
 
     try {
@@ -71,9 +77,10 @@ export function useGoalAnalysis(): GoalAnalysisState {
       }
     } catch (cause) {
       if (activeRun.current === run) {
-        setError(
-          cause instanceof Error ? cause.message : "Goal analysis failed",
-        );
+        const message =
+          cause instanceof Error ? cause.message : "Goal analysis failed";
+        setError(message);
+        setWorkflowError(message);
       }
     } finally {
       if (activeRun.current === run) {
@@ -97,15 +104,18 @@ export function useGoalAnalysis(): GoalAnalysisState {
         if (activeRun.current !== run) {
           return;
         }
+        setError(undefined);
+        setWorkflowError(undefined);
         setSession(next);
         if (next.status === "active") {
           timer = window.setTimeout(poll, 5_000);
         }
       } catch (cause) {
         if (!controller.signal.aborted && activeRun.current === run) {
-          setError(
-            cause instanceof Error ? cause.message : "Goal refresh failed",
-          );
+          const message =
+            cause instanceof Error ? cause.message : "Goal refresh failed";
+          setError(message);
+          setWorkflowError(message);
         }
       }
     };
@@ -123,8 +133,10 @@ export function useGoalAnalysis(): GoalAnalysisState {
     if (!wallet.connected) {
       activeRun.current += 1;
       setSession(undefined);
+      setRunKey(0);
       setBusy(false);
       setError(undefined);
+      setWorkflowError(undefined);
     }
   }, [wallet.connected]);
 
@@ -135,7 +147,9 @@ export function useGoalAnalysis(): GoalAnalysisState {
     session,
     busy,
     error,
+    workflowError,
     connected: wallet.connected,
+    runKey,
     setGoalText,
     setAmount,
     setWindowMinutes,

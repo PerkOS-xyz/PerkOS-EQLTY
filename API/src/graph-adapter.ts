@@ -9,6 +9,11 @@ const tickerSchema = z
   .trim()
   .regex(/^[A-Za-z][A-Za-z0-9.-]{0,11}$/)
   .transform((ticker) => ticker.toUpperCase());
+const seriesSchema = z
+  .object({
+    tickers: z.array(tickerSchema).min(1).max(96),
+  })
+  .strict();
 
 const config = loadGraphAdapterConfig();
 const sink = new GraphAdapterSink(config);
@@ -49,6 +54,23 @@ app.post("/api/graph-risk", (request, response) => {
   }
   response.setHeader("cache-control", "no-store");
   return response.json(evidence);
+});
+
+app.post("/api/graph-series", (request, response) => {
+  if (
+    !hasGraphAccess(
+      request.get("authorization"),
+      config.EQLTY_GRAPH_ACCESS_TOKEN,
+    )
+  ) {
+    return response.status(401).json({ error: "unauthorized" });
+  }
+  const parsed = seriesSchema.safeParse(request.body);
+  if (!parsed.success) {
+    return response.status(400).json({ error: "invalid_tickers" });
+  }
+  response.setHeader("cache-control", "no-store");
+  return response.json(sink.series([...new Set(parsed.data.tickers)]));
 });
 
 const server = app.listen(config.EQLTY_GRAPH_PORT, "0.0.0.0", () => {

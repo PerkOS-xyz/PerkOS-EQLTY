@@ -57,6 +57,34 @@ describe("The Graph evidence", () => {
     ]);
   });
 
+  it("loads auditable price points from the Substreams adapter", async () => {
+    const fetchFn = vi.fn(async () => Response.json(providerSeries()));
+    const service = new GraphEvidenceService(
+      loadConfig({
+        EQLTY_GRAPH_ADAPTER_URL:
+          "https://graph.example/api/graph-risk",
+        EQLTY_GRAPH_ACCESS_TOKEN:
+          "eqlty-graph-access-token-for-tests",
+      }),
+      { fetchFn },
+    );
+
+    const result = await service.series(["nvda", "AMZN", "NVDA"]);
+
+    expect(fetchFn).toHaveBeenCalledWith(
+      "https://graph.example/api/graph-series",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ tickers: ["NVDA", "AMZN"] }),
+      }),
+    );
+    expect(result.series[0]?.points[0]).toMatchObject({
+      price: 180.5,
+      blockNumber: "1000",
+      transactionHash: `0x${"33".repeat(32)}`,
+    });
+  });
+
   it("rejects a ticker mismatch and oversized payload", async () => {
     const wrongTicker = providerEvidence();
     wrongTicker.ticker = "AMZN";
@@ -123,5 +151,36 @@ function providerEvidence() {
       swapAgeSeconds: 30,
       reasons: [] as string[],
     },
+  };
+}
+
+function providerSeries() {
+  return {
+    source: "the-graph-substreams" as const,
+    chainId: "eip155:4663" as const,
+    observedAt: "2026-07-25T12:00:00.000Z",
+    stream: {
+      mode: "live" as const,
+      provider: "robinhood.substreams.pinax.network:443",
+      package: "eqlty_robinhood_stock_v4@v0.1.0",
+      module: "map_pool_events" as const,
+      processedBlock: "1000",
+      providerHeadBlock: "1002",
+      lagBlocks: 2,
+    },
+    series: [
+      {
+        ticker: "NVDA",
+        points: [
+          {
+            at: "2026-07-25T11:59:30.000Z",
+            price: 180.5,
+            blockNumber: "1000",
+            transactionHash: `0x${"33".repeat(32)}`,
+            poolIdentifier: `0x${"22".repeat(32)}`,
+          },
+        ],
+      },
+    ],
   };
 }

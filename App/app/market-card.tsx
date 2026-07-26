@@ -129,7 +129,7 @@ function PriceHistory({
           </linearGradient>
         </defs>
         <path className="chartGrid" d="M0 20H240M0 39H240M0 58H240" />
-        {valid.length === 1 ? (
+        {valid.length === 0 ? null : valid.length === 1 ? (
           <circle cx="120" cy="39" r="3.5" />
         ) : (
           <>

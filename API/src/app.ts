@@ -9,6 +9,7 @@ import { EqltyVaultExecutor } from "./eqlty-vault-executor.js";
 import { executionTraderAddress } from "./execution-addresses.js";
 import type { ExecutionStrategy } from "./execution-types.js";
 import { FleetActivationService } from "./fleet-activation.js";
+import { FirestoreGoalStore } from "./firestore-goal.js";
 import { GraphEvidenceService } from "./graph-evidence.js";
 import { OwnerAuth } from "./owner-auth.js";
 import { OpportunityAnalysisService } from "./opportunity-analysis.js";
@@ -270,6 +271,7 @@ export function createApp(
       {
         oneclawMinimumAmount:
           config.EQLTY_ONECLAW_MIN_AMOUNT_USDG,
+        store: new FirestoreGoalStore(config),
       },
     );
   const strategyStore = new StrategyStore();
@@ -718,6 +720,7 @@ export function createApp(
     const goal = await goals[action](parsed.data, {
       userId: session.fleetUserId,
       owner: session.walletAddress,
+      perkosIdToken: ownerAuth.perkosIdToken?.(request),
     });
     if (!goal) {
       return response.status(404).json({ error: "goal_not_found" });

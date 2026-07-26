@@ -154,8 +154,8 @@ export function FleetPanel() {
                 const claimTab = window.open(
                   "about:blank",
                   "_blank",
-                  "noopener,noreferrer",
                 );
+                if (claimTab) claimTab.opener = null;
                 try {
                   const result =
                     await activateOneClawRails(securityEmail);
@@ -181,6 +181,8 @@ export function FleetPanel() {
                         : undefined;
                   if (claimTab && nextUrl) {
                     claimTab.location.href = nextUrl;
+                  } else if (nextUrl) {
+                    window.location.href = nextUrl;
                   } else {
                     claimTab?.close();
                   }

@@ -6,6 +6,7 @@ import { loadConfig } from "./config.js";
 import type { EnsPolicyPreparationService } from "./ens-policy-preparation.js";
 import type { ExecutionStrategy } from "./execution-types.js";
 import type { PurchaseAuditBundle } from "./purchase-audit-types.js";
+import type { SaleAuditBundle } from "./sale-audit-types.js";
 
 const servers: ReturnType<typeof createServer>[] = [];
 
@@ -861,17 +862,29 @@ describe("API foundation", () => {
         "0x2222222222222222222222222222222222222222" as const,
       entries: [],
     }));
+    const listSales = vi.fn(async () => ({ entries: [] }));
     const response = await request("/api/history", {
       ownerAuth: testOwnerAuth(session),
       purchaseHistory: { list },
+      saleAudit: {
+        capture: async () => {
+          throw new Error("not called");
+        },
+        list: listSales,
+      },
     });
 
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(list).toHaveBeenCalledWith(session.walletAddress);
+    expect(listSales).toHaveBeenCalledWith(
+      session.walletAddress,
+      "firebase-token",
+    );
     await expect(response.json()).resolves.toMatchObject({
       source: "robinhood-chain",
       status: "ready",
+      sales: [],
     });
   });
 
@@ -942,15 +955,162 @@ describe("API foundation", () => {
     });
   });
 
-  it("protects purchase history, audits and portfolio without a session", async () => {
+  it("prepares and builds an authenticated wallet sale", async () => {
+    const session = testSession();
+    const token =
+      "0x12f190a9F9d7D37a250758b26824B97CE941bF54" as const;
+    const usdg =
+      "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168" as const;
+    const sell = {
+      chainId: 4663 as const,
+      direction: "sell" as const,
+      ticker: "AMZN",
+      tokenIn: token,
+      tokenOut: usdg,
+      amountIn: "8598000000000000",
+      amountOut: "1990000",
+      requestId: "sale-quote-1",
+      routing: "CLASSIC",
+      quotedAt: "2026-07-25T12:00:00.000Z",
+      rawQuote: { swapper: session.walletAddress },
+    };
+    const quote = vi.fn(async () => sell);
+    const build = vi.fn(async () => ({
+      amountOut: sell.amountOut,
+      requestId: sell.requestId,
+      routing: sell.routing,
+      rawQuote: sell.rawQuote,
+      transaction: {
+        to: "0x8876789976decbfcbbbe364623c63652db8c0904" as const,
+        from: session.walletAddress,
+        data: "0x1234" as const,
+        value: "0",
+        chainId: 4663,
+      },
+    }));
+    const dependencies = {
+      ownerAuth: testOwnerAuth(session),
+      walletSwaps: { quote, build },
+    };
+    const quoteResponse = await request(
+      "/api/sells/quote",
+      dependencies,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          ticker: "amzn",
+          tokenIn: token,
+          amountIn: sell.amountIn,
+          maxSlippageBps: 100,
+        }),
+      },
+    );
+    const quoteBody = await quoteResponse.json();
+    const swapResponse = await request(
+      "/api/sells/swap",
+      dependencies,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          sell: quoteBody,
+          signature: `0x${"12".repeat(65)}`,
+        }),
+      },
+    );
+
+    expect(quoteResponse.status).toBe(200);
+    expect(quote).toHaveBeenCalledWith({
+      owner: session.walletAddress,
+      ticker: "AMZN",
+      tokenIn: token,
+      amountIn: sell.amountIn,
+      maxSlippageBps: 100,
+    });
+    expect(swapResponse.status).toBe(200);
+    expect(build).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: session.walletAddress,
+        sell: expect.objectContaining({ ticker: "AMZN" }),
+      }),
+    );
+    await expect(swapResponse.json()).resolves.toMatchObject({
+      amountOut: "1990000",
+      transaction: { chainId: 4663 },
+    });
+  });
+
+  it("records a completed wallet sale for audit", async () => {
+    const session = testSession();
+    const transactionHash = `0x${"ab".repeat(32)}` as const;
+    const bundle = {
+      schema: "urn:eqlty:sale-audit:v1",
+      bundleHash: `0x${"cd".repeat(32)}`,
+      owner: session.walletAddress,
+      ticker: "AMZN",
+      transactionHash,
+    } as unknown as SaleAuditBundle;
+    const capture = vi.fn(async () => bundle);
+    const response = await request(
+      "/api/sells/audit",
+      {
+        ownerAuth: testOwnerAuth(session),
+        saleAudit: { capture, list: async () => ({ entries: [] }) },
+      },
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          ticker: "AMZN",
+          tokenIn: "0x12f190a9F9d7D37a250758b26824B97CE941bF54",
+          tokenInDecimals: 18,
+          amountIn: "8598000000000000",
+          quotedAmountOut: "1990000",
+          requestId: "sale-quote-1",
+          routing: "CLASSIC",
+          transactionHash,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(capture).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: session.walletAddress,
+        idToken: "firebase-token",
+        ticker: "AMZN",
+        transactionHash,
+      }),
+    );
+    await expect(response.json()).resolves.toMatchObject({
+      schema: "urn:eqlty:sale-audit:v1",
+      ticker: "AMZN",
+      transactionHash,
+    });
+  });
+
+  it("protects purchase history, audits, portfolio and sales without a session", async () => {
     const hash = `0x${"ab".repeat(32)}`;
     const history = await request("/api/history");
     const audit = await request(`/api/audits/${hash}`);
     const portfolio = await request("/api/portfolio");
+    const sell = await request("/api/sells/quote", undefined, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+    });
+    const saleAudit = await request("/api/sells/audit", undefined, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+    });
 
     expect(history.status).toBe(401);
     expect(audit.status).toBe(401);
     expect(portfolio.status).toBe(401);
+    expect(sell.status).toBe(401);
+    expect(saleAudit.status).toBe(401);
   });
 });
 

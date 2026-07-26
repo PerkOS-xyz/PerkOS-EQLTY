@@ -119,3 +119,21 @@ export type PreparedUniswapSwap = {
     chainId: number;
   };
 };
+
+export type UniswapTransaction = PreparedUniswapSwap["transaction"];
+
+export type WalletSwapQuote = {
+  chainId: 4663;
+  direction: "sell";
+  ticker: string;
+  tokenIn: EvmAddress;
+  tokenOut: EvmAddress;
+  amountIn: string;
+  amountOut: string;
+  requestId: string;
+  routing: string;
+  quotedAt: string;
+  approval?: UniswapTransaction;
+  permitData?: Record<string, unknown>;
+  rawQuote: Record<string, unknown>;
+};

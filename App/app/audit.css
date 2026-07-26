@@ -302,13 +302,23 @@
 }
 
 .historyCard > footer a,
-.holdingCard > footer a {
+.holdingCard > footer a,
+.holdingCard > footer button {
   padding: 7px 9px;
   border: 1px solid #293a30;
   border-radius: 7px;
+  background: transparent;
   color: #79d998;
+  cursor: pointer;
   font-size: 8px;
   text-decoration: none;
+}
+
+.holdingCard > footer .sellPositionButton {
+  border-color: #3e664a;
+  background: #112218;
+  color: #9bf2b3;
+  font-weight: 700;
 }
 
 .portfolioSummary {
@@ -489,6 +499,238 @@
   color: #6d7871;
   font-size: 8px;
   text-align: right;
+}
+
+.sellBackdrop {
+  position: fixed;
+  z-index: 80;
+  display: grid;
+  padding: 22px;
+  background: rgb(2 7 4 / 82%);
+  inset: 0;
+  place-items: center;
+}
+
+.sellDialog {
+  width: min(100%, 520px);
+  max-height: calc(100vh - 44px);
+  overflow: auto;
+  padding: 22px;
+  border: 1px solid #35523e;
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 100% 0%, rgb(69 171 96 / 12%), transparent 36%),
+    #0b110d;
+  box-shadow: 0 30px 80px rgb(0 0 0 / 55%);
+}
+
+.sellDialog > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.sellDialog > header > div {
+  display: flex;
+  flex-direction: column;
+}
+
+.sellDialog > header strong {
+  margin-top: 4px;
+  font-size: 18px;
+}
+
+.sellDialog > header small {
+  margin-top: 3px;
+  color: #728078;
+  font-size: 8px;
+}
+
+.sellDialog > header > button {
+  width: 30px;
+  height: 30px;
+  border: 1px solid #2b3c31;
+  border-radius: 8px;
+  background: #101813;
+  color: #87938b;
+  cursor: pointer;
+  font-size: 18px;
+}
+
+.sellAmount {
+  display: flex;
+  flex-direction: column;
+  margin-top: 22px;
+  padding: 17px;
+  border: 1px solid #2b3b31;
+  border-radius: 11px;
+  background: #080d0a;
+}
+
+.sellAmount span,
+.sellAmount small {
+  color: #6e7a72;
+  font-size: 8px;
+}
+
+.sellAmount strong {
+  margin: 5px 0 3px;
+  color: #f0f5f1;
+  font: 600 21px "DM Mono", monospace;
+}
+
+.sellPercentages {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+  margin-top: 9px;
+}
+
+.sellPercentages button {
+  min-height: 36px;
+  border: 1px solid #293a30;
+  border-radius: 8px;
+  background: #0b120e;
+  color: #7f8b83;
+  cursor: pointer;
+  font-size: 9px;
+}
+
+.sellPercentages button[aria-pressed="true"] {
+  border-color: #4b805a;
+  background: #15291c;
+  color: #a3f1b8;
+}
+
+.sellQuote {
+  display: grid;
+  gap: 7px;
+  margin: 14px 0 0;
+}
+
+.sellQuote > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 10px 11px;
+  border: 1px solid #222f27;
+  border-radius: 8px;
+}
+
+.sellQuote dt {
+  color: #6e7a72;
+  font-size: 8px;
+}
+
+.sellQuote dd {
+  margin: 0;
+  color: #c9d3cc;
+  font: 500 8px "DM Mono", monospace;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.sellNotice {
+  margin: 13px 0 0;
+  color: #718078;
+  font-size: 8px;
+  line-height: 1.6;
+}
+
+.sellDialog > footer {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.sellDialog > footer button {
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid #3d6d49;
+  border-radius: 9px;
+  background: #18301f;
+  color: #9bf1b2;
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.sellDialog > footer button + button {
+  border-color: #2a3730;
+  background: transparent;
+  color: #7b8880;
+}
+
+.sellDialog button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.sellError {
+  margin: 13px 0 0;
+  padding: 10px;
+  border: 1px solid #5a352f;
+  border-radius: 8px;
+  background: #21100d;
+  color: #ee9e91;
+  font-size: 8px;
+  line-height: 1.5;
+}
+
+.sellResult {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  margin-top: 22px;
+  padding: 24px;
+  border: 1px solid #31533b;
+  border-radius: 12px;
+  background: #0b1710;
+  text-align: center;
+}
+
+.sellResult > span {
+  color: #7de39a;
+  font-size: 8px;
+  text-transform: uppercase;
+}
+
+.sellResult > strong {
+  margin: 7px 0 2px;
+  font: 600 25px "DM Mono", monospace;
+}
+
+.sellResult > small {
+  color: #6d7a72;
+  font-size: 8px;
+}
+
+.sellAuditStatus {
+  margin: 10px 0 0;
+  padding: 6px 9px;
+  border: 1px solid #31503a;
+  border-radius: 999px;
+  color: #8be5a3;
+  font: 500 7px "DM Mono", monospace;
+  text-transform: uppercase;
+}
+
+.sellResult nav {
+  display: flex;
+  gap: 7px;
+  margin-top: 17px;
+}
+
+.sellResult a {
+  padding: 8px 10px;
+  border: 1px solid #31503a;
+  border-radius: 7px;
+  color: #8be5a3;
+  font-size: 8px;
+  text-decoration: none;
 }
 
 .auditDetailContent {

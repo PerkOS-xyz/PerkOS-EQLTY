@@ -152,10 +152,37 @@
   }
 
   .historyCard > footer a,
-  .holdingCard > footer a {
+  .holdingCard > footer a,
+  .holdingCard > footer button {
     min-height: 38px;
     padding: 11px;
     text-align: center;
+  }
+
+  .sellBackdrop {
+    align-items: end;
+    padding: 0;
+  }
+
+  .sellDialog {
+    width: 100%;
+    max-height: 92vh;
+    padding: 18px;
+    border-radius: 18px 18px 0 0;
+  }
+
+  .sellDialog > footer {
+    grid-template-columns: 1fr;
+  }
+
+  .sellResult nav {
+    display: grid;
+    width: 100%;
+  }
+
+  .sellResult a {
+    min-height: 38px;
+    padding: 11px;
   }
 
   .holdingCard dl {

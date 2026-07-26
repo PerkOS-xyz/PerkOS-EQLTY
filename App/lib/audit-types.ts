@@ -22,6 +22,78 @@ export type PurchaseHistory = {
   status: "ready" | "pending";
   vault?: `0x${string}`;
   entries: PurchaseHistoryEntry[];
+  sales: SaleAuditBundle[];
+};
+
+export type SaleAuditBundle = {
+  schema: "urn:eqlty:sale-audit:v1";
+  bundleHash: `0x${string}`;
+  recordedAt: string;
+  owner: `0x${string}`;
+  ticker: string;
+  transactionHash: `0x${string}`;
+  approvalTransactionHash?: `0x${string}`;
+  trade: {
+    chainId: 4663;
+    direction: "sell";
+    tokenIn: `0x${string}`;
+    tokenInDecimals: number;
+    tokenOut: `0x${string}`;
+    amountIn: string;
+    quotedAmountOut: string;
+    actualAmountOut: string;
+    requestId: string;
+    routing: string;
+    router: `0x${string}`;
+  };
+  graph: {
+    request: {
+      method: "POST";
+      endpoint: string;
+      authorization: "Bearer [server credential]";
+      body: { ticker: string; chainId: "eip155:4663" };
+    };
+    response: {
+      status: "observed" | "indexed-nearby" | "unavailable";
+      source: "the-graph-substreams";
+      provider?: string;
+      package?: string;
+      module?: "map_pool_events";
+      evidenceTransaction?: `0x${string}`;
+      saleTransaction: `0x${string}`;
+      saleObserved: boolean;
+      evidenceBlock?: string;
+      processedBlock?: string;
+      headBlock?: string;
+      lagBlocks?: number;
+      poolManager?: `0x${string}`;
+      poolId?: string;
+      salePoolManager: `0x${string}`;
+      salePoolId: string;
+      poolMatched: boolean;
+      capturedAt?: string;
+      error?: string;
+    };
+  };
+  receipt: {
+    chainId: 4663;
+    status: "success";
+    blockNumber: string;
+    blockHash: `0x${string}`;
+    from: `0x${string}`;
+    to: `0x${string}`;
+    gasUsed: string;
+    effectiveGasPrice: string;
+    swapLogIndex: number;
+  };
+  transfers: Array<{
+    token: `0x${string}`;
+    symbol: string;
+    from: `0x${string}`;
+    to: `0x${string}`;
+    amount: string;
+    logIndex: number;
+  }>;
 };
 
 export type PurchaseAuditBundle = {

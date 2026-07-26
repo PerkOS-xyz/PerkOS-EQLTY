@@ -1,3 +1,4 @@
+import { encodeFunctionData } from "viem";
 import { describe, expect, it, vi } from "vitest";
 import { loadConfig } from "./config.js";
 import { UniswapClient } from "./uniswap-client.js";
@@ -8,6 +9,18 @@ const nvda = "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC";
 const router = "0x8876789976decbfcbbbe364623c63652db8c0904";
 const permit2 = "0x000000000022D473030F116dDEE9F6B43aC78BA3";
 const riskKey = `0x${"11".repeat(32)}`;
+const approveAbi = [
+  {
+    type: "function",
+    name: "approve",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "spender", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+] as const;
 
 describe("Uniswap execution preparation", () => {
   it("signs an exact Permit2 quote and returns guarded calldata", async () => {
@@ -112,6 +125,135 @@ describe("Uniswap execution preparation", () => {
   });
 });
 
+describe("Uniswap wallet sales", () => {
+  const owner = "0x1234567890abcdef1234567890abcdef12345678";
+
+  it("prepares approval, quote and wallet swap calldata", async () => {
+    const approval = {
+      to: nvda,
+      from: owner,
+      data: encodeFunctionData({
+        abi: approveAbi,
+        functionName: "approve",
+        args: [permit2, 5_000_000_000_000_000n],
+      }),
+      value: "0",
+      chainId: 4663,
+    };
+    const saleQuote = quoteBody({
+      swapper: owner,
+      tokenIn: nvda,
+      tokenOut: usdg,
+      amountIn: "5000000000000000",
+      amountOut: "1040000",
+    });
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse({ approval, cancel: null }))
+      .mockResolvedValueOnce(
+        jsonResponse(saleQuote, { "x-request-id": "sale-quote-1" }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          swap: {
+            to: router,
+            from: owner,
+            data: "0xabcd",
+            value: "0",
+            chainId: 4663,
+          },
+        }),
+      );
+    const client = new UniswapClient(config(), fetchFn);
+    const sell = await client.prepareWalletSell({
+      ticker: "NVDA",
+      tokenIn: nvda,
+      amount: "5000000000000000",
+      swapper: owner,
+      maxSlippageBps: 100,
+    });
+
+    expect(sell).toMatchObject({
+      direction: "sell",
+      ticker: "NVDA",
+      amountOut: "1040000",
+      approval,
+      requestId: "sale-quote-1",
+    });
+    const prepared = await client.buildWalletSell({
+      sell,
+      swapper: owner,
+      signature: `0x${"12".repeat(65)}`,
+    });
+    expect(prepared.transaction).toEqual({
+      to: router,
+      from: owner,
+      data: "0xabcd",
+      value: "0",
+      chainId: 4663,
+    });
+    expect(fetchFn).toHaveBeenCalledTimes(3);
+  });
+
+  it("rejects an approval for a noncanonical spender", async () => {
+    const approval = {
+      to: nvda,
+      from: owner,
+      data: encodeFunctionData({
+        abi: approveAbi,
+        functionName: "approve",
+        args: [router, 5_000_000_000_000_000n],
+      }),
+      value: "0",
+      chainId: 4663,
+    };
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse({ approval, cancel: null }));
+
+    await expect(
+      new UniswapClient(config(), fetchFn).prepareWalletSell({
+        ticker: "NVDA",
+        tokenIn: nvda,
+        amount: "5000000000000000",
+        swapper: owner,
+        maxSlippageBps: 100,
+      }),
+    ).rejects.toThrow("not canonical Permit2");
+  });
+
+  it("rejects a sale quote that returns USDG elsewhere", async () => {
+    const invalid = quoteBody({
+      swapper: owner,
+      tokenIn: nvda,
+      tokenOut: usdg,
+      amountIn: "5000000000000000",
+      amountOut: "1040000",
+    });
+    (
+      invalid.quote.output as Record<string, unknown>
+    ).recipient = vault;
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({ approval: null, cancel: null }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse(invalid, { "x-request-id": "sale-quote-2" }),
+      );
+
+    await expect(
+      new UniswapClient(config(), fetchFn).prepareWalletSell({
+        ticker: "NVDA",
+        tokenIn: nvda,
+        amount: "5000000000000000",
+        swapper: owner,
+        maxSlippageBps: 100,
+      }),
+    ).rejects.toThrow("does not return to the wallet");
+  });
+});
+
 function config() {
   return loadConfig({
     UNISWAP_API_KEY: "test-key",
@@ -124,22 +266,35 @@ function config() {
   });
 }
 
-function quoteBody() {
+function quoteBody(
+  overrides: {
+    swapper?: string;
+    tokenIn?: string;
+    tokenOut?: string;
+    amountIn?: string;
+    amountOut?: string;
+  } = {},
+) {
+  const swapper = overrides.swapper ?? vault;
+  const tokenIn = overrides.tokenIn ?? usdg;
+  const tokenOut = overrides.tokenOut ?? nvda;
+  const amountIn = overrides.amountIn ?? "1000000";
+  const amountOut = overrides.amountOut ?? "4800000000000000";
   return {
     routing: "CLASSIC",
     quote: {
-      swapper: vault,
+      swapper,
       chainId: 4663,
       tokenInChainId: 4663,
       tokenOutChainId: 4663,
       input: {
-        token: usdg,
-        amount: "1000000",
+        token: tokenIn,
+        amount: amountIn,
       },
       output: {
-        token: nvda,
-        amount: "4800000000000000",
-        recipient: vault,
+        token: tokenOut,
+        amount: amountOut,
+        recipient: swapper,
       },
     },
     permitData: {
@@ -163,8 +318,8 @@ function quoteBody() {
       },
       values: {
         details: {
-          token: usdg,
-          amount: "1000000",
+          token: tokenIn,
+          amount: amountIn,
           expiration: "1780000000",
           nonce: "0",
         },

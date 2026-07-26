@@ -9,10 +9,14 @@ import {
   shortHash,
   tokenAmount,
 } from "../../lib/audit-format";
-import type { PurchaseHistoryEntry } from "../../lib/audit-types";
+import type {
+  PurchaseHistoryEntry,
+  SaleAuditBundle,
+} from "../../lib/audit-types";
 import {
   addressUrl,
   blockUrl,
+  graphEvidenceUrl,
   transactionEventsUrl,
   transactionUrl,
 } from "../../lib/execution-api";
@@ -20,6 +24,20 @@ import {
 export default function HistoryPage() {
   const state = useAuditResource(loadPurchaseHistory);
   const history = state.data;
+  const trades = history
+    ? [
+        ...history.entries.map((entry) => ({
+          kind: "purchase" as const,
+          at: entry.executedAt,
+          entry,
+        })),
+        ...history.sales.map((entry) => ({
+          kind: "sale" as const,
+          at: entry.recordedAt,
+          entry,
+        })),
+      ].sort((left, right) => right.at.localeCompare(left.at))
+    : [];
 
   return (
     <div className="shell">
@@ -28,16 +46,16 @@ export default function HistoryPage() {
         <section className="auditHero">
           <div>
             <span className="eyebrow">Onchain audit trail</span>
-            <h1>Purchase history</h1>
+            <h1>Trade history</h1>
             <p>
-              Every completed EQLTY purchase can be independently verified on
-              Robinhood Chain.
+              Every EQLTY purchase and sale can be independently verified on
+              Robinhood Chain, Uniswap and The Graph.
             </p>
           </div>
           <div className="auditHeroMetric">
-            <span>Executed purchases</span>
-            <strong>{history?.entries.length ?? "—"}</strong>
-            <small>Rebuilt from vault events</small>
+            <span>Completed trades</span>
+            <strong>{history ? trades.length : "—"}</strong>
+            <small>Wallet and vault evidence</small>
           </div>
         </section>
 
@@ -51,7 +69,7 @@ export default function HistoryPage() {
           <AuditState
             busy
             copy="Reading verified execution events from Robinhood Chain."
-            title="Loading purchase records"
+            title="Loading trade records"
           />
         )}
         {state.phase === "error" && (
@@ -63,25 +81,27 @@ export default function HistoryPage() {
           />
         )}
         {state.phase === "ready" && history?.status === "pending" && (
-          <AuditState
-            copy="The final EQLTY vault must be deployed before onchain purchase records are available."
-            title="Vault history is pending"
-          />
+          trades.length === 0 && (
+            <AuditState
+              copy="The final EQLTY vault must be deployed before onchain purchase records are available."
+              title="Vault history is pending"
+            />
+          )
         )}
         {state.phase === "ready" &&
           history?.status === "ready" &&
-          history.entries.length === 0 && (
+          trades.length === 0 && (
             <AuditState
-              copy="Your first completed purchase will appear here with its transaction, event log and proof hashes."
-              title="No purchases yet"
+              copy="Your first completed trade will appear here with its transaction, event log and proof evidence."
+              title="No trades yet"
             />
           )}
 
-        {history?.status === "ready" && history.entries.length > 0 && (
+        {history && trades.length > 0 && (
           <>
             <div className="auditToolbar">
               <div>
-                <strong>Verified executions</strong>
+                <strong>Verified trades</strong>
                 <span>Newest first</span>
               </div>
               {history.vault && (
@@ -94,15 +114,114 @@ export default function HistoryPage() {
                 </a>
               )}
             </div>
-            <section aria-label="Purchase records" className="historyList">
-              {history.entries.map((entry) => (
-                <PurchaseCard entry={entry} key={entry.id} />
-              ))}
+            <section aria-label="Trade records" className="historyList">
+              {trades.map((trade) =>
+                trade.kind === "purchase" ? (
+                  <PurchaseCard
+                    entry={trade.entry}
+                    key={`purchase-${trade.entry.transactionHash}`}
+                  />
+                ) : (
+                  <SaleCard
+                    entry={trade.entry}
+                    key={`sale-${trade.entry.transactionHash}`}
+                  />
+                ),
+              )}
             </section>
           </>
         )}
       </main>
     </div>
+  );
+}
+
+function SaleCard({ entry }: { entry: SaleAuditBundle }) {
+  return (
+    <article className="historyCard">
+      <header>
+        <span className="assetMonogram">
+          {entry.ticker.slice(0, 1)}
+        </span>
+        <div>
+          <span>Sold</span>
+          <strong>{entry.ticker}</strong>
+          <small>{dateTime(entry.recordedAt)}</small>
+        </div>
+        <b>
+          {entry.graph.response.saleObserved
+            ? "Graph verified"
+            : "Confirmed"}
+        </b>
+      </header>
+      <div className="purchaseFlow">
+        <span>
+          <small>Sold</small>
+          <strong>
+            {tokenAmount(
+              entry.trade.amountIn,
+              entry.trade.tokenInDecimals,
+            )}{" "}
+            {entry.ticker}
+          </strong>
+        </span>
+        <i>→</i>
+        <span>
+          <small>Received</small>
+          <strong>
+            {tokenAmount(entry.trade.actualAmountOut, 6)} USDG
+          </strong>
+        </span>
+      </div>
+      <dl className="proofHashes">
+        <div>
+          <dt>Uniswap V4 pool</dt>
+          <dd title={entry.graph.response.salePoolId}>
+            {shortHash(entry.graph.response.salePoolId)}
+          </dd>
+        </div>
+        <div>
+          <dt>The Graph</dt>
+          <dd>{entry.graph.response.status}</dd>
+        </div>
+        <div>
+          <dt>Audit bundle</dt>
+          <dd title={entry.bundleHash}>
+            {shortHash(entry.bundleHash)}
+          </dd>
+        </div>
+      </dl>
+      <footer>
+        <a
+          href={transactionUrl(entry.transactionHash)}
+          rel="noreferrer"
+          target="_blank"
+        >
+          Transaction
+        </a>
+        <a
+          href={transactionEventsUrl(entry.transactionHash)}
+          rel="noreferrer"
+          target="_blank"
+        >
+          Event logs
+        </a>
+        <a
+          href={blockUrl(entry.receipt.blockNumber)}
+          rel="noreferrer"
+          target="_blank"
+        >
+          Block {entry.receipt.blockNumber}
+        </a>
+        <a
+          href={graphEvidenceUrl(entry.ticker)}
+          rel="noreferrer"
+          target="_blank"
+        >
+          The Graph
+        </a>
+      </footer>
+    </article>
   );
 }
 

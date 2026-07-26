@@ -14,6 +14,7 @@ import type { PortfolioHolding } from "../../lib/audit-types";
 import { addressUrl } from "../../lib/execution-api";
 import { money } from "../../lib/market-format";
 import { RecoverableFunds } from "./recoverable-funds";
+import { SellPosition } from "./sell-position";
 
 export default function PortfolioPage() {
   const state = useAuditResource(loadPortfolio);
@@ -121,7 +122,11 @@ export default function PortfolioPage() {
               </div>
               <section aria-label="Stock token holdings" className="holdingGrid">
                 {portfolio.holdings.map((holding) => (
-                  <HoldingCard holding={holding} key={holding.tokenAddress} />
+                  <HoldingCard
+                    holding={holding}
+                    key={holding.tokenAddress}
+                    onComplete={state.refresh}
+                  />
                 ))}
               </section>
               {portfolio.coverage.unreadableTokens > 0 && (
@@ -137,7 +142,13 @@ export default function PortfolioPage() {
   );
 }
 
-function HoldingCard({ holding }: { holding: PortfolioHolding }) {
+function HoldingCard({
+  holding,
+  onComplete,
+}: {
+  holding: PortfolioHolding;
+  onComplete: () => void;
+}) {
   return (
     <article className="holdingCard">
       <header>
@@ -183,6 +194,7 @@ function HoldingCard({ holding }: { holding: PortfolioHolding }) {
         </div>
       </dl>
       <footer>
+        <SellPosition holding={holding} onComplete={onComplete} />
         <a
           href={addressUrl(holding.tokenAddress)}
           rel="noreferrer"

@@ -1,3 +1,4 @@
+import { encodeFunctionData } from "viem";
 import { describe, expect, it, vi } from "vitest";
 import { loadConfig } from "./config.js";
 import { UniswapClient } from "./uniswap-client.js";
@@ -8,6 +9,18 @@ const nvda = "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC";
 const router = "0x8876789976decbfcbbbe364623c63652db8c0904";
 const permit2 = "0x000000000022D473030F116dDEE9F6B43aC78BA3";
 const riskKey = `0x${"11".repeat(32)}`;
+const approveAbi = [
+  {
+    type: "function",
+    name: "approve",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "spender", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+] as const;
 
 describe("Uniswap execution preparation", () => {
   it("signs an exact Permit2 quote and returns guarded calldata", async () => {
@@ -117,9 +130,13 @@ describe("Uniswap wallet sales", () => {
 
   it("prepares approval, quote and wallet swap calldata", async () => {
     const approval = {
-      to: permit2,
+      to: nvda,
       from: owner,
-      data: "0x1234",
+      data: encodeFunctionData({
+        abi: approveAbi,
+        functionName: "approve",
+        args: [permit2, 5_000_000_000_000_000n],
+      }),
       value: "0",
       chainId: 4663,
     };
@@ -176,6 +193,33 @@ describe("Uniswap wallet sales", () => {
       chainId: 4663,
     });
     expect(fetchFn).toHaveBeenCalledTimes(3);
+  });
+
+  it("rejects an approval for a noncanonical spender", async () => {
+    const approval = {
+      to: nvda,
+      from: owner,
+      data: encodeFunctionData({
+        abi: approveAbi,
+        functionName: "approve",
+        args: [router, 5_000_000_000_000_000n],
+      }),
+      value: "0",
+      chainId: 4663,
+    };
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse({ approval, cancel: null }));
+
+    await expect(
+      new UniswapClient(config(), fetchFn).prepareWalletSell({
+        ticker: "NVDA",
+        tokenIn: nvda,
+        amount: "5000000000000000",
+        swapper: owner,
+        maxSlippageBps: 100,
+      }),
+    ).rejects.toThrow("not canonical Permit2");
   });
 
   it("rejects a sale quote that returns USDG elsewhere", async () => {

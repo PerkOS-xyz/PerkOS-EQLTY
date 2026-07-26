@@ -1,4 +1,7 @@
-import type { TypedDataDomain } from "viem";
+import {
+  decodeFunctionData,
+  type TypedDataDomain,
+} from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import type { ApiConfig } from "./config.js";
 import type {
@@ -11,6 +14,18 @@ import type {
 
 const maxAttempts = 3;
 type JsonRecord = Record<string, unknown>;
+const erc20ApproveAbi = [
+  {
+    type: "function",
+    name: "approve",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "spender", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+] as const;
 
 export class UniswapClient {
   constructor(
@@ -187,13 +202,12 @@ export class UniswapClient {
       ? parseTransaction(record(approvalBody.approval, "Uniswap approval"))
       : undefined;
     if (approval) {
-      validateWalletTransaction({
+      validateApprovalTransaction({
         transaction: approval,
         swapper: input.swapper,
-        allowedTargets: [
-          this.config.UNISWAP_PERMIT2_ADDRESS as EvmAddress,
-          this.config.UNISWAP_UNIVERSAL_ROUTER_ADDRESS as EvmAddress,
-        ],
+        token: input.tokenIn,
+        permit2: this.config.UNISWAP_PERMIT2_ADDRESS as EvmAddress,
+        amount: input.amount,
       });
     }
 
@@ -632,6 +646,39 @@ function validateWalletTransaction(input: {
   }
   if (BigInt(input.transaction.value) !== 0n) {
     throw new Error("Token sale cannot include native value");
+  }
+}
+
+function validateApprovalTransaction(input: {
+  transaction: UniswapTransaction;
+  swapper: EvmAddress;
+  token: EvmAddress;
+  permit2: EvmAddress;
+  amount: string;
+}): void {
+  validateWalletTransaction({
+    transaction: input.transaction,
+    swapper: input.swapper,
+    allowedTargets: [input.token],
+  });
+  let decoded: ReturnType<typeof decodeFunctionData>;
+  try {
+    decoded = decodeFunctionData({
+      abi: erc20ApproveAbi,
+      data: input.transaction.data,
+    });
+  } catch {
+    throw new Error("Uniswap approval calldata is invalid");
+  }
+  const [spender, amount] = decoded.args as readonly [
+    EvmAddress,
+    bigint,
+  ];
+  if (!same(spender, input.permit2)) {
+    throw new Error("Uniswap approval spender is not canonical Permit2");
+  }
+  if (amount < BigInt(input.amount)) {
+    throw new Error("Uniswap approval amount is insufficient");
   }
 }
 

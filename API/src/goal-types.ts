@@ -1,5 +1,6 @@
-import type { FleetRole } from "./fleet-types.js";
+import type { FleetAgent, FleetRole } from "./fleet-types.js";
 import type { EvmAddress } from "./market-types.js";
+import type { AgentConsultation } from "./consultation-types.js";
 
 export type OpportunityCandidate = {
   ticker: string;
@@ -41,6 +42,7 @@ export type OpportunityAnalysis = {
   evaluatedAt: string;
   recommendedTicker?: string;
   candidates: OpportunityCandidate[];
+  consultation: AgentConsultation;
   proofRoot: `0x${string}`;
 };
 
@@ -91,4 +93,6 @@ export type GoalInput = GoalIdentity & {
   maxCandidates: number;
   candidateTickers?: string[];
   linkedRoles: readonly FleetRole[];
+  fleetAgents?: FleetAgent[];
+  perkosIdToken?: string;
 };

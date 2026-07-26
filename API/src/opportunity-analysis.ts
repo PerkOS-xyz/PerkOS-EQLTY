@@ -2,10 +2,13 @@ import { randomUUID } from "node:crypto";
 import { keccak256, stringToHex } from "viem";
 import type { EnsControlPlaneService } from "./ens-control-plane.js";
 import { EnsControlPlaneService as ControlPlane } from "./ens-control-plane.js";
+import type { FleetAgent } from "./fleet-types.js";
 import type {
   OpportunityAnalysis,
   OpportunityCandidate,
 } from "./goal-types.js";
+import type { HermesConsultationService } from "./hermes-consultation.js";
+import { HermesConsultationService as Consultation } from "./hermes-consultation.js";
 import type {
   EvmAddress,
   StockCatalogAsset,
@@ -17,6 +20,7 @@ import type { ApiConfig } from "./config.js";
 type Dependencies = {
   catalog?: Pick<StockCatalogService, "assessTicker">;
   controlPlane?: Pick<EnsControlPlaneService, "resolve">;
+  consultation?: Pick<HermesConsultationService, "consult">;
   now?: () => Date;
   id?: () => string;
 };
@@ -24,6 +28,7 @@ type Dependencies = {
 export class OpportunityAnalysisService {
   private readonly catalog: Pick<StockCatalogService, "assessTicker">;
   private readonly controlPlane: Pick<EnsControlPlaneService, "resolve">;
+  private readonly consultation: Pick<HermesConsultationService, "consult">;
   private readonly now: () => Date;
   private readonly id: () => string;
 
@@ -34,6 +39,8 @@ export class OpportunityAnalysisService {
     this.catalog = dependencies.catalog ?? new Catalog(config);
     this.controlPlane =
       dependencies.controlPlane ?? new ControlPlane(config);
+    this.consultation =
+      dependencies.consultation ?? new Consultation(config);
     this.now = dependencies.now ?? (() => new Date());
     this.id = dependencies.id ?? randomUUID;
   }
@@ -45,6 +52,8 @@ export class OpportunityAnalysisService {
     candidateTickers?: string[];
     userId: string;
     owner: EvmAddress;
+    fleetAgents?: FleetAgent[];
+    perkosIdToken?: string;
   }): Promise<OpportunityAnalysis> {
     const controlPlane = await this.controlPlane.resolve({
       userId: input.userId,
@@ -116,13 +125,30 @@ export class OpportunityAnalysisService {
       })
       .sort(compareCandidates);
 
-    const winner = candidates.find(
-      (candidate) => candidate.status === "eligible",
-    );
+    const consultation = await this.consultation.consult({
+      goal: input.goal,
+      candidates,
+      manifest,
+      agents: input.fleetAgents,
+      idToken: input.perkosIdToken,
+    });
+    const winner =
+      consultation.status === "verified"
+        ? candidates.find(
+            (candidate) =>
+              candidate.ticker === consultation.selectedTicker &&
+              candidate.status === "eligible",
+          )
+        : candidates.find(
+            (candidate) => candidate.status === "eligible",
+          );
     if (winner) {
       winner.status = "recommended";
       winner.reason =
-        "Best policy-compatible route with fresh Uniswap and Substreams evidence.";
+        consultation.status === "verified" &&
+        consultation.scout.summary
+          ? consultation.scout.summary
+          : "Best policy-compatible route with fresh Uniswap and Substreams evidence.";
     }
     for (const candidate of candidates) {
       if (candidate.status === "eligible") {
@@ -144,6 +170,12 @@ export class OpportunityAnalysisService {
         deviationBps: candidate.deviationBps,
         uniswapRequestId: candidate.uniswapRequestId,
       })),
+      consultation: {
+        status: consultation.status,
+        selectedTicker: consultation.selectedTicker,
+        scoutResponseHash: consultation.scout.responseHash,
+        riskResponseHash: consultation.risk.responseHash,
+      },
     };
 
     return {
@@ -162,6 +194,7 @@ export class OpportunityAnalysisService {
       evaluatedAt,
       recommendedTicker: winner?.ticker,
       candidates,
+      consultation,
       proofRoot: keccak256(stringToHex(JSON.stringify(proofInput))),
     };
   }

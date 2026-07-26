@@ -144,6 +144,20 @@ function analysis(timestamp: number): OpportunityAnalysis {
     evaluatedAt,
     recommendedTicker: "AMZN",
     candidates: [],
+    consultation: {
+      mode: "deterministic-fallback",
+      status: "unavailable",
+      scout: {
+        role: "scout",
+        status: "unavailable",
+        facts: [],
+      },
+      risk: {
+        role: "risk",
+        status: "unavailable",
+        facts: [],
+      },
+    },
     proofRoot: `0x${"bb".repeat(32)}`,
   };
 }

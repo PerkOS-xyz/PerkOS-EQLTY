@@ -144,6 +144,8 @@ export class AutonomousGoalService {
         candidateTickers: goal.input.candidateTickers,
         userId: goal.input.userId,
         owner: goal.input.owner,
+        fleetAgents: goal.input.fleetAgents,
+        perkosIdToken: goal.input.perkosIdToken,
       });
       this.record(goal, analysis);
       goal.error = undefined;

@@ -105,7 +105,7 @@ export function useProofRun(session?: AutonomousGoal): ProofRunState {
     }
     if (!run.oneclaw.executionAuthorized) {
       setError(
-        "Purchases of 3 USDG or more require every 1Claw fleet rail.",
+        "Purchases of 3 USDG or more require the 1Claw trader rail.",
       );
       return;
     }

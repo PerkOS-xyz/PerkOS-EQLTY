@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import {
   activateOneClawRails,
   ensManagerUrl,
   fleetMetadataUrl,
   loadFleetMetadata,
+  oneclawAgentSettingsUrl,
 } from "../lib/fleet-api";
 import type {
   AgentState,
@@ -46,12 +47,22 @@ export function FleetPanel() {
     );
   });
   const readyCount = agents.filter((agent) => agent.state === "ready").length;
-  const linkedCount = agents.filter(
-    (agent) => agent.oneclaw === "linked",
-  ).length;
+  const trader = agents.find((agent) => agent.role === "trader");
+  const executionLinked = trader?.oneclaw === "linked";
   const [securityBusy, setSecurityBusy] = useState(false);
   const [securityError, setSecurityError] = useState<string>();
+  const [securityEmail, setSecurityEmail] = useState("");
   const [securityStarted, setSecurityStarted] = useState(false);
+  const [oneclawAgentId, setOneclawAgentId] = useState<string>();
+  useEffect(() => {
+    setSecurityEmail(
+      window.localStorage.getItem("eqlty_oneclaw_email") ?? "",
+    );
+    setOneclawAgentId(
+      window.localStorage.getItem("eqlty_oneclaw_agent_id") ??
+        undefined,
+    );
+  }, []);
   const canActivateSecurity = Boolean(
     runtime?.mode === "live" &&
       runtime.agents.length === fleetRoles.length &&
@@ -103,6 +114,9 @@ export function FleetPanel() {
             agent={agent}
             index={index}
             key={agent.role}
+            oneclawAgentId={
+              agent.role === "trader" ? oneclawAgentId : undefined
+            }
             phase={state.phase}
             rootName={state.activation?.rootName}
             runtimeAvailable={Boolean(runtime)}
@@ -114,33 +128,65 @@ export function FleetPanel() {
         <div
           aria-busy={securityBusy}
           className={`fleetSecurity ${
-            linkedCount === fleetRoles.length ? "linked" : ""
+            executionLinked ? "linked" : ""
           }`}
         >
           <div className="fleetSecurityCopy">
-            <span>1Claw security rails</span>
-            <strong>{linkedCount}/4 linked</strong>
+            <span>1Claw execution rail</span>
+            <strong>
+              {executionLinked ? "Trader protected" : "Setup required"}
+            </strong>
             <p>
-              {linkedCount === fleetRoles.length
-                ? "Each Hermes runtime has its own isolated credential."
+              {executionLinked
+                ? "The signing wallet and spending controls belong to your 1Claw account."
                 : securityStarted
-                  ? "Rails created. Restarting Hermes with scoped credentials."
-                  : "Add isolated identities, Robinhood controls and HSM signing."}
+                  ? "Complete the 1Claw claim, then check the connection."
+                  : "Create a user-owned wallet for the only agent allowed to spend."}
             </p>
           </div>
-          {linkedCount < fleetRoles.length && (
-            <button
-              disabled={
-                securityBusy || state.busy || !canActivateSecurity
-              }
-              onClick={async () => {
+          {!executionLinked && (
+            <form
+              className="fleetSecurityActions"
+              onSubmit={async (event: FormEvent<HTMLFormElement>) => {
+                event.preventDefault();
                 setSecurityBusy(true);
                 setSecurityError(undefined);
+                const claimTab = window.open(
+                  "about:blank",
+                  "_blank",
+                  "noopener,noreferrer",
+                );
                 try {
-                  await activateOneClawRails();
+                  const result =
+                    await activateOneClawRails(securityEmail);
+                  window.localStorage.setItem(
+                    "eqlty_oneclaw_email",
+                    securityEmail,
+                  );
+                  if ("executionAgent" in result) {
+                    setOneclawAgentId(
+                      result.executionAgent.oneclawAgentId,
+                    );
+                    window.localStorage.setItem(
+                      "eqlty_oneclaw_agent_id",
+                      result.executionAgent.oneclawAgentId,
+                    );
+                  }
                   setSecurityStarted(true);
-                  state.retry();
+                  const nextUrl =
+                    result.status === "link_required"
+                      ? result.authorizeUrl
+                      : result.status === "claim_required"
+                        ? result.claimUrl
+                        : undefined;
+                  if (claimTab && nextUrl) {
+                    claimTab.location.href = nextUrl;
+                  } else {
+                    claimTab?.close();
+                  }
+                  if (result.status === "linked") state.retry();
                 } catch (cause) {
+                  claimTab?.close();
                   setSecurityError(
                     cause instanceof Error
                       ? cause.message
@@ -150,12 +196,31 @@ export function FleetPanel() {
                   setSecurityBusy(false);
                 }
               }}
-              type="button"
             >
-              {securityBusy
-                ? "Activating rails"
-                : "Activate 1Claw rails"}
-            </button>
+              <input
+                aria-label="1Claw account email"
+                autoComplete="email"
+                onChange={(event) =>
+                  setSecurityEmail(event.target.value)
+                }
+                placeholder="Your 1Claw email"
+                required
+                type="email"
+                value={securityEmail}
+              />
+              <button
+                disabled={
+                  securityBusy || state.busy || !canActivateSecurity
+                }
+                type="submit"
+              >
+                {securityBusy
+                  ? "Connecting"
+                  : securityStarted
+                    ? "Check connection"
+                    : "Connect 1Claw"}
+              </button>
+            </form>
           )}
         </div>
       )}
@@ -194,12 +259,14 @@ export function FleetPanel() {
 function AgentCard({
   agent,
   index,
+  oneclawAgentId,
   phase,
   rootName,
   runtimeAvailable,
 }: {
   agent: FleetAgent;
   index: number;
+  oneclawAgentId?: string;
   phase: FleetPhase;
   rootName?: string;
   runtimeAvailable: boolean;
@@ -210,10 +277,27 @@ function AgentCard({
   const completedSteps = stepProgress(visualPhase);
 
   return (
-    <article className={`agentCard ${agent.state}`}>
+    <article
+      className={`agentCard ${agent.state} ${
+        agent.role === "trader" ? "hasOneclaw" : ""
+      }`}
+    >
       <span className="roleMark">
         <i />
       </span>
+      {agent.role === "trader" && (
+        <a
+          aria-label="Open the trader settings in 1Claw"
+          className={`oneclawAgentLink ${
+            agent.oneclaw === "linked" ? "linked" : ""
+          }`}
+          href={oneclawAgentSettingsUrl(oneclawAgentId)}
+          rel="noreferrer"
+          target="_blank"
+        >
+          <img alt="" src="/1claw.png" />
+        </a>
+      )}
       <div className="agentIdentity">
         <strong>{agent.role}</strong>
         <small>{agent.name}</small>
@@ -222,9 +306,11 @@ function AgentCard({
       <div className="agentState">
         <b className={agent.state}>{agentPhaseCopy(visualPhase)}</b>
         <small>
-          {agent.oneclaw === "linked"
-            ? "1Claw configured"
-            : "Security pending"}
+          {agent.role !== "trader"
+            ? "No spending authority"
+            : agent.oneclaw === "linked"
+              ? "1Claw protected"
+              : "1Claw pending"}
         </small>
       </div>
       {runtimeAvailable && (

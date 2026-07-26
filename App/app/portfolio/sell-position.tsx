@@ -50,6 +50,7 @@ export function SellPosition({
     useState<JourneyStage>("idle");
   const [approvalRequired, setApprovalRequired] = useState(false);
   const [permitRequired, setPermitRequired] = useState(false);
+  const [failedStage, setFailedStage] = useState<SellStage>();
   const [quoting, setQuoting] = useState(false);
   const [error, setError] = useState<string>();
   const rawBalance = useMemo(
@@ -70,6 +71,7 @@ export function SellPosition({
     setAudit(undefined);
     setError(undefined);
     setJourneyStage("idle");
+    setFailedStage(undefined);
   }
 
   async function getQuote() {
@@ -78,6 +80,7 @@ export function SellPosition({
     setError(undefined);
     setResult(undefined);
     setAudit(undefined);
+    setFailedStage(undefined);
     try {
       const nextQuote = await requestSellQuote({
         ticker: holding.ticker,
@@ -98,12 +101,15 @@ export function SellPosition({
 
   async function confirmSale() {
     if (!quote) return;
+    let currentStage: SellStage = "idle";
     setError(undefined);
+    setFailedStage(undefined);
     try {
       const completed = await executeWalletSell({
         wallet,
         quote,
         onStage: (nextStage) => {
+          currentStage = nextStage;
           setStage(nextStage);
           setJourneyStage(nextStage);
           if (nextStage === "approving") setApprovalRequired(true);
@@ -138,7 +144,10 @@ export function SellPosition({
       }
     } catch (caught) {
       setError(message(caught));
-      setJourneyStage("quoted");
+      setFailedStage(currentStage === "idle" ? undefined : currentStage);
+      setJourneyStage(
+        currentStage === "idle" ? "quoted" : currentStage,
+      );
     } finally {
       setStage("idle");
     }
@@ -155,6 +164,7 @@ export function SellPosition({
     setJourneyStage("idle");
     setApprovalRequired(false);
     setPermitRequired(false);
+    setFailedStage(undefined);
   }
 
   return (
@@ -194,6 +204,7 @@ export function SellPosition({
               <SellJourney
                 approvalRequired={approvalRequired}
                 audit={audit}
+                failedStage={failedStage}
                 journeyStage={journeyStage}
                 permitRequired={permitRequired}
                 quote={quote}
@@ -351,6 +362,7 @@ function SellJourney({
   quote,
   result,
   audit,
+  failedStage,
   ticker,
 }: {
   journeyStage: JourneyStage;
@@ -359,6 +371,7 @@ function SellJourney({
   quote?: WalletSellQuote;
   result?: WalletSellResult;
   audit?: SaleAuditBundle;
+  failedStage?: SellStage;
   ticker: string;
 }) {
   const quoteReady = !["idle", "quoting"].includes(journeyStage);
@@ -383,13 +396,16 @@ function SellJourney({
         : approvalRequired
           ? "Your wallet grants only the required token allowance"
           : "Existing allowance is sufficient",
-      status: optionalStatus(
-        journeyStage,
-        approvalRequired,
-        "approving",
-        rank > 1,
-        quoteReady,
-      ),
+      status:
+        failedStage === "approving"
+          ? "error"
+          : optionalStatus(
+              journeyStage,
+              approvalRequired,
+              "approving",
+              rank > 1,
+              quoteReady,
+            ),
       href: result?.approvalTransactionHash
         ? transactionUrl(result.approvalTransactionHash)
         : undefined,
@@ -399,13 +415,16 @@ function SellJourney({
       detail: permitRequired
         ? "Authorizes this exact Uniswap swap"
         : "No additional signature is required",
-      status: optionalStatus(
-        journeyStage,
-        permitRequired,
-        "signing",
-        rank > 3,
-        quoteReady,
-      ),
+      status:
+        failedStage === "signing"
+          ? "error"
+          : optionalStatus(
+              journeyStage,
+              permitRequired,
+              "signing",
+              rank > 3,
+              quoteReady,
+            ),
     },
     {
       label: "Submit the Uniswap V4 sale",
@@ -414,10 +433,13 @@ function SellJourney({
         : journeyStage === "refreshing"
           ? "Refreshing the route after approval"
           : "Building the protected wallet transaction",
-      status:
-        journeyStage === "refreshing" ||
-        journeyStage === "building" ||
-        journeyStage === "executing"
+      status: ["refreshing", "building", "executing"].includes(
+        failedStage ?? "",
+      )
+        ? "error"
+        : journeyStage === "refreshing" ||
+            journeyStage === "building" ||
+            journeyStage === "executing"
           ? "active"
           : rank > 4
             ? "complete"
@@ -432,11 +454,13 @@ function SellJourney({
         ? `Finalized in block ${result.blockNumber}`
         : "Waiting for the network receipt",
       status:
-        journeyStage === "confirming"
-          ? "active"
-          : result
-            ? "complete"
-            : "pending",
+        failedStage === "confirming"
+          ? "error"
+          : journeyStage === "confirming"
+            ? "active"
+            : result
+              ? "complete"
+              : "pending",
       href: result ? blockUrl(result.blockNumber) : undefined,
     },
     {
@@ -468,7 +492,11 @@ function SellJourney({
       <header>
         <div>
           <span>Live execution</span>
-          <strong>{journeyLabel(journeyStage)}</strong>
+          <strong>
+            {failedStage
+              ? "Sale needs attention"
+              : journeyLabel(journeyStage)}
+          </strong>
         </div>
         <small>
           {completed}/{steps.length} steps

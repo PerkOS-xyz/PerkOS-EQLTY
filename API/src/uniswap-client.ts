@@ -4,7 +4,9 @@ import type { ApiConfig } from "./config.js";
 import type {
   EvmAddress,
   PreparedUniswapSwap,
+  UniswapTransaction,
   UniswapQuote,
+  WalletSwapQuote,
 } from "./market-types.js";
 
 const maxAttempts = 3;
@@ -32,6 +34,7 @@ export class UniswapClient {
     }
 
     const { body, requestId } = await this.requestQuote({
+      tokenIn: this.config.INPUT_TOKEN_ADDRESS as EvmAddress,
       tokenOut,
       amount,
       swapper: this.config.SWAPPER_ADDRESS as EvmAddress,
@@ -68,6 +71,7 @@ export class UniswapClient {
     }
 
     const { body, requestId } = await this.requestQuote({
+      tokenIn: this.config.INPUT_TOKEN_ADDRESS as EvmAddress,
       tokenOut: input.tokenOut,
       amount: input.amount,
       swapper: vault,
@@ -142,7 +146,172 @@ export class UniswapClient {
     };
   }
 
+  async prepareWalletSell(input: {
+    ticker: string;
+    tokenIn: EvmAddress;
+    amount: string;
+    swapper: EvmAddress;
+    maxSlippageBps: number;
+  }): Promise<WalletSwapQuote> {
+    const tokenOut = this.config.INPUT_TOKEN_ADDRESS as EvmAddress;
+    if (!this.config.UNISWAP_API_KEY) {
+      throw new Error("Uniswap wallet swaps are not configured");
+    }
+    assertRobinhoodChain(this.config);
+
+    const approvalResponse = await this.fetchFn(
+      `${this.config.UNISWAP_API_URL}/check_approval`,
+      {
+        method: "POST",
+        headers: this.headers(),
+        body: JSON.stringify({
+          walletAddress: input.swapper,
+          token: input.tokenIn,
+          tokenOut,
+          amount: input.amount,
+          chainId: 4663,
+          tokenOutChainId: 4663,
+        }),
+        signal: AbortSignal.timeout(12_000),
+      },
+    );
+    const approvalBody: unknown = await approvalResponse
+      .json()
+      .catch(() => undefined);
+    if (!approvalResponse.ok || !isRecord(approvalBody)) {
+      throw new Error(
+        `Uniswap approval check failed with status ${approvalResponse.status}`,
+      );
+    }
+    const approval = approvalBody.approval
+      ? parseTransaction(record(approvalBody.approval, "Uniswap approval"))
+      : undefined;
+    if (approval) {
+      validateWalletTransaction({
+        transaction: approval,
+        swapper: input.swapper,
+        allowedTargets: [
+          this.config.UNISWAP_PERMIT2_ADDRESS as EvmAddress,
+          this.config.UNISWAP_UNIVERSAL_ROUTER_ADDRESS as EvmAddress,
+        ],
+      });
+    }
+
+    const { body, requestId } = await this.requestQuote({
+      tokenIn: input.tokenIn,
+      tokenOut,
+      amount: input.amount,
+      swapper: input.swapper,
+      slippageTolerance: input.maxSlippageBps / 100,
+    });
+    const parsed = parseQuote(body, requestId);
+    if (!parsed.requestId) {
+      throw new Error("Uniswap quote returned no request identifier");
+    }
+    const quote = record(body.quote, "Uniswap quote");
+    const permitData =
+      body.permitData === null || body.permitData === undefined
+        ? undefined
+        : record(body.permitData, "Uniswap permit data");
+    validateWalletQuote({
+      quote,
+      permitData,
+      swapper: input.swapper,
+      tokenIn: input.tokenIn,
+      tokenOut,
+      amount: input.amount,
+      router: this.config.UNISWAP_UNIVERSAL_ROUTER_ADDRESS as EvmAddress,
+      permit2: this.config.UNISWAP_PERMIT2_ADDRESS as EvmAddress,
+    });
+
+    return {
+      chainId: 4663,
+      direction: "sell",
+      ticker: input.ticker.toUpperCase(),
+      tokenIn: input.tokenIn,
+      tokenOut,
+      amountIn: input.amount,
+      amountOut: parsed.amountOut,
+      requestId: parsed.requestId,
+      routing: parsed.routing,
+      quotedAt: new Date().toISOString(),
+      approval,
+      permitData,
+      rawQuote: quote,
+    };
+  }
+
+  async buildWalletSell(input: {
+    sell: WalletSwapQuote;
+    swapper: EvmAddress;
+    signature?: `0x${string}`;
+  }): Promise<PreparedUniswapSwap> {
+    if (!this.config.UNISWAP_API_KEY) {
+      throw new Error("Uniswap wallet swaps are not configured");
+    }
+    assertRobinhoodChain(this.config);
+    validateWalletQuote({
+      quote: input.sell.rawQuote,
+      permitData: input.sell.permitData,
+      swapper: input.swapper,
+      tokenIn: input.sell.tokenIn,
+      tokenOut: this.config.INPUT_TOKEN_ADDRESS as EvmAddress,
+      amount: input.sell.amountIn,
+      router: this.config.UNISWAP_UNIVERSAL_ROUTER_ADDRESS as EvmAddress,
+      permit2: this.config.UNISWAP_PERMIT2_ADDRESS as EvmAddress,
+    });
+    if (input.sell.permitData && !input.signature) {
+      throw new Error("The Permit2 signature is required");
+    }
+
+    const response = await this.fetchFn(
+      `${this.config.UNISWAP_API_URL}/swap`,
+      {
+        method: "POST",
+        headers: this.headers(),
+        body: JSON.stringify(
+          input.sell.permitData
+            ? {
+                quote: input.sell.rawQuote,
+                permitData: input.sell.permitData,
+                signature: input.signature,
+                simulateTransaction: true,
+              }
+            : {
+                quote: input.sell.rawQuote,
+                simulateTransaction: true,
+              },
+        ),
+        signal: AbortSignal.timeout(12_000),
+      },
+    );
+    const body: unknown = await response.json().catch(() => undefined);
+    if (!response.ok || !isRecord(body)) {
+      throw new Error(
+        `Uniswap wallet swap build failed with status ${response.status}`,
+      );
+    }
+    const transaction = parseTransaction(
+      record(body.swap ?? body.transaction, "Uniswap swap transaction"),
+    );
+    validateWalletTransaction({
+      transaction,
+      swapper: input.swapper,
+      allowedTargets: [
+        this.config.UNISWAP_UNIVERSAL_ROUTER_ADDRESS as EvmAddress,
+      ],
+    });
+    return {
+      amountOut: input.sell.amountOut,
+      requestId: input.sell.requestId,
+      routing: input.sell.routing,
+      rawQuote: input.sell.rawQuote,
+      transaction,
+    };
+  }
+
   private async requestQuote(input: {
+    tokenIn: EvmAddress;
     tokenOut: EvmAddress;
     amount: string;
     swapper: EvmAddress;
@@ -158,7 +327,7 @@ export class UniswapClient {
           method: "POST",
           headers: this.headers(),
           body: JSON.stringify({
-            tokenIn: this.config.INPUT_TOKEN_ADDRESS,
+            tokenIn: input.tokenIn,
             tokenOut: input.tokenOut,
             amount: input.amount,
             type: "EXACT_INPUT",
@@ -203,6 +372,15 @@ export class UniswapClient {
       "x-api-key": this.config.UNISWAP_API_KEY,
       "x-universal-router-version": "2.1.1",
     };
+  }
+}
+
+function assertRobinhoodChain(config: ApiConfig): void {
+  if (
+    config.UNISWAP_CHAIN_ID !== 4663 ||
+    config.ROBINHOOD_CHAIN_ID !== 4663
+  ) {
+    throw new Error("Live swaps require Robinhood Chain mainnet");
   }
 }
 
@@ -337,6 +515,60 @@ function validateExecutionQuote(input: {
   }
 }
 
+function validateWalletQuote(input: {
+  quote: JsonRecord;
+  permitData?: JsonRecord;
+  swapper: EvmAddress;
+  tokenIn: EvmAddress;
+  tokenOut: EvmAddress;
+  amount: string;
+  router: EvmAddress;
+  permit2: EvmAddress;
+}): void {
+  const quoteInput = record(input.quote.input, "Uniswap quote input");
+  const output = record(input.quote.output, "Uniswap quote output");
+  if (!same(input.quote.swapper, input.swapper)) {
+    throw new Error("Uniswap quote swapper is not the connected wallet");
+  }
+  if (
+    !same(quoteInput.token, input.tokenIn) ||
+    String(quoteInput.amount) !== input.amount
+  ) {
+    throw new Error("Uniswap quote input does not match the sale");
+  }
+  if (
+    !same(output.token, input.tokenOut) ||
+    !same(output.recipient, input.swapper)
+  ) {
+    throw new Error("Uniswap quote output does not return to the wallet");
+  }
+  if (
+    Number(input.quote.tokenInChainId ?? input.quote.chainId) !== 4663 ||
+    Number(input.quote.tokenOutChainId ?? input.quote.chainId) !== 4663
+  ) {
+    throw new Error("Uniswap quote is not on Robinhood Chain");
+  }
+  if (!input.permitData) return;
+  const domain = record(input.permitData.domain, "Permit2 domain");
+  const values = record(input.permitData.values, "Permit2 values");
+  const details = record(values.details, "Permit2 details");
+  if (
+    Number(domain.chainId) !== 4663 ||
+    !same(domain.verifyingContract, input.permit2)
+  ) {
+    throw new Error("Permit2 domain is not canonical");
+  }
+  if (
+    !same(details.token, input.tokenIn) ||
+    String(details.amount) !== input.amount
+  ) {
+    throw new Error("Permit2 amount is not exact");
+  }
+  if (!same(values.spender, input.router)) {
+    throw new Error("Permit2 spender is not the authorized router");
+  }
+}
+
 function parseTransaction(
   transaction: JsonRecord,
 ): PreparedUniswapSwap["transaction"] {
@@ -377,6 +609,29 @@ function validateTransaction(input: {
   }
   if (BigInt(input.transaction.value) !== 0n) {
     throw new Error("USDG execution cannot include native value");
+  }
+}
+
+function validateWalletTransaction(input: {
+  transaction: UniswapTransaction;
+  swapper: EvmAddress;
+  allowedTargets: EvmAddress[];
+}): void {
+  if (
+    !input.allowedTargets.some((target) =>
+      same(input.transaction.to, target),
+    )
+  ) {
+    throw new Error("Uniswap transaction targets an unauthorized contract");
+  }
+  if (!same(input.transaction.from, input.swapper)) {
+    throw new Error("Uniswap transaction sender is not the connected wallet");
+  }
+  if (input.transaction.chainId !== 4663) {
+    throw new Error("Uniswap transaction is not on Robinhood Chain");
+  }
+  if (BigInt(input.transaction.value) !== 0n) {
+    throw new Error("Token sale cannot include native value");
   }
 }
 

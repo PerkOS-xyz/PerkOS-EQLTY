@@ -264,7 +264,6 @@ describe("API foundation", () => {
         objective: "Discover eligible assets",
         inputs: ["ens" as const],
         actions: ["recommend" as const],
-        requiresWorldSelfieForChanges: true as const,
       },
       security: {
         provider: "1claw" as const,
@@ -686,7 +685,6 @@ describe("API foundation", () => {
       publicationMode: "prepared-only" as const,
       requiredAuthorization: [
         "owner-wallet",
-        "world-selfie",
       ] as const,
     } as Awaited<
       ReturnType<EnsPolicyPreparationService["prepare"]>
@@ -723,7 +721,7 @@ describe("API foundation", () => {
     });
     await expect(response.json()).resolves.toMatchObject({
       publicationMode: "prepared-only",
-      requiredAuthorization: ["owner-wallet", "world-selfie"],
+      requiredAuthorization: ["owner-wallet"],
     });
   });
 
@@ -754,6 +752,69 @@ describe("API foundation", () => {
     expect(unauthorized.status).toBe(401);
     expect(invalid.status).toBe(400);
     expect(prepare).not.toHaveBeenCalled();
+  });
+
+  it("publishes an authenticated ENS policy change in demo mode", async () => {
+    const session = testSession();
+    const publication = {
+      rootName: "u-12345678.demo.eth",
+      currentManifestHash: `0x${"11".repeat(32)}` as const,
+      manifestHash: `0x${"22".repeat(32)}` as const,
+      manifest: { version: 2, paused: true },
+      manifestJson: "{}",
+      agentRecords: {},
+      diff: [{ field: "paused", before: false, after: true }],
+      publicationMode: "prepared-only" as const,
+      requiredAuthorization: ["owner-wallet"] as const,
+      transactions: [
+        `0x${"33".repeat(32)}`,
+        `0x${"44".repeat(32)}`,
+        `0x${"55".repeat(32)}`,
+        `0x${"66".repeat(32)}`,
+        `0x${"77".repeat(32)}`,
+      ] as Array<`0x${string}`>,
+      verified: true as const,
+    } as unknown as Awaited<
+      ReturnType<EnsPolicyPreparationService["publish"]>
+    >;
+    const publish = vi.fn(async () => publication);
+    const response = await request(
+      "/api/orchestration/apply-demo",
+      {
+        ownerAuth: testOwnerAuth(session),
+        ensPolicyPreparation: {
+          prepare: vi.fn(),
+          publish,
+        },
+      },
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          paused: true,
+          allowedTickers: ["NVDA", "AMZN"],
+          maxAmountPerTrade: "1000000",
+          maxDeviationBps: 300,
+          minLiquidityUsd: 50_000,
+          maxOracleAgeSeconds: 900,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(publish).toHaveBeenCalledWith({
+      userId: session.fleetUserId,
+      owner: session.walletAddress,
+      change: expect.objectContaining({ paused: true }),
+    });
+    await expect(response.json()).resolves.toMatchObject({
+      manifest: { version: 2, paused: true },
+      transactions: expect.arrayContaining([
+        `0x${"33".repeat(32)}`,
+      ]),
+      verified: true,
+    });
   });
 
   it("creates an execution strategy for the session owner", async () => {

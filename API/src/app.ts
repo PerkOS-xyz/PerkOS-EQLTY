@@ -217,7 +217,8 @@ type AppDependencies = {
   > &
     Partial<Pick<OwnerAuth, "perkosIdToken">>;
   ensControlPlane?: Pick<EnsControlPlaneService, "resolve">;
-  ensPolicyPreparation?: Pick<EnsPolicyPreparationService, "prepare">;
+  ensPolicyPreparation?: Pick<EnsPolicyPreparationService, "prepare"> &
+    Partial<Pick<EnsPolicyPreparationService, "publish">>;
   fleetActivation?: Pick<FleetActivationService, "activate">;
   oneclawFleet?: Pick<OneClawFleetProvisioner, "provision" | "ready">;
   graphEvidence?: Pick<GraphEvidenceService, "evidence"> &
@@ -458,6 +459,47 @@ export function createApp(
     } catch (error) {
       return response.status(409).json({
         error: "ens_policy_change_rejected",
+        message: safeMessage(error),
+      });
+    }
+  });
+
+  app.post("/api/orchestration/apply-demo", async (request, response) => {
+    if (!config.DEMO_MODE) {
+      return response
+        .status(403)
+        .json({ error: "demo_policy_updates_disabled" });
+    }
+    const session = ownerAuth.session(request);
+    if (!session) {
+      return response
+        .status(401)
+        .json({ error: "owner_session_required" });
+    }
+    const parsed = ensPolicyChange.safeParse(request.body);
+    if (!parsed.success) {
+      return response.status(400).json({
+        error: "invalid_ens_policy_change",
+        issues: parsed.error.issues,
+      });
+    }
+    if (!ensPolicyPreparation.publish) {
+      return response
+        .status(503)
+        .json({ error: "ens_policy_publication_unavailable" });
+    }
+    try {
+      response.setHeader("cache-control", "no-store");
+      return response.json(
+        await ensPolicyPreparation.publish({
+          userId: session.fleetUserId,
+          owner: session.walletAddress,
+          change: parsed.data,
+        }),
+      );
+    } catch (error) {
+      return response.status(409).json({
+        error: "ens_policy_publication_rejected",
         message: safeMessage(error),
       });
     }

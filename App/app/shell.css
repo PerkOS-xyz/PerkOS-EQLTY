@@ -22,7 +22,7 @@
 
 .fleetHeader span {
   color: #728078;
-  font: 9px "DM Mono", monospace;
+  font: 11px "DM Mono", monospace;
 }
 
 .fleetGrid {
@@ -48,25 +48,25 @@
   border-radius: 50%;
   background: #17251c;
   color: #72ee9d;
-  font: 10px "DM Mono", monospace;
+  font: 11px "DM Mono", monospace;
 }
 
 .fleetGrid strong {
   display: block;
-  font: 500 10px "DM Mono", monospace;
+  font: 500 11px "DM Mono", monospace;
   text-transform: uppercase;
 }
 
 .fleetGrid p {
   min-height: 48px;
   color: #78847d;
-  font-size: 9px;
+  font-size: 11px;
   line-height: 1.5;
 }
 
 .fleetGrid small {
   color: #6f8175;
-  font: 8px "DM Mono", monospace;
+  font: 11px "DM Mono", monospace;
 }
 
 @media (max-width: 900px) {

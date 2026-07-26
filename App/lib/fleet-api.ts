@@ -2,13 +2,15 @@ import type {
   AgentRole,
   EnsAgentMetadata,
   FleetActivation,
+  FleetPolicyChange,
+  FleetPolicyPublication,
   FleetPolicy,
   OneClawFleetSecurity,
   UserSession,
 } from "./fleet-types";
 
 const fallbackUrl = "http://localhost:4021";
-const fallbackEnsAppUrl = "https://app.ens.dev";
+const fallbackEnsAppUrl = "https://sepolia.app.ens.domains";
 
 class FleetRequestError extends Error {
   constructor(
@@ -121,4 +123,16 @@ export async function loadFleetMetadata(
 
 export async function loadFleetPolicy(): Promise<FleetPolicy> {
   return request<FleetPolicy>("/api/fleet/policy");
+}
+
+export async function publishDemoFleetPolicy(
+  change: FleetPolicyChange,
+): Promise<FleetPolicyPublication> {
+  return request<FleetPolicyPublication>(
+    "/api/orchestration/apply-demo",
+    {
+      method: "POST",
+      body: JSON.stringify(change),
+    },
+  );
 }

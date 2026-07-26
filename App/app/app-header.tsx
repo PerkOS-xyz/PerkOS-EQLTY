@@ -30,7 +30,7 @@ export function AppHeader({
           className={active === "portfolio" ? "active" : ""}
           href="/portfolio"
         >
-          Portfolio
+          Portfolio & Sell
         </Link>
         <Link
           aria-current={active === "history" ? "page" : undefined}

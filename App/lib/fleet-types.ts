@@ -87,7 +87,6 @@ export type EnsAgentMetadata = {
       objective: string;
       inputs: string[];
       actions: string[];
-      requiresWorldSelfieForChanges: boolean;
     };
     security: {
       provider: string;
@@ -113,6 +112,31 @@ export type FleetPolicy = {
     minLiquidityUsd: number;
     maxOracleAgeSeconds: number;
   };
+};
+
+export type FleetPolicyChange = {
+  paused: boolean;
+  allowedTickers: string[];
+  maxAmountPerTrade: string;
+  maxDeviationBps: number;
+  minLiquidityUsd: number;
+  maxOracleAgeSeconds: number;
+};
+
+export type FleetPolicyPublication = {
+  rootName: string;
+  manifestHash: `0x${string}`;
+  manifest: {
+    version: number;
+    paused: boolean;
+  };
+  diff: Array<{
+    field: string;
+    before: boolean | number | string | string[];
+    after: boolean | number | string | string[];
+  }>;
+  transactions: Array<`0x${string}`>;
+  verified: true;
 };
 
 export type FleetPhase =

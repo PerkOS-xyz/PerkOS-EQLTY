@@ -58,7 +58,6 @@ can be executed with a clear evidence trail.
 
 ### 7. Human authorization
 
-- [ ] Add Selfie Check during onboarding.
 - [ ] Bind settings changes to the enrolled controller.
 - [ ] Keep biometric images and private proof material out of the application
   database.

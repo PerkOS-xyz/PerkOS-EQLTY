@@ -6,7 +6,9 @@ import {
   ensManagerUrl,
   fleetMetadataUrl,
   loadFleetMetadata,
+  loadFleetPolicy,
   oneclawAgentSettingsUrl,
+  publishDemoFleetPolicy,
 } from "../lib/fleet-api";
 import type {
   AgentRole,
@@ -124,6 +126,10 @@ export function FleetPanel({ goal }: { goal: GoalAnalysisState }) {
       </div>
 
       <WorkflowBanner workflow={workflow} />
+
+      {state.phase === "ready" && state.activation?.verified && (
+        <FleetPolicyEditor rootName={state.activation.rootName} />
+      )}
 
       <div className="fleetGrid runtimeGrid">
         {agents.map((agent, index) => {
@@ -290,6 +296,128 @@ export function FleetPanel({ goal }: { goal: GoalAnalysisState }) {
         </div>
       )}
     </section>
+  );
+}
+
+type PolicyPreset = "protect" | "opportunity" | "stop";
+
+function FleetPolicyEditor({ rootName }: { rootName: string }) {
+  const [busy, setBusy] = useState<PolicyPreset>();
+  const [status, setStatus] = useState<string>();
+  const [error, setError] = useState<string>();
+  const [transactions, setTransactions] = useState<Array<`0x${string}`>>(
+    [],
+  );
+
+  const apply = async (preset: PolicyPreset) => {
+    setBusy(preset);
+    setStatus(undefined);
+    setError(undefined);
+    setTransactions([]);
+    try {
+      const current = await loadFleetPolicy();
+      const base = {
+        maxAmountPerTrade: current.limits.maxAmountPerTrade,
+        maxDeviationBps: current.limits.maxDeviationBps,
+        minLiquidityUsd: current.limits.minLiquidityUsd,
+        maxOracleAgeSeconds: current.limits.maxOracleAgeSeconds,
+      };
+      const change =
+        preset === "protect"
+          ? {
+              paused: false,
+              allowedTickers: ["NVDA", "AMZN"],
+              maxAmountPerTrade: "500000",
+              maxDeviationBps: 100,
+              minLiquidityUsd: 250_000,
+              maxOracleAgeSeconds: 300,
+            }
+          : preset === "opportunity"
+            ? {
+                paused: false,
+                allowedTickers: [
+                  "NVDA",
+                  "AMZN",
+                  "AMD",
+                  "NFLX",
+                  "PLTR",
+                  "TSLA",
+                ],
+                maxAmountPerTrade: "1000000",
+                maxDeviationBps: 300,
+                minLiquidityUsd: 50_000,
+                maxOracleAgeSeconds: 86_400,
+              }
+            : {
+                ...base,
+                paused: true,
+                allowedTickers: current.allowedTickers,
+              };
+      const published = await publishDemoFleetPolicy(change);
+      setTransactions(published.transactions);
+      setStatus(
+        `ENS policy v${published.manifest.version} verified. The next consultation will use it.`,
+      );
+      window.dispatchEvent(new Event("eqlty:policy-published"));
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "ENS publication failed",
+      );
+    } finally {
+      setBusy(undefined);
+    }
+  };
+
+  return (
+    <div className="fleetPolicyEditor">
+      <div>
+        <span>ENS behavior controls</span>
+        <strong>{rootName}</strong>
+        <small>
+          Publish a real policy change and rerun the consultation.
+        </small>
+      </div>
+      <div className="fleetPolicyPresets">
+        <button
+          disabled={Boolean(busy)}
+          onClick={() => void apply("protect")}
+          type="button"
+        >
+          {busy === "protect" ? "Publishing…" : "Capital protection"}
+        </button>
+        <button
+          disabled={Boolean(busy)}
+          onClick={() => void apply("opportunity")}
+          type="button"
+        >
+          {busy === "opportunity" ? "Publishing…" : "Opportunity mode"}
+        </button>
+        <button
+          className="stop"
+          disabled={Boolean(busy)}
+          onClick={() => void apply("stop")}
+          type="button"
+        >
+          {busy === "stop" ? "Stopping…" : "Emergency stop"}
+        </button>
+      </div>
+      {status && <p className="fleetPolicyStatus">{status}</p>}
+      {error && <p className="fleetPolicyError">{error}</p>}
+      {transactions.length > 0 && (
+        <div className="fleetPolicyTransactions">
+          {transactions.map((hash, index) => (
+            <a
+              href={`https://sepolia.basescan.org/tx/${hash}`}
+              key={hash}
+              rel="noreferrer"
+              target="_blank"
+            >
+              ENS tx {index + 1} ↗
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

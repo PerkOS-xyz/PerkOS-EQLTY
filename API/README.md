@@ -41,7 +41,7 @@ preserves the Graph request and response, Uniswap pool evidence, proof hashes,
 receipt and decoded token transfers.
 
 ENS policy preparation returns hash-bound records for review. It does not
-publish changes before wallet and World authorization are complete.
+publish changes before owner-wallet authorization is complete.
 
 `EQLTY_ONECLAW_MIN_AMOUNT_USDG` stores the 1Claw purchase threshold in
 six-decimal USDG atomic units. The default `3000000` applies the rail lock to

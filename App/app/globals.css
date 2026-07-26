@@ -13,7 +13,7 @@
 }
 
 html {
-  min-width: 320px;
+  min-width: 0;
   background: #07090c;
 }
 
@@ -86,7 +86,7 @@ button {
 
 .brandCopy span {
   color: #78817d;
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -100,7 +100,7 @@ button {
   border-radius: 999px;
   background: #111613;
   color: #9aa39e;
-  font: 500 10px "DM Mono", monospace;
+  font: 500 11px "DM Mono", monospace;
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
@@ -128,7 +128,7 @@ button {
   background: #141916;
   color: #a7b0ab;
   cursor: pointer;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
 }
 
@@ -155,7 +155,7 @@ button {
   gap: 7px;
   border-color: #315c3e;
   color: #83e9a4;
-  font: 500 9px "DM Mono", monospace;
+  font: 500 11px "DM Mono", monospace;
 }
 
 .accessButton.connected i {
@@ -181,7 +181,7 @@ button {
 
 .eyebrow {
   color: #72ee9d;
-  font: 500 10px "DM Mono", monospace;
+  font: 500 11px "DM Mono", monospace;
   letter-spacing: 0.18em;
   text-transform: uppercase;
 }
@@ -229,7 +229,7 @@ button {
 
 .statusCard p {
   color: #76827b;
-  font: 9px "DM Mono", monospace;
+  font: 11px "DM Mono", monospace;
   line-height: 1.5;
 }
 
@@ -273,7 +273,7 @@ button {
   border: 1px solid #31543c;
   border-radius: 50%;
   color: #78ed9f;
-  font: 9px "DM Mono", monospace;
+  font: 11px "DM Mono", monospace;
 }
 
 .journey strong {
@@ -284,7 +284,7 @@ button {
 
 .journey p {
   color: #737e78;
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.55;
 }
 
@@ -319,7 +319,7 @@ button {
   }
 
   .network {
-    font-size: 8px;
+    font-size: 11px;
   }
 
   .topbarActions {

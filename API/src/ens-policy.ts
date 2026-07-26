@@ -70,9 +70,8 @@ export const agentSettingsSchema = z
           )
           .min(1)
           .max(4),
-        requiresWorldSelfieForChanges: z.literal(true),
       })
-      .strict(),
+      .strip(),
     security: z
       .object({
         provider: z.literal("1claw"),

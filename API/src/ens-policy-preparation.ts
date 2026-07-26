@@ -1,5 +1,7 @@
 import type { ApiConfig } from "./config.js";
 import type { EnsControlPlaneService } from "./ens-control-plane.js";
+import type { DurinWriter } from "./durin-writer.js";
+import { ViemDurinWriter } from "./durin-writer.js";
 import {
   agentSettingsSchema,
   hashEnsRecord,
@@ -46,22 +48,25 @@ export type PreparedEnsPolicyChange = {
   >;
   diff: EnsPolicyDiff[];
   publicationMode: "prepared-only";
-  requiredAuthorization: ["owner-wallet", "world-selfie"];
+  requiredAuthorization: ["owner-wallet"];
 };
 
 type Dependencies = {
   controlPlane: Pick<EnsControlPlaneService, "resolve">;
+  writer?: Pick<DurinWriter, "ready" | "setText">;
   now?: () => Date;
 };
 
 export class EnsPolicyPreparationService {
   private readonly now: () => Date;
+  private readonly writer: Pick<DurinWriter, "ready" | "setText">;
 
   constructor(
     private readonly config: ApiConfig,
     private readonly dependencies: Dependencies,
   ) {
     this.now = dependencies.now ?? (() => new Date());
+    this.writer = dependencies.writer ?? new ViemDurinWriter(config);
   }
 
   async prepare(input: {
@@ -148,8 +153,54 @@ export class EnsPolicyPreparationService {
       agentRecords,
       diff,
       publicationMode: "prepared-only",
-      requiredAuthorization: ["owner-wallet", "world-selfie"],
+      requiredAuthorization: ["owner-wallet"],
     };
+  }
+
+  async publish(input: {
+    userId: string;
+    owner: EvmAddress;
+    change: EnsPolicyChange;
+  }): Promise<
+    PreparedEnsPolicyChange & {
+      transactions: `0x${string}`[];
+      verified: true;
+    }
+  > {
+    if (!this.writer.ready()) {
+      throw new Error("ENS policy publisher is not configured");
+    }
+    const prepared = await this.prepare(input);
+    const transactions: `0x${string}`[] = [];
+    for (const { role } of fleetRoles) {
+      const record = prepared.agentRecords[role];
+      transactions.push(
+        await this.writer.setText(
+          record.name,
+          record.recordKey,
+          record.settingsJson,
+        ),
+      );
+    }
+    transactions.push(
+      await this.writer.setText(
+        prepared.rootName,
+        "agent-context",
+        prepared.manifestJson,
+      ),
+    );
+    const verified = await this.dependencies.controlPlane.resolve({
+      userId: input.userId,
+      owner: input.owner,
+    });
+    if (
+      verified.status !== "active" ||
+      verified.manifestHash?.toLowerCase() !==
+        prepared.manifestHash.toLowerCase()
+    ) {
+      throw new Error("Published ENS policy did not verify");
+    }
+    return { ...prepared, transactions, verified: true };
   }
 }
 

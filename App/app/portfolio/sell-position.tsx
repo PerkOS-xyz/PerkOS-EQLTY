@@ -5,13 +5,16 @@ import { formatUnits, parseUnits } from "viem";
 import type { PortfolioHolding } from "../../lib/audit-types";
 import {
   blockUrl,
+  graphEvidenceUrl,
   transactionEventsUrl,
   transactionUrl,
 } from "../../lib/execution-api";
 import {
+  recordSaleAudit,
   requestSellQuote,
   type WalletSellQuote,
 } from "../../lib/sell-api";
+import type { SaleAuditBundle } from "../../lib/audit-types";
 import {
   executeWalletSell,
   type SellStage,
@@ -33,6 +36,7 @@ export function SellPosition({
   const [percentage, setPercentage] = useState(100);
   const [quote, setQuote] = useState<WalletSellQuote>();
   const [result, setResult] = useState<WalletSellResult>();
+  const [audit, setAudit] = useState<SaleAuditBundle>();
   const [stage, setStage] = useState<SellStage>("idle");
   const [quoting, setQuoting] = useState(false);
   const [error, setError] = useState<string>();
@@ -51,6 +55,7 @@ export function SellPosition({
     if (busy) return;
     setPercentage(next);
     setQuote(undefined);
+    setAudit(undefined);
     setError(undefined);
   }
 
@@ -58,6 +63,7 @@ export function SellPosition({
     setQuoting(true);
     setError(undefined);
     setResult(undefined);
+    setAudit(undefined);
     try {
       setQuote(
         await requestSellQuote({
@@ -85,6 +91,26 @@ export function SellPosition({
       setResult(completed);
       setQuote(undefined);
       onComplete();
+      setStage("recording");
+      try {
+        setAudit(
+          await recordSaleAudit({
+            ticker: completed.ticker,
+            tokenIn: completed.tokenIn,
+            amountIn: completed.amountIn,
+            quotedAmountOut: completed.amountOut,
+            requestId: completed.requestId,
+            routing: completed.routing,
+            transactionHash: completed.transactionHash,
+            approvalTransactionHash:
+              completed.approvalTransactionHash,
+          }),
+        );
+      } catch (caught) {
+        setError(
+          `Sale confirmed, but evidence storage needs retry: ${message(caught)}`,
+        );
+      }
     } catch (caught) {
       setError(message(caught));
     } finally {
@@ -97,6 +123,7 @@ export function SellPosition({
     setOpen(false);
     setQuote(undefined);
     setResult(undefined);
+    setAudit(undefined);
     setError(undefined);
     setPercentage(100);
   }
@@ -196,6 +223,12 @@ export function SellPosition({
                   {formatUnits(BigInt(result.amountOut), 6)} USDG
                 </strong>
                 <small>Received by your connected wallet</small>
+                {audit && (
+                  <p className="sellAuditStatus">
+                    Evidence saved · The Graph{" "}
+                    {audit.graph.response.status}
+                  </p>
+                )}
                 <nav aria-label="Sale evidence">
                   <a
                     href={transactionUrl(result.transactionHash)}
@@ -217,6 +250,13 @@ export function SellPosition({
                     target="_blank"
                   >
                     Block
+                  </a>
+                  <a
+                    href={graphEvidenceUrl(result.ticker)}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    The Graph
                   </a>
                 </nav>
               </div>
@@ -265,6 +305,7 @@ function stageLabel(stage: SellStage, quoting: boolean): string {
     building: "Building sale...",
     executing: "Confirm Uniswap sale...",
     confirming: "Waiting for Robinhood Chain...",
+    recording: "Saving audit evidence...",
   }[stage];
 }
 

@@ -21,11 +21,16 @@ export type SellStage =
   | "signing"
   | "building"
   | "executing"
-  | "confirming";
+  | "confirming"
+  | "recording";
 
 export type WalletSellResult = {
   transactionHash: Hex;
+  approvalTransactionHash?: Hex;
   blockNumber: string;
+  ticker: string;
+  tokenIn: Address;
+  amountIn: string;
   amountOut: string;
   requestId: string;
   routing: string;
@@ -47,6 +52,7 @@ export async function executeWalletSell(input: {
   }
 
   let quote = input.quote;
+  let approvalTransactionHash: Hex | undefined;
   if (quote.approval) {
     input.onStage("approving");
     validateTransaction(quote.approval, owner);
@@ -56,6 +62,7 @@ export async function executeWalletSell(input: {
       data: quote.approval.data,
       value: BigInt(quote.approval.value),
     });
+    approvalTransactionHash = approvalHash;
     const approvalReceipt =
       await publicClient.waitForTransactionReceipt({
         hash: approvalHash,
@@ -96,7 +103,11 @@ export async function executeWalletSell(input: {
   assertSuccess(receipt.status, transactionHash);
   return {
     transactionHash,
+    approvalTransactionHash,
     blockNumber: receipt.blockNumber.toString(),
+    ticker: quote.ticker,
+    tokenIn: quote.tokenIn,
+    amountIn: quote.amountIn,
     amountOut: prepared.amountOut,
     requestId: prepared.requestId,
     routing: prepared.routing,

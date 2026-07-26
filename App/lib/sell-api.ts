@@ -1,4 +1,5 @@
 import type { Address, Hex } from "viem";
+import type { SaleAuditBundle } from "./audit-types";
 
 const fallbackUrl = "http://localhost:4021";
 
@@ -34,6 +35,17 @@ export type PreparedWalletSell = {
   transaction: WalletSwapTransaction;
 };
 
+export type RecordSaleInput = {
+  ticker: string;
+  tokenIn: Address;
+  amountIn: string;
+  quotedAmountOut: string;
+  requestId: string;
+  routing: string;
+  transactionHash: Hex;
+  approvalTransactionHash?: Hex;
+};
+
 export async function requestSellQuote(input: {
   ticker: string;
   tokenIn: Address;
@@ -54,6 +66,15 @@ export async function buildSellTransaction(input: {
   signature?: Hex;
 }): Promise<PreparedWalletSell> {
   return request<PreparedWalletSell>("/api/sells/swap", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function recordSaleAudit(
+  input: RecordSaleInput,
+): Promise<SaleAuditBundle> {
+  return request<SaleAuditBundle>("/api/sells/audit", {
     method: "POST",
     body: JSON.stringify(input),
   });

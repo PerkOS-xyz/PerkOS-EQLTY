@@ -174,7 +174,7 @@ export function SellPosition({
         onClick={() => setOpen(true)}
         type="button"
       >
-        Sell for USDG
+        Sell to USDG
       </button>
       {open && (
         <div className="sellBackdrop" role="presentation">

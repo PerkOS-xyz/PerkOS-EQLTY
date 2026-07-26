@@ -90,7 +90,7 @@
   }
 
   .marketHeading p {
-    font-size: 9px;
+    font-size: 11px;
     line-height: 1.5;
   }
 
@@ -104,7 +104,7 @@
   }
 
   .marketSummary span {
-    font-size: 6px;
+    font-size: 11px;
   }
 
   .marketSummary b {
@@ -170,7 +170,7 @@
   }
 
   .marketPageMetrics small {
-    font-size: 6px;
+    font-size: 11px;
   }
 
   .marketPageMetrics strong {

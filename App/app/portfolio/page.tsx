@@ -43,6 +43,18 @@ export default function PortfolioPage() {
           </div>
         </section>
 
+        <section className="usdGExit" id="sell-to-usdg">
+          <div>
+            <span>Demo liquidity</span>
+            <strong>Need USDG back?</strong>
+            <p>
+              Sell any stock-token position through Uniswap and receive USDG
+              directly in your connected wallet.
+            </p>
+          </div>
+          <a href="#stock-positions">Choose a position to sell</a>
+        </section>
+
         {portfolio?.status === "ready" && (
           <section className="portfolioSummary" aria-label="Portfolio summary">
             <span>
@@ -120,7 +132,11 @@ export default function PortfolioPage() {
                   Refresh balances
                 </button>
               </div>
-              <section aria-label="Stock token holdings" className="holdingGrid">
+              <section
+                aria-label="Stock token holdings"
+                className="holdingGrid"
+                id="stock-positions"
+              >
                 {portfolio.holdings.map((holding) => (
                   <HoldingCard
                     holding={holding}

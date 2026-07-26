@@ -22,7 +22,7 @@
 
 .proofStart small {
   color: #7d8882;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .proofStart button,
@@ -34,7 +34,7 @@
   background: #74e99c;
   color: #07110b;
   cursor: pointer;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 800;
 }
 
@@ -48,7 +48,7 @@
   grid-column: 1 / -1;
   margin: 0;
   color: #ef978d;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .proofRun {
@@ -81,7 +81,7 @@
 .liveAuthorization > div > span,
 .executionLog > div > span {
   color: #75e69a;
-  font: 500 8px "DM Mono", monospace;
+  font: 500 11px "DM Mono", monospace;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -94,7 +94,7 @@
 .liveAuthorization small,
 .executionLog small {
   color: #78837d;
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .proofRun > header > b {
@@ -102,7 +102,7 @@
   border: 1px solid #335740;
   border-radius: 999px;
   color: #7ce9a0;
-  font: 500 7px "DM Mono", monospace;
+  font: 500 11px "DM Mono", monospace;
   text-transform: uppercase;
 }
 
@@ -132,7 +132,7 @@
   border-radius: 50%;
   background: #17251c;
   color: #71df95;
-  font: normal 600 8px "DM Mono", monospace;
+  font: normal 600 11px "DM Mono", monospace;
 }
 
 .proofTimeline article > div {
@@ -143,21 +143,21 @@
 }
 
 .proofTimeline strong {
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .proofTimeline p {
   overflow: hidden;
   margin: 0;
   color: #747f79;
-  font-size: 8px;
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .proofTimeline article > b {
   color: #69736d;
-  font: 500 7px "DM Mono", monospace;
+  font: 500 11px "DM Mono", monospace;
   text-transform: uppercase;
 }
 
@@ -177,13 +177,13 @@
   border: 1px solid #222d26;
   border-radius: 8px;
   color: #89948d;
-  font: 500 8px "DM Mono", monospace;
+  font: 500 11px "DM Mono", monospace;
   overflow-wrap: anywhere;
 }
 
 .proofMetrics b {
   color: #66716a;
-  font: 600 7px "Manrope", sans-serif;
+  font: 600 11px "Manrope", sans-serif;
   text-transform: uppercase;
 }
 
@@ -211,18 +211,18 @@
 .verificationLogs > header span,
 .verificationLogGrid a > span {
   color: #75e69a;
-  font: 500 7px "DM Mono", monospace;
+  font: 500 11px "DM Mono", monospace;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .verificationLogs > header strong {
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .verificationLogs > header > b {
   color: #77837c;
-  font: 500 7px "DM Mono", monospace;
+  font: 500 11px "DM Mono", monospace;
 }
 
 .verificationLogGrid {
@@ -256,13 +256,13 @@
 }
 
 .verificationLogGrid a > strong {
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .verificationLogGrid a > code {
   overflow: hidden;
   color: #78857d;
-  font-size: 7px;
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -272,14 +272,14 @@
   grid-row: 1 / 4;
   align-self: center;
   color: #78e49b;
-  font: 600 7px "DM Mono", monospace;
+  font: 600 11px "DM Mono", monospace;
   white-space: nowrap;
 }
 
 .verificationLogs > p {
   margin: 8px 0 0;
   color: #68736c;
-  font-size: 7px;
+  font-size: 11px;
 }
 
 .liveAuthorization {
@@ -301,7 +301,7 @@
 }
 
 .liveAuthorization strong {
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .liveAuthorization label {
@@ -310,7 +310,7 @@
   align-items: center;
   gap: 7px;
   color: #9ca69f;
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .liveAuthorization input {
@@ -359,7 +359,7 @@
 .purchaseReview > header span,
 .purchaseReviewGrid article > span {
   color: #75e69a;
-  font: 500 8px "DM Mono", monospace;
+  font: 500 11px "DM Mono", monospace;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -370,7 +370,7 @@
 
 .purchaseReview > header small {
   color: #78837d;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .purchaseReview > header > button {
@@ -407,7 +407,7 @@
 
 .purchaseReviewSummary small {
   color: #718078;
-  font-size: 8px;
+  font-size: 11px;
   text-transform: uppercase;
 }
 
@@ -439,7 +439,7 @@
   display: block;
   margin-top: 10px;
   color: #89968e;
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .purchaseReviewGrid code {
@@ -447,7 +447,7 @@
   overflow: hidden;
   margin-top: 10px;
   color: #a7b5ac;
-  font-size: 8px;
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -467,7 +467,7 @@
 .purchaseReviewGrid dt,
 .purchaseReviewGrid dd {
   margin: 0;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .purchaseReviewGrid dt {
@@ -488,7 +488,7 @@
 
 .purchaseReviewChecks > strong {
   margin-right: auto;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .purchaseReviewChecks span {
@@ -499,7 +499,7 @@
   border: 1px solid #343a35;
   border-radius: 999px;
   color: #68736c;
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .purchaseReviewChecks span.passed {
@@ -508,7 +508,7 @@
 }
 
 .purchaseReviewChecks i {
-  font: normal 700 8px "DM Mono", monospace;
+  font: normal 700 11px "DM Mono", monospace;
 }
 
 .purchaseReviewSteps {
@@ -521,7 +521,7 @@
 .purchaseReviewSteps > strong {
   grid-column: 1 / -1;
   margin-bottom: 2px;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .purchaseReviewSteps span {
@@ -542,17 +542,17 @@
   border-radius: 50%;
   background: #1a2b20;
   color: #78e49b;
-  font: normal 700 8px "DM Mono", monospace;
+  font: normal 700 11px "DM Mono", monospace;
   place-items: center;
 }
 
 .purchaseReviewSteps b {
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .purchaseReviewSteps small {
   color: #6f7a73;
-  font-size: 7px;
+  font-size: 11px;
   line-height: 1.4;
 }
 
@@ -567,7 +567,7 @@
   gap: 8px;
   align-items: center;
   color: #b5c0b9;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .purchaseReview > footer input {
@@ -577,7 +577,7 @@
 .purchaseReview > footer > p {
   margin: 9px 0 0;
   color: #ef978d;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .purchaseReview > footer > div {
@@ -595,7 +595,7 @@
   background: #121a15;
   color: #a9b4ad;
   cursor: pointer;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 800;
 }
 
@@ -646,18 +646,18 @@
 
 .walletStrategyLogs > header span {
   color: #75e69a;
-  font: 500 7px "DM Mono", monospace;
+  font: 500 11px "DM Mono", monospace;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .walletStrategyLogs > header strong {
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .walletStrategyLogs > header > b {
   color: #77837c;
-  font: 500 7px "DM Mono", monospace;
+  font: 500 11px "DM Mono", monospace;
 }
 
 .walletStrategyLogs > div {
@@ -683,21 +683,21 @@
 }
 
 .walletStrategyLogs a span {
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 700;
 }
 
 .walletStrategyLogs a code {
   overflow: hidden;
   color: #78857d;
-  font-size: 7px;
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .walletStrategyLogs a b {
   color: #78e49b;
-  font: 600 7px "DM Mono", monospace;
+  font: 600 11px "DM Mono", monospace;
 }
 
 .executionLog > div,
@@ -708,19 +708,19 @@
 }
 
 .executionLog strong {
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .executionLog a {
   align-items: flex-end;
   color: #7ce69e;
-  font-size: 8px;
+  font-size: 11px;
   text-decoration: none;
 }
 
 .executionLog code {
   color: #89948d;
-  font-size: 7px;
+  font-size: 11px;
 }
 
 .proofRejected {
@@ -732,7 +732,7 @@
   border-radius: 8px;
   background: #1a100f;
   color: #e4978e;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .proofRejected strong {
@@ -742,5 +742,5 @@
 .proofError {
   margin: 10px 0 0;
   color: #ef978d;
-  font-size: 9px;
+  font-size: 11px;
 }

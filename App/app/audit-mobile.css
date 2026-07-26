@@ -38,11 +38,20 @@
 
   .primaryNav a {
     padding-inline: 8px;
-    font-size: 9px;
+    font-size: 11px;
   }
 
   .portfolioSummary {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .usdGExit {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .usdGExit > a {
+    width: 100%;
   }
 
   .recoverableFunds > header,

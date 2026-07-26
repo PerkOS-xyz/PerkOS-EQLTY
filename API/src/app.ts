@@ -21,6 +21,10 @@ import { ProofRunService } from "./proof-run.js";
 import { publicConfig } from "./public-config.js";
 import { PurchaseAuditService } from "./purchase-audit.js";
 import { PurchaseHistoryService } from "./purchase-history.js";
+import {
+  SaleAuditService,
+  type CaptureSaleInput,
+} from "./sale-audit.js";
 import { StockCatalogService } from "./stock-catalog.js";
 import { StrategyService } from "./strategy-service.js";
 import { StrategyStore } from "./strategy-store.js";
@@ -158,6 +162,18 @@ const walletSellBuildInput = z
       .optional(),
   })
   .strict();
+const saleAuditInput = z
+  .object({
+    ticker: normalizedTicker,
+    tokenIn: address,
+    amountIn: uint256,
+    quotedAmountOut: uint256,
+    requestId: z.string().min(1).max(256),
+    routing: z.string().min(1).max(64),
+    transactionHash,
+    approvalTransactionHash: transactionHash.optional(),
+  })
+  .strict();
 
 type AppDependencies = {
   stockCatalog?: Pick<StockCatalogService, "assessTicker" | "catalog">;
@@ -177,6 +193,7 @@ type AppDependencies = {
   proofRuns?: Pick<ProofRunService, "run">;
   purchaseAudit?: Pick<PurchaseAuditService, "capture" | "read">;
   purchaseHistory?: Pick<PurchaseHistoryService, "list">;
+  saleAudit?: Pick<SaleAuditService, "capture" | "list">;
   portfolio?: Pick<PortfolioService, "read">;
   walletReadiness?: Pick<WalletReadinessService, "read">;
   walletSwaps?: Pick<WalletSwapService, "build" | "quote">;
@@ -234,6 +251,9 @@ export function createApp(
   const purchaseHistory =
     dependencies.purchaseHistory ??
     new PurchaseHistoryService(config, { catalog: stockCatalog });
+  const saleAudit =
+    dependencies.saleAudit ??
+    new SaleAuditService(config, { graph: graphEvidence });
   const portfolio =
     dependencies.portfolio ??
     new PortfolioService(config, {
@@ -801,9 +821,14 @@ export function createApp(
     }
     try {
       response.setHeader("cache-control", "no-store");
-      return response.json(
-        await purchaseHistory.list(session.walletAddress),
-      );
+      const idToken = ownerAuth.perkosIdToken?.(request);
+      const [purchases, sales] = await Promise.all([
+        purchaseHistory.list(session.walletAddress),
+        idToken
+          ? saleAudit.list(session.walletAddress, idToken)
+          : Promise.resolve({ entries: [] }),
+      ]);
+      return response.json({ ...purchases, sales: sales.entries });
     } catch (error) {
       return response.status(503).json({
         error: "purchase_history_unavailable",
@@ -864,6 +889,44 @@ export function createApp(
     } catch (error) {
       return response.status(503).json({
         error: "portfolio_unavailable",
+        message: safeMessage(error),
+      });
+    }
+  });
+
+  app.post("/api/sells/audit", async (request, response) => {
+    const session = ownerAuth.session(request);
+    if (!session) {
+      return response
+        .status(401)
+        .json({ error: "owner_session_required" });
+    }
+    const idToken = ownerAuth.perkosIdToken?.(request);
+    if (!idToken) {
+      return response.status(503).json({
+        error: "sale_audit_session_unavailable",
+      });
+    }
+    const parsed = saleAuditInput.safeParse(request.body);
+    if (!parsed.success) {
+      return response.status(400).json({
+        error: "invalid_sale_audit",
+        issues: parsed.error.issues,
+      });
+    }
+    try {
+      response.setHeader("cache-control", "no-store");
+      return response.status(201).json(
+        await saleAudit.capture({
+          ...parsed.data,
+          owner: session.walletAddress,
+          idToken,
+          tokenIn: parsed.data.tokenIn as `0x${string}`,
+        } as CaptureSaleInput),
+      );
+    } catch (error) {
+      return response.status(503).json({
+        error: "sale_audit_failed",
         message: safeMessage(error),
       });
     }

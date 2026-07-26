@@ -6,6 +6,7 @@ import { loadConfig } from "./config.js";
 import type { EnsPolicyPreparationService } from "./ens-policy-preparation.js";
 import type { ExecutionStrategy } from "./execution-types.js";
 import type { PurchaseAuditBundle } from "./purchase-audit-types.js";
+import type { SaleAuditBundle } from "./sale-audit-types.js";
 
 const servers: ReturnType<typeof createServer>[] = [];
 
@@ -861,17 +862,29 @@ describe("API foundation", () => {
         "0x2222222222222222222222222222222222222222" as const,
       entries: [],
     }));
+    const listSales = vi.fn(async () => ({ entries: [] }));
     const response = await request("/api/history", {
       ownerAuth: testOwnerAuth(session),
       purchaseHistory: { list },
+      saleAudit: {
+        capture: async () => {
+          throw new Error("not called");
+        },
+        list: listSales,
+      },
     });
 
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(list).toHaveBeenCalledWith(session.walletAddress);
+    expect(listSales).toHaveBeenCalledWith(
+      session.walletAddress,
+      "firebase-token",
+    );
     await expect(response.json()).resolves.toMatchObject({
       source: "robinhood-chain",
       status: "ready",
+      sales: [],
     });
   });
 
@@ -1028,6 +1041,54 @@ describe("API foundation", () => {
     });
   });
 
+  it("records a completed wallet sale for audit", async () => {
+    const session = testSession();
+    const transactionHash = `0x${"ab".repeat(32)}` as const;
+    const bundle = {
+      schema: "urn:eqlty:sale-audit:v1",
+      bundleHash: `0x${"cd".repeat(32)}`,
+      owner: session.walletAddress,
+      ticker: "AMZN",
+      transactionHash,
+    } as unknown as SaleAuditBundle;
+    const capture = vi.fn(async () => bundle);
+    const response = await request(
+      "/api/sells/audit",
+      {
+        ownerAuth: testOwnerAuth(session),
+        saleAudit: { capture, list: async () => ({ entries: [] }) },
+      },
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          ticker: "AMZN",
+          tokenIn: "0x12f190a9F9d7D37a250758b26824B97CE941bF54",
+          amountIn: "8598000000000000",
+          quotedAmountOut: "1990000",
+          requestId: "sale-quote-1",
+          routing: "CLASSIC",
+          transactionHash,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(capture).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: session.walletAddress,
+        idToken: "firebase-token",
+        ticker: "AMZN",
+        transactionHash,
+      }),
+    );
+    await expect(response.json()).resolves.toMatchObject({
+      schema: "urn:eqlty:sale-audit:v1",
+      ticker: "AMZN",
+      transactionHash,
+    });
+  });
+
   it("protects purchase history, audits, portfolio and sales without a session", async () => {
     const hash = `0x${"ab".repeat(32)}`;
     const history = await request("/api/history");
@@ -1038,11 +1099,17 @@ describe("API foundation", () => {
       headers: { "content-type": "application/json" },
       body: "{}",
     });
+    const saleAudit = await request("/api/sells/audit", undefined, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+    });
 
     expect(history.status).toBe(401);
     expect(audit.status).toBe(401);
     expect(portfolio.status).toBe(401);
     expect(sell.status).toBe(401);
+    expect(saleAudit.status).toBe(401);
   });
 });
 

@@ -584,14 +584,14 @@
 .sellJourney > header span,
 .sellJourney > header small {
   color: #68766d;
-  font-size: 7px;
+  font-size: 8px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .sellJourney > header strong {
   color: #d8e5db;
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .sellJourneyBar {
@@ -659,14 +659,14 @@
 
 .sellJourney li strong {
   color: inherit;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 700;
 }
 
 .sellJourney li small {
   overflow: hidden;
   color: #5d6961;
-  font-size: 7px;
+  font-size: 8px;
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -950,7 +950,7 @@
 .graphEvidenceDialog > header small {
   margin-top: 3px;
   color: #728078;
-  font-size: 8px;
+  font-size: 10px;
 }
 
 .graphEvidenceDialog > header > button {
@@ -975,7 +975,7 @@
   border-radius: 999px;
   background: #0d1911;
   color: #83e3a0;
-  font: 500 7px "DM Mono", monospace;
+  font: 500 8px "DM Mono", monospace;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -1020,7 +1020,7 @@
 
 .graphEvidenceSummary dt {
   color: #657169;
-  font-size: 7px;
+  font-size: 8px;
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
@@ -1029,7 +1029,7 @@
   margin: 4px 0 0;
   overflow: hidden;
   color: #b9c6bd;
-  font: 500 9px "DM Mono", monospace;
+  font: 500 10px "DM Mono", monospace;
   text-overflow: ellipsis;
   text-transform: capitalize;
   white-space: nowrap;
@@ -1054,7 +1054,7 @@
 
 .graphEvidenceFacts span {
   color: #657169;
-  font-size: 7px;
+  font-size: 8px;
   text-transform: uppercase;
 }
 
@@ -1062,7 +1062,7 @@
 .graphEvidenceFacts a {
   overflow: hidden;
   color: #a7b3ab;
-  font: 500 8px "DM Mono", monospace;
+  font: 500 9px "DM Mono", monospace;
   overflow-wrap: anywhere;
   text-decoration: none;
   text-overflow: ellipsis;
@@ -1087,7 +1087,7 @@
   padding: 11px 13px;
   color: #aab7ae;
   cursor: pointer;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 700;
   list-style: none;
 }
@@ -1111,8 +1111,10 @@
   padding: 14px;
   border-top: 1px solid #202b24;
   color: #91b99e;
-  font: 400 8px/1.65 "DM Mono", monospace;
+  direction: ltr;
+  font: 400 10px/1.65 "DM Mono", monospace;
   tab-size: 2;
+  text-align: left;
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -1133,7 +1135,7 @@
   background: #101b14;
   color: #82dfa0;
   cursor: pointer;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 700;
   text-decoration: none;
 }

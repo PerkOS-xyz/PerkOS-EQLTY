@@ -708,6 +708,16 @@
   font-size: 8px;
 }
 
+.sellAuditStatus {
+  margin: 10px 0 0;
+  padding: 6px 9px;
+  border: 1px solid #31503a;
+  border-radius: 999px;
+  color: #8be5a3;
+  font: 500 7px "DM Mono", monospace;
+  text-transform: uppercase;
+}
+
 .sellResult nav {
   display: flex;
   gap: 7px;

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 import { keccak256, stringToHex } from "viem";
 import type {
   ExecutionStrategy,
@@ -45,10 +46,7 @@ export class StrategyStore {
 
   restore(strategy: ExecutionStrategy): ExecutionStrategy | undefined {
     const current = this.strategies.get(strategy.id);
-    if (
-      current &&
-      JSON.stringify(current) !== JSON.stringify(strategy)
-    ) {
+    if (current && !isDeepStrictEqual(current, strategy)) {
       return undefined;
     }
     this.strategies.set(strategy.id, structuredClone(strategy));
@@ -89,7 +87,7 @@ export class StrategyStore {
     }
     if (
       strategy.onchain &&
-      JSON.stringify(strategy.onchain) !== JSON.stringify(onchain)
+      !isDeepStrictEqual(strategy.onchain, onchain)
     ) {
       return undefined;
     }

@@ -99,8 +99,10 @@ describe("strategy store", () => {
     });
     const snapshot = first.create(strategyInput());
     const restored = new StrategyStore();
+    const { id, ...fields } = snapshot;
 
     expect(restored.restore(snapshot)).toEqual(snapshot);
+    expect(restored.restore({ id, ...fields })).toEqual(snapshot);
     expect(
       restored.restore({ ...snapshot, ticker: "AMZN" }),
     ).toBeUndefined();

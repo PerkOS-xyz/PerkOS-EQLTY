@@ -25,6 +25,7 @@ import { StockCatalogService } from "./stock-catalog.js";
 import { StrategyService } from "./strategy-service.js";
 import { StrategyStore } from "./strategy-store.js";
 import { WalletReadinessService } from "./wallet-readiness.js";
+import { WalletSwapService } from "./wallet-swap.js";
 import { z } from "zod";
 
 const address = z.string().regex(/^0x[0-9a-fA-F]{40}$/);
@@ -113,6 +114,50 @@ const oneclawPlatformInput = z
     email: z.string().trim().email().max(320),
   })
   .strict();
+const uniswapTransaction = z
+  .object({
+    to: address,
+    from: address,
+    data: z.string().regex(/^0x[0-9a-fA-F]+$/).max(65_536),
+    value: z.string().max(78).regex(/^(0|0x0*|[1-9]\d*)$/),
+    chainId: z.literal(4663),
+  })
+  .strict();
+const walletSellQuote = z
+  .object({
+    chainId: z.literal(4663),
+    direction: z.literal("sell"),
+    ticker: normalizedTicker,
+    tokenIn: address,
+    tokenOut: address,
+    amountIn: uint256,
+    amountOut: uint256,
+    requestId: z.string().min(1).max(256),
+    routing: z.string().min(1).max(64),
+    quotedAt: z.string().datetime(),
+    approval: uniswapTransaction.optional(),
+    permitData: z.record(z.string(), z.unknown()).optional(),
+    rawQuote: z.record(z.string(), z.unknown()),
+  })
+  .strict();
+const walletSellInput = z
+  .object({
+    ticker: normalizedTicker,
+    tokenIn: address,
+    amountIn: uint256,
+    maxSlippageBps: z.number().int().min(1).max(1_000).default(100),
+  })
+  .strict();
+const walletSellBuildInput = z
+  .object({
+    sell: walletSellQuote,
+    signature: z
+      .string()
+      .regex(/^0x[0-9a-fA-F]+$/)
+      .max(2_048)
+      .optional(),
+  })
+  .strict();
 
 type AppDependencies = {
   stockCatalog?: Pick<StockCatalogService, "assessTicker" | "catalog">;
@@ -134,6 +179,7 @@ type AppDependencies = {
   purchaseHistory?: Pick<PurchaseHistoryService, "list">;
   portfolio?: Pick<PortfolioService, "read">;
   walletReadiness?: Pick<WalletReadinessService, "read">;
+  walletSwaps?: Pick<WalletSwapService, "build" | "quote">;
 };
 
 export function createApp(
@@ -196,6 +242,9 @@ export function createApp(
     });
   const walletReadiness =
     dependencies.walletReadiness ?? new WalletReadinessService(config);
+  const walletSwaps =
+    dependencies.walletSwaps ??
+    new WalletSwapService(config, { catalog: stockCatalog });
 
   app.disable("x-powered-by");
   app.use(
@@ -815,6 +864,79 @@ export function createApp(
     } catch (error) {
       return response.status(503).json({
         error: "portfolio_unavailable",
+        message: safeMessage(error),
+      });
+    }
+  });
+
+  app.post("/api/sells/quote", async (request, response) => {
+    const session = ownerAuth.session(request);
+    if (!session) {
+      return response
+        .status(401)
+        .json({ error: "owner_session_required" });
+    }
+    const parsed = walletSellInput.safeParse(request.body);
+    if (!parsed.success) {
+      return response.status(400).json({
+        error: "invalid_wallet_sale",
+        issues: parsed.error.issues,
+      });
+    }
+    try {
+      response.setHeader("cache-control", "no-store");
+      return response.json(
+        await walletSwaps.quote({
+          owner: session.walletAddress,
+          ticker: parsed.data.ticker,
+          tokenIn: parsed.data.tokenIn as `0x${string}`,
+          amountIn: parsed.data.amountIn,
+          maxSlippageBps: parsed.data.maxSlippageBps,
+        }),
+      );
+    } catch (error) {
+      return response.status(409).json({
+        error: "wallet_sale_quote_failed",
+        message: safeMessage(error),
+      });
+    }
+  });
+
+  app.post("/api/sells/swap", async (request, response) => {
+    const session = ownerAuth.session(request);
+    if (!session) {
+      return response
+        .status(401)
+        .json({ error: "owner_session_required" });
+    }
+    const parsed = walletSellBuildInput.safeParse(request.body);
+    if (!parsed.success) {
+      return response.status(400).json({
+        error: "invalid_wallet_sale_quote",
+        issues: parsed.error.issues,
+      });
+    }
+    try {
+      response.setHeader("cache-control", "no-store");
+      return response.json(
+        await walletSwaps.build({
+          owner: session.walletAddress,
+          sell: {
+            ...parsed.data.sell,
+            tokenIn: parsed.data.sell.tokenIn as `0x${string}`,
+            tokenOut: parsed.data.sell.tokenOut as `0x${string}`,
+            approval: parsed.data.sell.approval as
+              | import("./market-types.js").UniswapTransaction
+              | undefined,
+          },
+          signature: parsed.data.signature as
+            | `0x${string}`
+            | undefined,
+        }),
+      );
+    } catch (error) {
+      return response.status(409).json({
+        error: "wallet_sale_build_failed",
         message: safeMessage(error),
       });
     }

@@ -1,5 +1,30 @@
 export type StockAvailability = "available" | "caution" | "blocked";
 
+export type GraphEvidenceSummary = {
+  source: "the-graph-substreams";
+  healthy: boolean;
+  protocol: "v3" | "v4";
+  blockNumber: string;
+  liquidityUsd: number;
+  lastSwapPrice: number;
+  priceDeviationBps?: number;
+  poolAddress: `0x${string}`;
+  poolIdentifier: string;
+  transactionHash: `0x${string}`;
+  topic: `0x${string}`;
+  capturedAt: string;
+  processedBlock: string;
+  providerHeadBlock: string;
+  lagBlocks: number;
+  provider?: string;
+  package?: string;
+  module?: "map_pool_events";
+  startedAt?: string;
+  updatedAt?: string;
+  checkpointBlock?: string;
+  reasons: string[];
+};
+
 export type StockCatalogAsset = {
   ticker: string;
   name: string;
@@ -20,6 +45,7 @@ export type StockCatalogAsset = {
   quotedAmountOut?: string;
   uniswapImpliedPrice?: number;
   deviationBps?: number;
+  graphEvidence?: GraphEvidenceSummary;
   status: StockAvailability;
   reasons: string[];
   orchestrationReady: boolean;

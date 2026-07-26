@@ -127,9 +127,12 @@ const schema = z.object({
     .string()
     .url()
     .default("https://api.1claw.xyz"),
-  ONECLAW_PERSONAL_API_KEY: optional(
-    z.string().regex(/^1ck_[A-Za-z0-9._-]{8,}$/),
+  ONECLAW_PLATFORM_APP_ID: optional(z.string().uuid()),
+  ONECLAW_PLATFORM_API_KEY: optional(
+    z.string().regex(/^plt_[A-Za-z0-9._-]{8,}$/),
   ),
+  ONECLAW_PLATFORM_TEMPLATE_ID: optional(z.string().uuid()),
+  ONECLAW_PLATFORM_RETURN_URL: optional(z.string().url()),
   EQLTY_ONECLAW_MIN_AMOUNT_USDG: z
     .string()
     .max(78)

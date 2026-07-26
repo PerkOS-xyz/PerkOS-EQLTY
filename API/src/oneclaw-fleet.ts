@@ -1,47 +1,86 @@
 import type { ApiConfig } from "./config.js";
-import type { FleetAgent, FleetRole } from "./fleet-types.js";
+import type { FleetAgent } from "./fleet-types.js";
 import { fleetRoles } from "./fleet-types.js";
 
-type OneClawVault = {
-  id: string;
-  name: string;
-};
-
-type OneClawAgent = {
+type PlatformTemplate = {
   id: string;
   name: string;
   is_active: boolean;
-  evm_address?: string | null;
-  eip712_default_policy?: "allow" | "deny";
 };
 
-type CreatedAgent = {
-  agent: OneClawAgent;
-  api_key?: string;
+type ConnectedUser = {
+  connection_id: string;
+  external_subject: string;
+  status: string;
+  claimed_at?: string | null;
+  agent_ids: string[];
+  vault_ids: string[];
 };
 
-type SigningKey = {
-  address?: string | null;
-  chain: string;
-  is_active: boolean;
+type LinkRequired = {
+  status: "link_required";
+  authorize_url: string;
+};
+
+type PlatformUser = {
+  connection_id?: string;
+  link_required?: LinkRequired;
+};
+
+type BootstrapResponse = {
+  claim_url: string;
+  connection_id: string;
+  expires_in: number;
+  summary: {
+    agent_id?: string | null;
+    agent_api_key?: string | null;
+    vault_id?: string | null;
+    signing_keys?: Array<{
+      address?: string | null;
+      chain: string;
+    }>;
+  };
+};
+
+type ClaimResponse = {
+  claim_url: string;
+  connection_id: string;
+  expires_in: number;
 };
 
 type Dependencies = {
   fetchFn?: typeof fetch;
 };
 
-export type OneClawFleetSecurity = {
-  status: "linked";
-  vaultId: string;
-  eip712Restrictions: "disabled";
-  agents: Array<{
-    role: FleetRole;
-    perkosAgentId: string;
-    oneclawAgentId: string;
-    walletAddress?: string;
-    reprovisionJobId: string;
-  }>;
+type ExecutionAgent = {
+  role: "trader";
+  perkosAgentId: string;
+  oneclawAgentId: string;
+  walletAddress?: string;
+  reprovisionJobId: string;
 };
+
+export type OneClawFleetSecurity =
+  | {
+      status: "link_required";
+      authorizeUrl: string;
+    }
+  | {
+      status: "claim_required";
+      connectionId: string;
+      claimUrl: string;
+      expiresIn: number;
+      vaultId: string;
+      executionAgent: ExecutionAgent;
+      eip712Restrictions: "disabled";
+    }
+  | {
+      status: "linked";
+      connectionId: string;
+      vaultId?: string;
+      executionAgent: Omit<ExecutionAgent, "reprovisionJobId">;
+      eip712Restrictions: "disabled";
+    };
 
 export class OneClawFleetProvisioner {
   private readonly fetchFn: typeof fetch;
@@ -54,296 +93,323 @@ export class OneClawFleetProvisioner {
   }
 
   get ready(): boolean {
-    return Boolean(this.config.ONECLAW_PERSONAL_API_KEY);
+    return Boolean(
+      this.config.ONECLAW_PLATFORM_APP_ID &&
+        this.config.ONECLAW_PLATFORM_API_KEY,
+    );
   }
 
   async provision(input: {
     userId: string;
+    externalSubject: string;
+    email: string;
     perkosIdToken: string;
     agents: FleetAgent[];
   }): Promise<OneClawFleetSecurity> {
-    const personalKey = this.config.ONECLAW_PERSONAL_API_KEY;
-    if (!personalKey) {
+    this.assertReady();
+    const trader = this.executionAgent(input.agents);
+    const connected = await this.connectedUser(input.externalSubject);
+
+    if (connected?.agent_ids.length) {
+      if (trader.oneclaw !== "linked") {
+        throw new Error(
+          "The 1Claw execution agent exists but its PerkOS credential is unavailable",
+        );
+      }
+      if (connected.claimed_at) {
+        return this.linkedResult(connected, trader);
+      }
+      const claim = await this.platform<ClaimResponse>(
+        `/v1/platform/connections/${encodeURIComponent(connected.connection_id)}/reissue-claim`,
+        {
+          method: "POST",
+          body: "{}",
+        },
+      );
+      return {
+        status: "claim_required",
+        connectionId: connected.connection_id,
+        claimUrl: claim.claim_url,
+        expiresIn: claim.expires_in,
+        vaultId: connected.vault_ids[0] ?? "",
+        executionAgent: {
+          role: "trader",
+          perkosAgentId: trader.agentId,
+          oneclawAgentId: connected.agent_ids[0],
+          reprovisionJobId: "already-linked",
+        },
+        eip712Restrictions: "disabled",
+      };
+    }
+
+    const connectionId =
+      connected?.connection_id ?? (await this.upsertUser(input));
+    if (typeof connectionId !== "string") {
+      return connectionId;
+    }
+
+    const templateId =
+      this.config.ONECLAW_PLATFORM_TEMPLATE_ID ??
+      (await this.ensureTemplate());
+    const bootstrap = await this.platform<BootstrapResponse>(
+      `/v1/platform/connections/${encodeURIComponent(connectionId)}/bootstrap`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          template_id: templateId,
+          return_to: this.returnUrl(),
+        }),
+      },
+    );
+    const agentId = bootstrap.summary.agent_id;
+    const apiKey = bootstrap.summary.agent_api_key;
+    const vaultId = bootstrap.summary.vault_id;
+    if (
+      !agentId ||
+      !apiKey?.startsWith("ocv_") ||
+      !vaultId
+    ) {
       throw new Error(
-        "EQLTY 1Claw provisioning is not configured",
+        "1Claw bootstrap did not return the execution credential",
       );
     }
-    const managedAgents = input.agents.filter(
-      (
-        agent,
-      ): agent is FleetAgent & { agentId: string } =>
-        Boolean(agent.agentId) && agent.runtime === "Hermes",
+    const walletAddress = bootstrap.summary.signing_keys?.find(
+      (key) => key.chain === "ethereum",
+    )?.address;
+    const perkos = await this.perkos<{ reprovisionJobId: string }>(
+      `/agents/${encodeURIComponent(trader.agentId)}/integrations/oneclaw`,
+      input.perkosIdToken,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          apiKey,
+          oneclawAgentId: agentId,
+          vaultId,
+          apiBase: this.config.ONECLAW_API_BASE,
+          skillIds: ["eqlty-uniswap", "eqlty-ens"],
+        }),
+      },
+    );
+
+    return {
+      status: "claim_required",
+      connectionId: bootstrap.connection_id,
+      claimUrl: bootstrap.claim_url,
+      expiresIn: bootstrap.expires_in,
+      vaultId,
+      executionAgent: {
+        role: "trader",
+        perkosAgentId: trader.agentId,
+        oneclawAgentId: agentId,
+        walletAddress: walletAddress ?? undefined,
+        reprovisionJobId: perkos.reprovisionJobId,
+      },
+      eip712Restrictions: "disabled",
+    };
+  }
+
+  private async upsertUser(input: {
+    userId: string;
+    externalSubject: string;
+    email: string;
+  }): Promise<string | OneClawFleetSecurity> {
+    const result = await this.platformResponse<PlatformUser>(
+      "/v1/platform/users/upsert",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          email: input.email,
+          display_name: `EQLTY ${input.userId.replace(/^u-/, "").slice(0, 8)}`,
+          external_subject: input.externalSubject,
+          return_to: this.returnUrl(),
+        }),
+      },
+    );
+    const link = result.body.link_required;
+    if (result.status === 409 && link?.authorize_url) {
+      return {
+        status: "link_required",
+        authorizeUrl: link.authorize_url,
+      };
+    }
+    if (!result.ok || !result.body.connection_id) {
+      throw new Error(
+        this.errorMessage(result.body, "1Claw user provisioning failed"),
+      );
+    }
+    return result.body.connection_id;
+  }
+
+  private async connectedUser(
+    externalSubject: string,
+  ): Promise<ConnectedUser | undefined> {
+    const appId = this.config.ONECLAW_PLATFORM_APP_ID!;
+    const users = await this.platform<ConnectedUser[]>(
+      `/v1/platform/apps/${encodeURIComponent(appId)}/users`,
+    );
+    return users.find(
+      (user) => user.external_subject === externalSubject,
+    );
+  }
+
+  private async ensureTemplate(): Promise<string> {
+    const appId = this.config.ONECLAW_PLATFORM_APP_ID!;
+    const path =
+      `/v1/platform/apps/${encodeURIComponent(appId)}/templates`;
+    const templates = await this.platform<PlatformTemplate[]>(path);
+    const current = templates.find(
+      (template) =>
+        template.name === "EQLTY execution rail" &&
+        template.is_active,
+    );
+    if (current) return current.id;
+
+    const created = await this.platform<PlatformTemplate>(path, {
+      method: "POST",
+      body: JSON.stringify({
+        name: "EQLTY execution rail",
+        description: "User-owned execution controls for EQLTY",
+        spec: {
+          vault: {
+            name: "EQLTY Trading Vault",
+            description: "Private controls for the user's execution agent",
+          },
+          agents: [
+            {
+              name: "EQLTY Trader",
+              description: "Executes approved stock-token swaps",
+              intents: { enabled: true },
+              shroud_enabled: false,
+            },
+          ],
+          signing_keys: [{ chain: "ethereum" }],
+          policies: [
+            {
+              principal_ref: "agents.primary",
+              vault_ref: "vault",
+              paths: ["config/**"],
+              permissions: ["read"],
+              conditions: {},
+            },
+          ],
+        },
+      }),
+    });
+    return created.id;
+  }
+
+  private executionAgent(
+    agents: FleetAgent[],
+  ): FleetAgent & { role: "trader"; agentId: string } {
+    const managed = agents.filter(
+      (agent) =>
+        agent.agentId &&
+        agent.runtime === "Hermes" &&
+        agent.state === "ready",
     );
     if (
-      managedAgents.length !== fleetRoles.length ||
+      managed.length !== fleetRoles.length ||
       fleetRoles.some(
         ({ role }) =>
-          !managedAgents.some((agent) => agent.role === role),
+          !managed.some((agent) => agent.role === role),
       )
     ) {
       throw new Error(
-        "All four Hermes agents must be online before activating 1Claw",
+        "All four Hermes agents must be online before connecting 1Claw",
       );
     }
-
-    const accessToken = await this.userAccessToken(personalKey);
-    const suffix = input.userId.replace(/^u-/, "").slice(0, 8);
-    const vault = await this.findOrCreateVault(accessToken, suffix);
-    const current = await this.oneclaw<{ agents: OneClawAgent[] }>(
-      "/v1/agents",
-      accessToken,
+    const trader = managed.find(
+      (
+        agent,
+      ): agent is FleetAgent & {
+        role: "trader";
+        agentId: string;
+      } => agent.role === "trader" && Boolean(agent.agentId),
     );
-    const byName = new Map(
-      current.agents.map((agent) => [agent.name, agent]),
-    );
-    const linked: OneClawFleetSecurity["agents"] = [];
-
-    for (const runtimeAgent of managedAgents) {
-      const name = `EQLTY-${runtimeAgent.role}-${suffix}`;
-      let agent = byName.get(name);
-      let apiKey: string | undefined;
-      if (!agent) {
-        const created = await this.oneclaw<CreatedAgent>(
-          "/v1/agents",
-          accessToken,
-          {
-            method: "POST",
-            body: JSON.stringify(
-              this.agentPolicy(name, runtimeAgent, vault.id),
-            ),
-          },
-        );
-        agent = created.agent;
-        apiKey = created.api_key;
-      } else {
-        agent = await this.oneclaw<OneClawAgent>(
-          `/v1/agents/${encodeURIComponent(agent.id)}`,
-          accessToken,
-          {
-            method: "PATCH",
-            body: JSON.stringify(
-              this.agentGuardrails(runtimeAgent.role, vault.id),
-            ),
-          },
-        );
-        if (runtimeAgent.oneclaw !== "linked") {
-          const rotated = await this.oneclaw<{ api_key: string }>(
-            `/v1/agents/${encodeURIComponent(agent.id)}/rotate-key`,
-            accessToken,
-            { method: "POST" },
-          );
-          apiKey = rotated.api_key;
-        }
-      }
-      if (!agent) {
-        throw new Error(
-          `1Claw did not return the ${runtimeAgent.role} agent`,
-        );
-      }
-      if (
-        runtimeAgent.role === "trader" &&
-        agent.eip712_default_policy === "deny"
-      ) {
-        throw new Error(
-          "Disable EIP-712 restrictions for the EQLTY trader in 1Claw",
-        );
-      }
-
-      const walletAddress =
-        runtimeAgent.role === "trader"
-          ? await this.traderWallet(agent, accessToken)
-          : undefined;
-      if (!apiKey && runtimeAgent.oneclaw === "linked") {
-        linked.push({
-          role: runtimeAgent.role,
-          perkosAgentId: runtimeAgent.agentId,
-          oneclawAgentId: agent.id,
-          walletAddress,
-          reprovisionJobId: "already-linked",
-        });
-        continue;
-      }
-      if (!apiKey?.startsWith("ocv_")) {
-        throw new Error(
-          `1Claw did not issue a credential for ${runtimeAgent.role}`,
-        );
-      }
-
-      const perkos = await this.perkos<{
-        reprovisionJobId: string;
-      }>(
-        `/agents/${encodeURIComponent(runtimeAgent.agentId)}/integrations/oneclaw`,
-        input.perkosIdToken,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            apiKey,
-            oneclawAgentId: agent.id,
-            vaultId: vault.id,
-            apiBase: "https://api.1claw.xyz",
-            skillIds: roleDefinition(runtimeAgent.role).skillIds,
-          }),
-        },
-      );
-      linked.push({
-        role: runtimeAgent.role,
-        perkosAgentId: runtimeAgent.agentId,
-        oneclawAgentId: agent.id,
-        walletAddress,
-        reprovisionJobId: perkos.reprovisionJobId,
-      });
+    if (!trader) {
+      throw new Error("The Hermes trader is unavailable");
     }
+    return trader;
+  }
 
+  private linkedResult(
+    connected: ConnectedUser,
+    trader: FleetAgent & { role: "trader"; agentId: string },
+  ): OneClawFleetSecurity {
     return {
       status: "linked",
-      vaultId: vault.id,
-      eip712Restrictions: "disabled",
-      agents: linked,
-    };
-  }
-
-  private async findOrCreateVault(
-    accessToken: string,
-    suffix: string,
-  ): Promise<OneClawVault> {
-    const vaultName = `EQLTY Agent Fleet ${suffix}`;
-    const current = await this.oneclaw<{ vaults: OneClawVault[] }>(
-      "/v1/vaults",
-      accessToken,
-    );
-    const existing = current.vaults.find(
-      (candidate) => candidate.name === vaultName,
-    );
-    if (existing) return existing;
-    return this.oneclaw<OneClawVault>("/v1/vaults", accessToken, {
-      method: "POST",
-      body: JSON.stringify({
-        name: vaultName,
-        description: `EQLTY controls for fleet ${suffix}`,
-      }),
-    });
-  }
-
-  private async traderWallet(
-    agent: OneClawAgent,
-    accessToken: string,
-  ): Promise<string | undefined> {
-    if (agent.evm_address) return agent.evm_address;
-    const current = await this.oneclaw<{ keys?: SigningKey[] }>(
-      `/v1/agents/${encodeURIComponent(agent.id)}/signing-keys`,
-      accessToken,
-    );
-    let key = current.keys?.find(
-      (candidate) =>
-        candidate.chain === "ethereum" && candidate.is_active,
-    );
-    if (!key) {
-      key = await this.oneclaw<SigningKey>(
-        `/v1/agents/${encodeURIComponent(agent.id)}/signing-keys`,
-        accessToken,
-        {
-          method: "POST",
-          body: JSON.stringify({ chain: "ethereum" }),
-        },
-      );
-    }
-    return key.address ?? undefined;
-  }
-
-  private agentPolicy(
-    name: string,
-    runtimeAgent: FleetAgent,
-    vaultId: string,
-  ): Record<string, unknown> {
-    return {
-      name,
-      description:
-        `EQLTY ${runtimeAgent.role} rail for ${runtimeAgent.name}`,
-      auth_method: "api_key",
-      token_ttl_seconds: 900,
-      ...this.agentGuardrails(runtimeAgent.role, vaultId),
-    };
-  }
-
-  private agentGuardrails(
-    role: FleetRole,
-    vaultId: string,
-  ): Record<string, unknown> {
-    const trader = role === "trader";
-    return {
-      is_active: true,
-      vault_ids: [vaultId],
-      intents_api_enabled: trader,
-      execution_intents_enabled: false,
-      shroud_enabled: false,
-      intents_require_tee: false,
-      execution_require_tee: false,
-      tx_known_tokens_only: false,
-      tx_max_per_day: trader ? 6 : 0,
-      tx_allowed_chains: trader ? ["robinhood-chain"] : [],
-      tx_to_allowlist: trader ? this.traderContracts() : [],
-      tx_token_allowlist: trader
-        ? [this.config.INPUT_TOKEN_ADDRESS]
-        : [],
-      tx_max_value: "0",
-      tx_daily_limit: "0",
-      cards_enabled: false,
-      card_reveal_enabled: false,
-      card_require_approval: true,
-    };
-  }
-
-  private traderContracts(): string[] {
-    return [
-      this.config.UNISWAP_UNIVERSAL_ROUTER_ADDRESS,
-      this.config.UNISWAP_PERMIT2_ADDRESS,
-      ...(this.config.EQLTY_VAULT_ADDRESS
-        ? [this.config.EQLTY_VAULT_ADDRESS]
-        : []),
-    ];
-  }
-
-  private async userAccessToken(apiKey: string): Promise<string> {
-    const result = await this.oneclaw<{ access_token: string }>(
-      "/v1/auth/api-key-token",
-      undefined,
-      {
-        method: "POST",
-        body: JSON.stringify({ api_key: apiKey }),
+      connectionId: connected.connection_id,
+      vaultId: connected.vault_ids[0],
+      executionAgent: {
+        role: "trader",
+        perkosAgentId: trader.agentId,
+        oneclawAgentId: connected.agent_ids[0],
       },
-    );
-    if (!result.access_token) {
-      throw new Error("1Claw API-key exchange failed");
-    }
-    return result.access_token;
+      eip712Restrictions: "disabled",
+    };
   }
 
-  private oneclaw<T>(
+  private returnUrl(): string {
+    return (
+      this.config.ONECLAW_PLATFORM_RETURN_URL ??
+      `${this.config.APP_ORIGIN.replace(/\/$/, "")}/?oneclaw=claimed`
+    );
+  }
+
+  private assertReady(): void {
+    if (!this.ready) {
+      throw new Error("EQLTY 1Claw Platform API is not configured");
+    }
+  }
+
+  private async platform<T>(
     path: string,
-    token?: string,
     init: RequestInit = {},
   ): Promise<T> {
+    const result = await this.platformResponse<T>(path, init);
+    if (!result.ok) {
+      throw new Error(
+        this.errorMessage(
+          result.body,
+          `1Claw request failed with status ${result.status}`,
+        ),
+      );
+    }
+    return result.body;
+  }
+
+  private platformResponse<T>(
+    path: string,
+    init: RequestInit = {},
+  ): Promise<{ body: T; ok: boolean; status: number }> {
     return this.request<T>(
       this.config.ONECLAW_API_BASE,
       path,
-      token,
+      this.config.ONECLAW_PLATFORM_API_KEY,
       init,
-      "1Claw",
     );
   }
 
-  private perkos<T>(
+  private async perkos<T>(
     path: string,
     token: string,
     init: RequestInit,
   ): Promise<T> {
-    return this.request<T>(
+    const result = await this.request<T>(
       this.config.PERKOS_API_URL,
       path,
       token,
       init,
-      "PerkOS",
     );
+    if (!result.ok) {
+      throw new Error(
+        this.errorMessage(
+          result.body,
+          `PerkOS request failed with status ${result.status}`,
+        ),
+      );
+    }
+    return result.body;
   }
 
   private async request<T>(
@@ -351,8 +417,7 @@ export class OneClawFleetProvisioner {
     path: string,
     token: string | undefined,
     init: RequestInit,
-    provider: string,
-  ): Promise<T> {
+  ): Promise<{ body: T; ok: boolean; status: number }> {
     const response = await this.fetchFn(
       new URL(
         path.replace(/^\//, ""),
@@ -369,27 +434,21 @@ export class OneClawFleetProvisioner {
         signal: AbortSignal.timeout(30_000),
       },
     );
-    const body = (await response.json().catch(() => ({}))) as Record<
-      string,
-      unknown
-    >;
-    if (!response.ok) {
-      const detail =
-        typeof body.message === "string"
-          ? body.message
-          : typeof body.detail === "string"
-            ? body.detail
-            : `${provider} request failed (${response.status})`;
-      throw new Error(detail);
-    }
-    return body as T;
+    return {
+      body: (await response.json().catch(() => ({}))) as T,
+      ok: response.ok,
+      status: response.status,
+    };
   }
-}
 
-function roleDefinition(role: FleetRole) {
-  const definition = fleetRoles.find(
-    (candidate) => candidate.role === role,
-  );
-  if (!definition) throw new Error(`Unsupported fleet role: ${role}`);
-  return definition;
+  private errorMessage(body: unknown, fallback: string): string {
+    if (!body || typeof body !== "object") return fallback;
+    if ("detail" in body && typeof body.detail === "string") {
+      return body.detail;
+    }
+    if ("message" in body && typeof body.message === "string") {
+      return body.message;
+    }
+    return fallback;
+  }
 }

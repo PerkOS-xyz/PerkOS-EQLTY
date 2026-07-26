@@ -806,6 +806,7 @@ describe("API foundation", () => {
         ticker: "NVDA",
       }),
     );
+    expect(create.mock.calls[0]?.[0]).not.toHaveProperty("humanVerified");
     await expect(response.json()).resolves.toMatchObject({
       id: "strategy-1",
       executionMode: "full",
@@ -874,6 +875,7 @@ describe("API foundation", () => {
 
   it("runs the authenticated four-agent proof path", async () => {
     const session = testSession();
+    const restore = vi.fn(async (strategy) => strategy);
     const run = vi.fn(async (input) => ({
       id: "run-1",
       strategyId: input.strategyId,
@@ -891,6 +893,10 @@ describe("API foundation", () => {
       "/api/runs",
       {
         ownerAuth: testOwnerAuth(session),
+        strategies: {
+          create: vi.fn(),
+          restore,
+        },
         fleetActivation: {
           activate: async () => ({
             status: "reactivated",
@@ -935,6 +941,30 @@ describe("API foundation", () => {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           strategyId: "strategy-1",
+          strategy: {
+            id: "strategy-1",
+            ticker: "NVDA",
+            owner: session.walletAddress,
+            agent: session.walletAddress,
+            inputToken:
+              "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            outputToken:
+              "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+            router: "0x8876789976decbfcbbbe364623c63652db8c0904",
+            maxAmountPerTrade: "1000000",
+            maxTotalSpend: "1000000",
+            spent: "0",
+            maxSlippageBps: 100,
+            expiresAt: "2026-07-26T12:00:00.000Z",
+            status: "active",
+            humanProof: {
+              provider: "owner-wallet-session",
+              status: "verified",
+              proofHash: `0x${"aa".repeat(32)}`,
+            },
+            executionMode: "full",
+            humanVerified: true,
+          },
           amountIn: "1000000",
           execute: false,
         }),
@@ -942,6 +972,10 @@ describe("API foundation", () => {
     );
 
     expect(response.status).toBe(201);
+    expect(restore).toHaveBeenCalledWith(
+      expect.not.objectContaining({ humanVerified: true }),
+      session.walletAddress,
+    );
     expect(run).toHaveBeenCalledWith({
       strategyId: "strategy-1",
       amountIn: "1000000",

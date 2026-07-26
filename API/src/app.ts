@@ -122,7 +122,7 @@ const executionStrategyInput = z
     executionMode: z.enum(["analysis", "full"]),
     onchain: onchainStrategyInput.optional(),
   })
-  .strict();
+  .strip();
 const runInput = z
   .object({
     strategyId: goalId,
@@ -750,15 +750,19 @@ export function createApp(
       response.setHeader("cache-control", "no-store");
       return response.status(201).json(
         await strategies.create({
-          ...parsed.data,
           owner: session.walletAddress,
           agent: (
             executionTraderAddress(config) ??
             session.walletAddress
           ) as `0x${string}`,
+          ticker: parsed.data.ticker,
           inputToken: parsed.data.inputToken as `0x${string}`,
           outputToken: parsed.data.outputToken as `0x${string}`,
           router: parsed.data.router as `0x${string}`,
+          maxAmountPerTrade: parsed.data.maxAmountPerTrade,
+          maxTotalSpend: parsed.data.maxTotalSpend,
+          maxSlippageBps: parsed.data.maxSlippageBps,
+          expiresAt: parsed.data.expiresAt,
         }),
       );
     } catch (error) {

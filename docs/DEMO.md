@@ -26,7 +26,8 @@ Blocked labels.
 
 Connect the funded wallet through the single Dynamic login. Let the provisioning
 animation show Locate, Create, Provision and Wake. Point to Scout, Risk, Trader
-and Auditor as separate Hermes runtimes and show each 1Claw status.
+and Auditor as separate Hermes runtimes. Click the 1Claw logo on Trader to show
+its user-owned wallet and settings. The other roles cannot spend.
 
 ### 0:55 — The autonomous goal
 
@@ -81,7 +82,7 @@ without relying on narration.
 
 ## Live-purchase rule
 
-For purchases of 3 USDG or more, only execute when all four 1Claw rails are
+For purchases of 3 USDG or more, only execute when the Trader 1Claw rail is
 linked. Only call it a purchase when the UI returns `executed`, the audit
 bundle says `stored`, and the wallet receives the stock token.
 

@@ -47,10 +47,15 @@ publish changes before wallet and World authorization are complete.
 six-decimal USDG atomic units. The default `3000000` applies the rail lock to
 amounts of 3 USDG or more.
 
-`ONECLAW_PERSONAL_API_KEY` is used only by the API to batch-provision the four
-EQLTY agent identities. Each one-time `ocv_` credential is sent directly to
-PerkOS for server-side storage and Hermes reprovisioning. It is never returned
-to the app.
+`ONECLAW_PLATFORM_APP_ID` and `ONECLAW_PLATFORM_API_KEY` configure the EQLTY
+Platform API app. The API upserts the signed-in user, bootstraps the execution
+template and returns the official claim URL. `ONECLAW_PLATFORM_TEMPLATE_ID` is
+optional; without it, EQLTY creates or reuses its named template.
+
+The one-time Trader credential is sent directly to PerkOS for server-side
+storage and Hermes reprovisioning. It is never returned to the app. The user
+claims the vault, agent and wallet in 1Claw, where `user_pays` keeps ownership
+and billing attached to their account.
 
 EQLTY does not enable EIP-712 domain restrictions for Robinhood Chain. The
 trader still has Robinhood-only, contract, USDG and transaction-count

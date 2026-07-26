@@ -31,9 +31,10 @@ EQLTY coordinates four specialized roles:
 | Trader | Prepares and executes an approved Uniswap trade |
 | Auditor | Reconciles the decision with indexed transaction evidence |
 
-The fleet uses PerkOS infrastructure for managed Hermes runtimes. Each runtime
-can receive independent 1Claw security controls appropriate to its role.
-Purchases of 3 USDG or more require all four 1Claw rails to be linked.
+The fleet uses PerkOS infrastructure for managed Hermes runtimes. The 1Claw
+Platform API creates a user-owned execution agent and HSM wallet for Trader.
+The other roles have no spending authority. Purchases of 3 USDG or more
+require the Trader rail to be linked.
 
 ## Sponsor integrations
 

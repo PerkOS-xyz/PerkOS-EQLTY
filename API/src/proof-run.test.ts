@@ -129,7 +129,7 @@ describe("proof runs", () => {
     expect(execute).not.toHaveBeenCalled();
   });
 
-  it("rejects a 3 USDG purchase without every 1Claw rail", async () => {
+  it("rejects a 3 USDG purchase without the trader rail", async () => {
     const execute = vi.fn();
     const { service, strategyId } = setup(
       {

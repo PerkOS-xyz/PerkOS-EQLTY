@@ -6,6 +6,10 @@ import type {
   OpportunityAnalysis,
 } from "./goal-types.js";
 import type { FleetRole } from "./fleet-types.js";
+import type {
+  GoalStore,
+  PersistedGoal,
+} from "./firestore-goal.js";
 import type { OpportunityAnalysisService } from "./opportunity-analysis.js";
 import {
   defaultOneClawMinimumAmount,
@@ -21,6 +25,7 @@ type Dependencies = {
   now?: () => number;
   id?: () => string;
   oneclawMinimumAmount?: string;
+  store?: GoalStore;
 };
 
 export class AutonomousGoalService {
@@ -28,6 +33,7 @@ export class AutonomousGoalService {
   private readonly now: () => number;
   private readonly id: () => string;
   private readonly oneclawMinimumAmount: string;
+  private readonly store?: GoalStore;
 
   constructor(
     private readonly opportunities: Pick<
@@ -41,6 +47,7 @@ export class AutonomousGoalService {
     this.oneclawMinimumAmount =
       dependencies.oneclawMinimumAmount ??
       defaultOneClawMinimumAmount;
+    this.store = dependencies.store;
   }
 
   async start(input: GoalInput): Promise<AutonomousGoal> {
@@ -90,7 +97,7 @@ export class AutonomousGoalService {
     id: string,
     identity: GoalIdentity,
   ): Promise<AutonomousGoal | undefined> {
-    const goal = this.ownedGoal(id, identity);
+    const goal = await this.ownedGoal(id, identity);
     if (!goal) return undefined;
     if (
       goal.status === "active" &&
@@ -106,17 +113,28 @@ export class AutonomousGoalService {
     id: string,
     identity: GoalIdentity,
   ): Promise<AutonomousGoal | undefined> {
-    const goal = this.ownedGoal(id, identity);
+    const goal = await this.ownedGoal(id, identity);
     if (!goal) return undefined;
     await this.evaluate(goal);
     return publicGoal(goal);
   }
 
-  private ownedGoal(
+  private async ownedGoal(
     id: string,
     identity: GoalIdentity,
-  ): StoredGoal | undefined {
-    const goal = this.goals.get(id);
+  ): Promise<StoredGoal | undefined> {
+    let goal = this.goals.get(id);
+    if (!goal && identity.perkosIdToken && this.store) {
+      const persisted = await this.store.read(
+        identity.owner,
+        identity.perkosIdToken,
+        id,
+      );
+      if (persisted) {
+        goal = restoreGoal(persisted, identity.perkosIdToken);
+        this.goals.set(id, goal);
+      }
+    }
     if (
       !goal ||
       goal.input.userId !== identity.userId ||
@@ -124,6 +142,8 @@ export class AutonomousGoalService {
     ) {
       return undefined;
     }
+    goal.input.perkosIdToken =
+      identity.perkosIdToken ?? goal.input.perkosIdToken;
     return goal;
   }
 
@@ -165,6 +185,7 @@ export class AutonomousGoalService {
     } finally {
       goal.running = false;
     }
+    await this.persist(goal);
   }
 
   private record(
@@ -184,6 +205,17 @@ export class AutonomousGoalService {
       goal.history.splice(0, goal.history.length - 64);
     }
   }
+
+  private async persist(goal: StoredGoal): Promise<void> {
+    const idToken = goal.input.perkosIdToken;
+    if (!idToken || !this.store) return;
+    await this.store.save(
+      goal.input.owner,
+      idToken,
+      goal.id,
+      persistedGoal(goal),
+    );
+  }
 }
 
 function gateDetail(gate: ReturnType<typeof oneClawGate>): string {
@@ -199,4 +231,26 @@ function gateDetail(gate: ReturnType<typeof oneClawGate>): string {
 function publicGoal(goal: StoredGoal): AutonomousGoal {
   const { input: _input, running: _running, ...value } = goal;
   return structuredClone(value);
+}
+
+function persistedGoal(goal: StoredGoal): PersistedGoal {
+  const { perkosIdToken: _perkosIdToken, ...input } = goal.input;
+  return {
+    goal: publicGoal(goal),
+    input: structuredClone(input),
+  };
+}
+
+function restoreGoal(
+  persisted: PersistedGoal,
+  perkosIdToken: string,
+): StoredGoal {
+  return {
+    ...structuredClone(persisted.goal),
+    input: {
+      ...structuredClone(persisted.input),
+      perkosIdToken,
+    },
+    running: false,
+  };
 }

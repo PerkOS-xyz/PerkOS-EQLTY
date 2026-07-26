@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { AutonomousGoalService } from "./autonomous-goals.js";
+import type {
+  GoalStore,
+  PersistedGoal,
+} from "./firestore-goal.js";
 import type { OpportunityAnalysis } from "./goal-types.js";
 
 const owner =
@@ -107,6 +111,41 @@ describe("autonomous goals", () => {
     const recovered = await service.read("goal-retry", identity());
     expect(recovered?.cyclesCompleted).toBe(1);
     expect(recovered?.error).toBeUndefined();
+  });
+
+  it("restores a goal in a new serverless instance", async () => {
+    const records = new Map<string, PersistedGoal>();
+    const store: GoalStore = {
+      read: vi.fn(async (_owner, _token, id) => records.get(id)),
+      save: vi.fn(async (_owner, _token, id, goal) => {
+        records.set(id, structuredClone(goal));
+      }),
+    };
+    const now = Date.parse("2026-07-25T12:00:00.000Z");
+    const first = new AutonomousGoalService(
+      { analyze: async () => analysis(now) },
+      { now: () => now, id: () => "goal-durable", store },
+    );
+    await first.start({
+      ...goalInput(),
+      perkosIdToken: "firebase-token",
+    });
+
+    const second = new AutonomousGoalService(
+      { analyze: async () => analysis(now) },
+      { now: () => now, store },
+    );
+    const restored = await second.read("goal-durable", {
+      ...identity(),
+      perkosIdToken: "firebase-token",
+    });
+
+    expect(restored?.id).toBe("goal-durable");
+    expect(restored?.cyclesCompleted).toBe(1);
+    expect(store.read).toHaveBeenCalledOnce();
+    expect(JSON.stringify(records.get("goal-durable"))).not.toContain(
+      "firebase-token",
+    );
   });
 });
 

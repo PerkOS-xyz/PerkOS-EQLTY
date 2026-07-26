@@ -83,6 +83,7 @@ export type AutonomousGoal = {
 export type GoalIdentity = {
   userId: string;
   owner: EvmAddress;
+  perkosIdToken?: string;
 };
 
 export type GoalInput = GoalIdentity & {

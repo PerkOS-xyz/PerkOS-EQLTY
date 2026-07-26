@@ -244,9 +244,15 @@ export class OneClawFleetProvisioner {
     externalSubject: string,
   ): Promise<ConnectedUser | undefined> {
     const appId = this.config.ONECLAW_PLATFORM_APP_ID!;
-    const users = await this.platform<ConnectedUser[]>(
+    const response = await this.platform<
+      ConnectedUser[] | { users: ConnectedUser[] }
+    >(
       `/v1/platform/apps/${encodeURIComponent(appId)}/users`,
     );
+    const users = Array.isArray(response) ? response : response.users;
+    if (!Array.isArray(users)) {
+      throw new Error("1Claw returned an invalid connected user list");
+    }
     return users.find(
       (user) => user.external_subject === externalSubject,
     );

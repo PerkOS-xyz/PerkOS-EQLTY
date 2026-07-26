@@ -329,6 +329,14 @@
   opacity: 0.62;
 }
 
+.priceHistory.positive {
+  color: #36d684;
+}
+
+.priceHistory.negative {
+  color: #ff6655;
+}
+
 .marketCardQuote {
   display: flex;
   align-items: flex-end;
@@ -362,6 +370,16 @@
   color: currentcolor;
   font: 500 8px "DM Mono", monospace;
   text-transform: uppercase;
+}
+
+.marketCardQuote b.positive {
+  background: rgb(54 214 132 / 10%);
+  color: #4de195;
+}
+
+.marketCardQuote b.negative {
+  background: rgb(255 102 85 / 10%);
+  color: #ff7869;
 }
 
 .marketCardQuote small {

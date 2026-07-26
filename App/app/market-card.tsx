@@ -2,7 +2,8 @@
 
 import { useId, useState } from "react";
 import { transactionUrl } from "../lib/execution-api";
-import { money, relativeTime } from "../lib/market-format";
+import { money } from "../lib/market-format";
+import type { MarketDaySeriesEntry } from "../lib/market-api";
 import type {
   StockAvailability,
   StockCatalogAsset,
@@ -11,13 +12,15 @@ import type { ObservedPrice } from "./use-market-catalog";
 
 export function MarketCard({
   asset,
-  history = [],
+  history,
+  graphHistory = [],
 }: {
   asset: StockCatalogAsset;
-  history?: ObservedPrice[];
+  history?: MarketDaySeriesEntry;
+  graphHistory?: ObservedPrice[];
 }) {
   const [imageFailed, setImageFailed] = useState(false);
-  const latestGraphPoint = [...history]
+  const latestGraphPoint = [...graphHistory]
     .reverse()
     .find(
       (point) =>
@@ -51,20 +54,23 @@ export function MarketCard({
         </span>
       </header>
 
-      <PriceHistory points={history} ticker={asset.ticker} />
+      <PriceHistory series={history} ticker={asset.ticker} />
 
       <div className="marketCardQuote">
         <span>
-          <strong>{money(asset.referencePrice)}</strong>
-          <small>Robinhood reference</small>
+          <strong>{money(history?.priceUsd ?? asset.referencePrice)}</strong>
+          <small>Uniswap RWA market</small>
         </span>
         <span>
-          <b>{statusLabel(asset.status)}</b>
-          <small>
-            {asset.referenceUpdatedAt
-              ? relativeTime(asset.referenceUpdatedAt)
-              : "Price unavailable"}
-          </small>
+          {history?.priceChange24hPct === undefined ? (
+            <b>{statusLabel(asset.status)}</b>
+          ) : (
+            <b className={history.priceChange24hPct < 0 ? "negative" : "positive"}>
+              {history.priceChange24hPct < 0 ? "▼" : "▲"}{" "}
+              {Math.abs(history.priceChange24hPct).toFixed(2)}%
+            </b>
+          )}
+          <small>24 hour change</small>
         </span>
       </div>
 
@@ -95,26 +101,25 @@ export function MarketCard({
 }
 
 function PriceHistory({
-  points,
+  series,
   ticker,
 }: {
-  points: ObservedPrice[];
+  series?: MarketDaySeriesEntry;
   ticker: string;
 }) {
   const id = useId().replace(/:/g, "");
-  const valid = points.filter(
+  const valid = (series?.points ?? []).filter(
     (point) => Number.isFinite(point.value) && point.value > 0,
   );
   const path = smoothPath(valid);
-  const graphPoints = valid.filter(
-    (point) => point.source === "the-graph-substreams",
-  ).length;
-  const quotePoints = valid.length - graphPoints;
+  const negative = (series?.priceChange24hPct ?? 0) < 0;
 
   return (
     <div
-      aria-label={`${ticker} observed market prices`}
-      className={`priceHistory ${valid.length < 2 ? "collecting" : ""}`}
+      aria-label={`${ticker} real one day market price`}
+      className={`priceHistory ${valid.length < 2 ? "collecting" : ""} ${
+        negative ? "negative" : "positive"
+      }`}
     >
       <svg aria-hidden="true" role="img" viewBox="0 0 240 78">
         <defs>
@@ -145,10 +150,8 @@ function PriceHistory({
       </svg>
       <span>
         {valid.length < 2
-          ? "Collecting real market history"
-          : graphPoints > 0
-            ? `${graphPoints} The Graph swaps · ${quotePoints} Robinhood quotes`
-            : `${quotePoints} Robinhood quotes · The Graph series pending`}
+          ? "1D market history unavailable"
+          : `${valid.length} real points · Uniswap 1D`}
       </span>
     </div>
   );
@@ -159,13 +162,14 @@ export function smoothPath(points: ObservedPrice[]): string {
     return "";
   }
   const coordinates = points.map((point, index) => ({
-    x: (index / (points.length - 1)) * 240,
+    x: pointX(point, points, index),
     y: pointY(point.value, points),
   }));
   if (coordinates.length === 2) {
     return `M${coordinates[0]!.x} ${coordinates[0]!.y} L${coordinates[1]!.x} ${coordinates[1]!.y}`;
   }
   let path = `M${coordinates[0]!.x.toFixed(2)} ${coordinates[0]!.y.toFixed(2)}`;
+  const curve = (1 - 0.9) / 6;
   for (let index = 0; index < coordinates.length - 1; index += 1) {
     const previous = coordinates[index - 1] ?? coordinates[index]!;
     const current = coordinates[index]!;
@@ -174,18 +178,37 @@ export function smoothPath(points: ObservedPrice[]): string {
     const lower = Math.min(current.y, next.y);
     const upper = Math.max(current.y, next.y);
     const firstControlY = clamp(
-      current.y + (next.y - previous.y) / 6,
+      current.y + (next.y - previous.y) * curve,
       lower,
       upper,
     );
     const secondControlY = clamp(
-      next.y - (following.y - current.y) / 6,
+      next.y - (following.y - current.y) * curve,
       lower,
       upper,
     );
-    path += ` C${(current.x + (next.x - previous.x) / 6).toFixed(2)} ${firstControlY.toFixed(2)} ${(next.x - (following.x - current.x) / 6).toFixed(2)} ${secondControlY.toFixed(2)} ${next.x.toFixed(2)} ${next.y.toFixed(2)}`;
+    path += ` C${(current.x + (next.x - previous.x) * curve).toFixed(2)} ${firstControlY.toFixed(2)} ${(next.x - (following.x - current.x) * curve).toFixed(2)} ${secondControlY.toFixed(2)} ${next.x.toFixed(2)} ${next.y.toFixed(2)}`;
   }
   return path;
+}
+
+function pointX(
+  point: ObservedPrice,
+  points: ObservedPrice[],
+  index: number,
+): number {
+  const timestamps = points.map((entry) => Date.parse(entry.at));
+  const minimum = Math.min(...timestamps);
+  const maximum = Math.max(...timestamps);
+  const timestamp = Date.parse(point.at);
+  if (
+    !Number.isFinite(timestamp) ||
+    !Number.isFinite(minimum) ||
+    maximum === minimum
+  ) {
+    return (index / (points.length - 1)) * 240;
+  }
+  return ((timestamp - minimum) / (maximum - minimum)) * 240;
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {

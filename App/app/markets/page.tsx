@@ -21,9 +21,11 @@ export default function MarketsPage() {
   const {
     catalog,
     history,
+    graphHistory,
     loading,
     error,
     refresh,
+    historyState,
     seriesState,
   } = useMarketCatalog();
   const [query, setQuery] = useState("");
@@ -79,8 +81,15 @@ export default function MarketsPage() {
         <section className="marketSourceNotice">
           <span>
             <i />
-            Prices
-            <b>Robinhood API</b>
+            1D market
+            <b>
+              Uniswap RWA{" "}
+              {historyState === "ready"
+                ? "live"
+                : historyState === "loading"
+                  ? "loading"
+                  : "unavailable"}
+            </b>
           </span>
           <span>
             <i />
@@ -100,8 +109,9 @@ export default function MarketsPage() {
             </b>
           </span>
           <p>
-            Every chart point is a real Robinhood quote or an indexed Uniswap
-            swap. No synthetic price history is displayed.
+            Every 1D chart point comes from Uniswap RWA market data. The Graph
+            swaps are shown separately as indexed execution evidence. No
+            synthetic history is displayed.
           </p>
         </section>
 
@@ -168,6 +178,7 @@ export default function MarketsPage() {
               assets.map((asset) => (
                 <MarketCard
                   asset={asset}
+                  graphHistory={graphHistory[asset.ticker]}
                   history={history[asset.ticker]}
                   key={asset.ticker}
                 />

@@ -1,11 +1,27 @@
-@media (max-width: 760px) {
+@media (max-width: 1080px) {
+  .marketGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .marketSourceNotice {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .marketSourceNotice p {
+    width: 100%;
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 820px) {
   .marketHeading {
     align-items: flex-start;
     flex-direction: column;
-    padding: 18px;
+    padding: 20px;
   }
 
-  .marketSummary {
+  .marketHeadingActions {
     width: 100%;
     justify-content: space-between;
   }
@@ -14,71 +30,203 @@
     text-align: left;
   }
 
+  .marketTrack {
+    padding-inline: 47px;
+    scroll-padding-inline: 47px;
+  }
+
+  .marketPage {
+    width: min(100% - 36px, 760px);
+    padding-top: 44px;
+  }
+
+  .marketPageHero {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .marketPageMetrics {
+    min-width: 0;
+  }
+
   .marketControls {
     align-items: stretch;
     flex-direction: column;
   }
 
+  .marketControls label,
   .marketControls input {
     width: 100%;
-    min-height: 42px;
   }
 
   .marketControls > div {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    overflow-x: auto;
+    padding-bottom: 3px;
   }
 
   .marketControls button {
-    min-height: 40px;
+    flex: 0 0 auto;
   }
 
-  .marketControls small {
-    margin-left: 0;
+  .marketGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .marketCatalog {
+    margin-top: 15px;
+    border-radius: 15px;
   }
 
-  .marketTable {
-    max-height: none;
-    overflow: visible;
+  .marketHeading {
+    gap: 18px;
+    padding: 18px 16px 12px;
   }
 
-  .marketLabels {
-    display: none;
+  .marketHeading h2 {
+    font-size: 21px;
   }
 
-  .marketRow:not(.marketLabels) {
-    grid-template-columns: 1fr 1fr;
-    gap: 15px 12px;
-    padding: 16px 14px;
+  .marketHeading p {
+    font-size: 9px;
+    line-height: 1.5;
   }
 
-  .marketRow > span::before,
-  .marketRow > a::before {
-    content: attr(data-label);
-    color: #59655e;
-    font: 7px "DM Mono", monospace;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+  .marketHeadingActions {
+    align-items: flex-end;
+    gap: 12px;
   }
 
-  .marketRow .marketAsset {
-    grid-column: 1 / -1;
-    grid-template-columns: 40px 1fr;
+  .marketSummary {
+    gap: 12px;
   }
 
-  .marketAsset i {
-    width: 40px;
-    height: 40px;
+  .marketSummary span {
+    font-size: 6px;
+  }
+
+  .marketSummary b {
+    font-size: 14px;
+  }
+
+  .marketViewAll {
+    min-height: 38px;
+    padding-inline: 9px;
+  }
+
+  .marketTrack {
+    gap: 10px;
+    padding: 10px 38px 18px;
+    scroll-padding-inline: 38px;
+  }
+
+  .marketTrack .marketCard,
+  .marketTrack .marketCardSkeleton {
+    width: min(292px, calc(100vw - 100px));
+    flex-basis: min(292px, calc(100vw - 100px));
+  }
+
+  .carouselControl {
+    width: 29px;
+    height: 42px;
+    border-radius: 8px;
+  }
+
+  .carouselControl.previous {
+    left: 5px;
+  }
+
+  .carouselControl.next {
+    right: 5px;
+  }
+
+  .marketCatalogFooter {
+    padding-inline: 16px;
   }
 
   .marketError {
     align-items: stretch;
     flex-direction: column;
   }
+
+  .marketPage {
+    width: calc(100% - 24px);
+    padding: 34px 0 54px;
+  }
+
+  .marketPageHero h1 {
+    font-size: 41px;
+  }
+
+  .marketPageHero p {
+    font-size: 12px;
+  }
+
+  .marketPageMetrics span {
+    min-width: 0;
+    padding: 13px 10px;
+  }
+
+  .marketPageMetrics small {
+    font-size: 6px;
+  }
+
+  .marketPageMetrics strong {
+    font-size: 19px;
+  }
+
+  .marketSourceNotice {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 9px;
+    margin-bottom: 20px;
+  }
+
+  .marketDirectoryHeader {
+    align-items: flex-start;
+    padding-inline: 16px;
+  }
+
+  .marketControls {
+    padding-inline: 15px;
+  }
+
+  .marketGrid {
+    grid-template-columns: 1fr;
+    padding: 14px;
+  }
+
+  .marketGrid .marketCard {
+    min-height: 292px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .marketSkeleton {
+  .marketCard,
+  .marketTrack,
+  .priceHistory .chartArea,
+  .priceHistory .chartLast,
+  .priceHistory .chartLine,
+  .marketCardSkeleton,
+  .marketCatalogFooter i {
     animation: none;
+    scroll-behavior: auto;
+    transition: none;
+  }
+
+  .marketCard {
+    opacity: 1;
+    transform: none;
+  }
+
+  .priceHistory .chartArea,
+  .priceHistory .chartLast {
+    opacity: 1;
+  }
+
+  .priceHistory .chartLine {
+    stroke-dashoffset: 0;
   }
 }

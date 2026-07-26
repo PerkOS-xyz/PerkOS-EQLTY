@@ -50,6 +50,7 @@ export function useMarketCatalog() {
           controller.signal,
         );
         setCatalog(nextCatalog);
+        setLoading(false);
         const tickers = nextCatalog.assets
           .filter((asset) => asset.uniswapRoutable)
           .map((asset) => asset.ticker);

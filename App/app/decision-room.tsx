@@ -9,6 +9,7 @@ import {
 } from "../lib/execution-api";
 import { ensManagerUrl } from "../lib/fleet-api";
 import type {
+  ConsultationStep,
   OpportunityAnalysis,
   OpportunityCandidate,
 } from "../lib/goal-types";
@@ -147,6 +148,7 @@ function decisionEvents(analysis: OpportunityAnalysis): DecisionEvent[] {
   const failed = analysis.candidates.find(
     (candidate) => candidate.status === "rejected",
   );
+  const consultation = analysis.consultation;
   const ensLinks = analysis.policy.rootName
     ? [
         {
@@ -173,29 +175,47 @@ function decisionEvents(analysis: OpportunityAnalysis): DecisionEvent[] {
       actor: "Scout",
       target: "Risk",
       provider: "The Graph",
-      title: `${analysis.candidates.length} candidates compared`,
-      detail: evidence
-        ? `Substreams confirmed the latest Uniswap V4 event for ${winner?.ticker} before it entered the risk gate.`
-        : "The scout compared the ENS-allowed universe, but no indexed route passed into the shortlist.",
-      fact: evidence
-        ? `block ${evidence.blockNumber} · ${money(evidence.liquidityUsd)} indexed liquidity`
-        : "indexed evidence unavailable",
+      title:
+        consultation.scout.status === "verified"
+          ? `${consultation.scout.agentName ?? "Scout Hermes"} selected ${consultation.scout.ticker}`
+          : `${analysis.candidates.length} candidates compared`,
+      detail:
+        consultation.scout.summary ??
+        (evidence
+          ? `Substreams confirmed the latest Uniswap V4 event for ${winner?.ticker} before it entered the risk gate.`
+          : "The scout compared the ENS-allowed universe, but no indexed route passed into the shortlist."),
+      fact: consultationFact(
+        consultation.scout,
+        evidence
+          ? `block ${evidence.blockNumber} · ${money(evidence.liquidityUsd)} indexed liquidity`
+          : "indexed evidence unavailable",
+      ),
       links: graphLinks(winner),
-      stopped: !evidence,
+      stopped:
+        consultation.scout.status === "invalid" ||
+        (!evidence && consultation.scout.status !== "verified"),
     },
     {
       actor: "Risk",
       target: winner ? "Trader" : "User",
       provider: "EQLTY",
-      title: winner
-        ? `${winner.ticker} passed the policy gates`
-        : "The policy stopped this cycle",
-      detail: winner
-        ? `${winner.ticker} ranked first with score ${winner.score}. Its price deviation and indexed liquidity remained inside the ENS limits.`
-        : failed?.reason ?? "No candidate met every active rule.",
-      fact: winner
-        ? `${formatBps(winner.deviationBps)} · score ${winner.score}/100`
-        : "no execution authorization",
+      title:
+        consultation.risk.status === "verified"
+          ? `${consultation.risk.agentName ?? "Risk Hermes"} approved ${consultation.risk.ticker}`
+          : winner
+            ? `${winner.ticker} passed the policy gates`
+            : "The policy stopped this cycle",
+      detail:
+        consultation.risk.summary ??
+        (winner
+          ? `${winner.ticker} ranked first with score ${winner.score}. Its price deviation and indexed liquidity remained inside the ENS limits.`
+          : failed?.reason ?? "No candidate met every active rule."),
+      fact: consultationFact(
+        consultation.risk,
+        winner
+          ? `${formatBps(winner.deviationBps)} · score ${winner.score}/100`
+          : "no execution authorization",
+      ),
       links: evidence
         ? [{ href: blockUrl(evidence.blockNumber), label: "Verify block" }]
         : [],
@@ -243,6 +263,20 @@ function decisionEvents(analysis: OpportunityAnalysis): DecisionEvent[] {
       stopped: !winner,
     },
   ];
+}
+
+function consultationFact(
+  step: ConsultationStep,
+  fallback: string,
+): string {
+  if (step.status !== "verified") {
+    return step.detail ?? fallback;
+  }
+  const facts = step.facts
+    .slice(0, 2)
+    .map((fact) => `${fact.label} ${fact.value}`)
+    .join(" · ");
+  return `${facts} · A2A ${short(step.responseHash ?? "verified")}`;
 }
 
 function graphLinks(

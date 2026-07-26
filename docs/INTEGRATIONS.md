@@ -70,6 +70,8 @@ sparkline points; Substreams swaps remain separate execution evidence.
 |---|---|
 | Strict Substreams evidence and provider schema | `API/src/graph-evidence.ts:7-46` |
 | Freshness, lag and ticker validation | `API/src/graph-evidence.ts:80-153` |
+| Live Hermes Scout and Risk A2A consultation | `API/src/hermes-consultation.ts` |
+| Agent response and evidence verification | `API/src/hermes-consultation-verifier.ts` |
 | Graph risk handoff and transaction evidence | `API/src/proof-run.ts:204-226` |
 | Stored request, stream, package and checkpoint | `API/src/purchase-audit.ts` |
 | Judge-facing Substreams call and response | `App/app/history/[transactionHash]/page.tsx` |

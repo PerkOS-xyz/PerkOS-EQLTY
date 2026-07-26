@@ -127,6 +127,12 @@ const schema = z.object({
     .enum(["disabled", "preview", "live"])
     .default("preview"),
   PERKOS_HERMES_IMAGE_TAG: optional(z.string().min(3).max(256)),
+  PERKOS_AGENT_TASK_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .min(5_000)
+    .max(90_000)
+    .default(25_000),
   ONECLAW_API_BASE: z
     .string()
     .url()

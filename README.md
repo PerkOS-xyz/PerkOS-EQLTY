@@ -67,6 +67,11 @@ The product focuses on three sponsor integrations:
   `the-graph-substreams` provenance for market evidence.
 - [`graph-evidence.ts`](API/src/graph-evidence.ts#L80) validates ticker,
   freshness and block lag before evidence reaches the Risk role.
+- [`hermes-consultation.ts`](API/src/hermes-consultation.ts) sends the sealed
+  candidate set to the user's live Scout and Risk runtimes over PerkOS A2A.
+- [`hermes-consultation-verifier.ts`](API/src/hermes-consultation-verifier.ts)
+  binds their selection and cited facts back to canonical Graph, Uniswap and
+  ENS values before the recommendation can change.
 - [`proof-run.ts`](API/src/proof-run.ts#L220) is the Graph risk gate inside
   the four agent proof.
 - [`stock-substreams.mjs`](Plugins/EQLTY-The-Graph-Plugin/skills/robinhood-stock-substreams/scripts/stock-substreams.mjs)

@@ -95,6 +95,44 @@ describe("opportunity analysis", () => {
     );
   });
 
+  it("accepts a verified Hermes selection inside deterministic gates", async () => {
+    const service = createService({
+      consultation: {
+        consult: async () => ({
+          mode: "hermes-a2a",
+          status: "verified",
+          selectedTicker: "NVDA",
+          scout: {
+            role: "scout",
+            status: "verified",
+            ticker: "NVDA",
+            summary:
+              "The indexed route best matches the requested objective.",
+            facts: [],
+          },
+          risk: {
+            role: "risk",
+            status: "verified",
+            ticker: "NVDA",
+            facts: [],
+            detail: "approved",
+          },
+        }),
+      },
+    });
+
+    const result = await service.analyze(input());
+
+    expect(result.recommendedTicker).toBe("NVDA");
+    expect(result.candidates.find((item) => item.ticker === "NVDA"))
+      .toMatchObject({
+        status: "recommended",
+        reason:
+          "The indexed route best matches the requested objective.",
+      });
+    expect(result.consultation.mode).toBe("hermes-a2a");
+  });
+
   it("rejects unavailable ENS policy and disallowed tickers", async () => {
     const unavailable = createService({
       controlPlane: {

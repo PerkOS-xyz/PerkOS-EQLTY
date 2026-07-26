@@ -604,6 +604,8 @@ export function createApp(
           userId: session.fleetUserId,
           owner: session.walletAddress,
           linkedRoles,
+          fleetAgents: activation.runtime?.agents,
+          perkosIdToken,
         }),
       );
     } catch (error) {

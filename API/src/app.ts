@@ -28,6 +28,7 @@ import {
 import { StockCatalogService } from "./stock-catalog.js";
 import { StrategyService } from "./strategy-service.js";
 import { StrategyStore } from "./strategy-store.js";
+import { UniswapRwaMarketService } from "./uniswap-rwa-market.js";
 import { WalletReadinessService } from "./wallet-readiness.js";
 import { WalletSwapService } from "./wallet-swap.js";
 import { z } from "zod";
@@ -189,6 +190,7 @@ type AppDependencies = {
   oneclawFleet?: Pick<OneClawFleetProvisioner, "provision" | "ready">;
   graphEvidence?: Pick<GraphEvidenceService, "evidence"> &
     Partial<Pick<GraphEvidenceService, "series">>;
+  uniswapRwaMarket?: Pick<UniswapRwaMarketService, "series">;
   goals?: Pick<AutonomousGoalService, "read" | "start" | "tick">;
   strategies?: Pick<StrategyService, "create"> &
     Partial<Pick<StrategyService, "bindOnchain">>;
@@ -223,6 +225,8 @@ export function createApp(
     dependencies.oneclawFleet ?? new OneClawFleetProvisioner(config);
   const graphEvidence =
     dependencies.graphEvidence ?? new GraphEvidenceService(config);
+  const uniswapRwaMarket =
+    dependencies.uniswapRwaMarket ?? new UniswapRwaMarketService(config);
   const goals =
     dependencies.goals ??
     new AutonomousGoalService(
@@ -1031,6 +1035,32 @@ export function createApp(
     } catch (error) {
       return response.status(503).json({
         error: "graph_series_unavailable",
+        message: safeMessage(error),
+      });
+    }
+  });
+
+  app.get("/api/assets/history", async (request, response) => {
+    const parsed = z
+      .array(normalizedTicker)
+      .min(1)
+      .max(96)
+      .safeParse(
+        String(request.query.tickers ?? "")
+          .split(",")
+          .filter(Boolean),
+      );
+    if (!parsed.success) {
+      return response.status(400).json({ error: "invalid_tickers" });
+    }
+    try {
+      response.setHeader("cache-control", "public, max-age=300");
+      return response.json(
+        await uniswapRwaMarket.series([...new Set(parsed.data)]),
+      );
+    } catch (error) {
+      return response.status(503).json({
+        error: "uniswap_rwa_history_unavailable",
         message: safeMessage(error),
       });
     }

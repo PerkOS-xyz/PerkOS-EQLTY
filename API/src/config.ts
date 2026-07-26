@@ -41,6 +41,10 @@ const schema = z.object({
     .string()
     .url()
     .default("https://trade-api.gateway.uniswap.org/v1"),
+  EQLTY_UNISWAP_RWA_URL: z
+    .string()
+    .url()
+    .default("https://entry-gateway.backend-prod.api.uniswap.org"),
   INPUT_TOKEN_ADDRESS: address.default(
     "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
   ),

@@ -19,8 +19,8 @@ Say:
 > Robinhood and trading apps let me choose an asset. EQLTY lets me define an
 > outcome and gives a bounded agent fleet two minutes to compare the market.
 
-Show the Stock Token catalog, its multiple companies and the Ready, Review and
-Blocked labels.
+Show the consultation goal first, then the Stock Token catalog with real
+Uniswap 1D curves and Ready, Review and Blocked labels.
 
 ### 0:25 — One identity, four agents
 
@@ -44,9 +44,12 @@ another user action.
 
 Point to:
 
+- the five-message agent decision room;
 - ENS policy version and manifest hash;
 - shortlist containing several Stock Tokens;
-- The Graph block and proof root;
+- The Graph event, block and JSON links;
+- Uniswap request ID and V4 contract link;
+- the final proof root and the explicit `no funds moved` state;
 - current 1Claw execution state.
 
 Explain that changing the ENS record changes the next agent cycle without

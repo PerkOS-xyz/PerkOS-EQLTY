@@ -13,9 +13,11 @@ export function MarketCatalog() {
   const {
     catalog,
     history,
+    graphHistory,
     loading,
     error,
     refresh,
+    historyState,
     seriesState,
   } = useMarketCatalog();
   const track = useRef<HTMLDivElement>(null);
@@ -52,10 +54,10 @@ export function MarketCatalog() {
           <span className="eyebrow">Live market universe</span>
           <h2>Stock Tokens</h2>
           <p>
-            Robinhood prices, Uniswap V4 routes and{" "}
+            Real Uniswap 1D market curves, V4 routes and{" "}
             {seriesState === "ready"
-              ? "live Substreams curves"
-              : "verifiable Substreams evidence"}.
+              ? "live Substreams evidence"
+              : "verifiable execution evidence"}.
           </p>
         </div>
         <div className="marketHeadingActions">
@@ -135,6 +137,7 @@ export function MarketCatalog() {
             featuredAssets.map((asset) => (
               <MarketCard
                 asset={asset}
+                graphHistory={graphHistory[asset.ticker]}
                 history={history[asset.ticker]}
                 key={asset.ticker}
               />
@@ -162,6 +165,14 @@ export function MarketCatalog() {
           {paused ? "Auto-scroll paused" : "Advances every 5 seconds"}
         </span>
         {catalog && <small>Observed {relativeTime(catalog.observedAt)}</small>}
+        <small>
+          1D history{" "}
+          {historyState === "ready"
+            ? "live"
+            : historyState === "loading"
+              ? "loading"
+              : "unavailable"}
+        </small>
       </footer>
     </section>
   );

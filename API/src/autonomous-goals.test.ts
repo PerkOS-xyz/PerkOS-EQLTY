@@ -135,6 +135,7 @@ function analysis(timestamp: number): OpportunityAnalysis {
     mode: "analysis",
     policy: {
       source: "durin",
+      rootName: "u-12345678.demo.eth",
       version: 1,
       manifestHash: `0x${"aa".repeat(32)}`,
       allowedTickers: ["NVDA", "AMZN", "AMD"],

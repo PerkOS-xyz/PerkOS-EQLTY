@@ -4,16 +4,16 @@ import { MarketCatalog } from "./market-catalog";
 
 const journey = [
   {
-    title: "Define the goal",
-    copy: "Describe the outcome, budget and risk level in plain language.",
+    title: "Ask the fleet",
+    copy: "Describe the outcome and let four specialized agents consult.",
   },
   {
-    title: "Compare candidates",
-    copy: "The fleet evaluates supported stock tokens and policy evidence.",
+    title: "Observe the decision",
+    copy: "Follow ENS rules, candidate comparisons and the recommendation.",
   },
   {
-    title: "Review the result",
-    copy: "See the recommendation, execution status and transaction trail.",
+    title: "Execute with proof",
+    copy: "Approve optional Uniswap execution and verify it with The Graph.",
   },
 ];
 
@@ -25,11 +25,11 @@ export default function HomePage() {
       <main className="content">
         <section className="hero">
           <div>
-            <span className="eyebrow">Stock tokens with clear boundaries</span>
+            <span className="eyebrow">Agent decision intelligence</span>
             <h1>
-              Set the goal.
+              State the goal.
               <br />
-              <em>Let the fleet compare.</em>
+              <em>Watch the fleet decide.</em>
             </h1>
             <p>
               Four specialized agents turn an investment objective into a
@@ -39,8 +39,8 @@ export default function HomePage() {
 
           <aside className="statusCard">
             <span>Current milestone</span>
-            <strong>Market discovery</strong>
-            <p>The app now reads live stock token availability and routes.</p>
+            <strong>Live agent consultation</strong>
+            <p>Every recommendation carries policy, route and proof evidence.</p>
             <div className="meter">
               <i />
             </div>
@@ -57,9 +57,9 @@ export default function HomePage() {
           ))}
         </section>
 
-        <MarketCatalog />
-
         <GoalFleetExperience />
+
+        <MarketCatalog />
       </main>
     </div>
   );

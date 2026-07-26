@@ -39,8 +39,15 @@ describe("opportunity analysis", () => {
     });
     expect(result.policy).toMatchObject({
       source: "durin",
+      rootName: "u-12345678.demo.eth",
       version: 7,
     });
+    expect(result.candidates[0]?.graphEvidence).toMatchObject({
+      blockNumber: "1000",
+      transactionHash: `0x${"33".repeat(32)}`,
+      liquidityUsd: 250_000,
+    });
+    expect(result.candidates[0]?.uniswapRouting).toBe("V4");
     expect(result.proofRoot).toMatch(/^0x[0-9a-f]{64}$/);
   });
 

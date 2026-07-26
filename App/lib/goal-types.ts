@@ -14,11 +14,21 @@ export type OpportunityCandidate = {
   deviationBps?: number;
   quotedAmountOut?: string;
   uniswapRequestId?: string;
+  uniswapRouting?: string;
+  graphEvidence?: {
+    blockNumber: string;
+    transactionHash: `0x${string}`;
+    poolIdentifier: string;
+    poolAddress: `0x${string}`;
+    capturedAt: string;
+    liquidityUsd: number;
+  };
   orchestrationReady: boolean;
 };
 
 export type GoalPolicy = {
   source: "ens" | "durin" | "local";
+  rootName?: string;
   version?: number | string;
   manifestHash?: `0x${string}`;
   allowedTickers: string[];

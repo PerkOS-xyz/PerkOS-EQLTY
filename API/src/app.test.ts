@@ -177,6 +177,40 @@ describe("API foundation", () => {
     });
   });
 
+  it("serves public real 1D stock history from Uniswap", async () => {
+    const series = vi.fn(async (tickers: string[]) => ({
+      source: "uniswap-rwa-1d" as const,
+      chainId: 4663 as const,
+      observedAt: "2026-07-26T04:00:00.000Z",
+      series: tickers.map((ticker) => ({
+        ticker,
+        name: ticker,
+        tokenAddress:
+          "0x1111111111111111111111111111111111111111" as const,
+        priceUsd: 100,
+        volume24hUsd: 1_000_000,
+        points: [
+          { at: "2026-07-25T04:00:00.000Z", value: 99 },
+          { at: "2026-07-26T04:00:00.000Z", value: 100 },
+        ],
+      })),
+    }));
+    const response = await request(
+      "/api/assets/history?tickers=nvda,AMZN,nvda",
+      { uniswapRwaMarket: { series } },
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe(
+      "public, max-age=300",
+    );
+    expect(series).toHaveBeenCalledWith(["NVDA", "AMZN"]);
+    await expect(response.json()).resolves.toMatchObject({
+      source: "uniswap-rwa-1d",
+      series: [{ ticker: "NVDA" }, { ticker: "AMZN" }],
+    });
+  });
+
   it("serves the PerkOS owner challenge", async () => {
     const challenge = {
       nonce: "nonce-1",

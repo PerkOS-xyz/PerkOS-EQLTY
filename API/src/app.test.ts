@@ -140,6 +140,43 @@ describe("API foundation", () => {
     await expect(response.json()).resolves.toEqual(catalog);
   });
 
+  it("serves public auditable market series from The Graph", async () => {
+    const series = vi.fn(async (tickers: string[]) => ({
+      source: "the-graph-substreams" as const,
+      chainId: "eip155:4663" as const,
+      observedAt: "2026-07-25T12:00:00.000Z",
+      stream: {
+        mode: "live" as const,
+        provider: "substreams.example",
+        package: "eqlty_robinhood_stock_v4@v0.1.0",
+        module: "map_pool_events" as const,
+        processedBlock: "1000",
+        providerHeadBlock: "1002",
+        lagBlocks: 2,
+      },
+      series: tickers.map((ticker) => ({ ticker, points: [] })),
+    }));
+    const response = await request(
+      "/api/assets/series?tickers=nvda,AMZN,nvda",
+      {
+        graphEvidence: {
+          evidence: async () => {
+            throw new Error("not called");
+          },
+          series,
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(series).toHaveBeenCalledWith(["NVDA", "AMZN"]);
+    await expect(response.json()).resolves.toMatchObject({
+      source: "the-graph-substreams",
+      series: [{ ticker: "NVDA" }, { ticker: "AMZN" }],
+    });
+  });
+
   it("serves the PerkOS owner challenge", async () => {
     const challenge = {
       nonce: "nonce-1",

@@ -101,6 +101,9 @@ EQLTY.
   Durin subname for each user fleet.
 - [`ens-policy-preparation.ts`](API/src/ens-policy-preparation.ts#L67)
   prepares hash bound policy changes that wait for owner authorization.
+- [`hermes-consultation-verifier.ts`](API/src/hermes-consultation-verifier.ts#L170)
+  injects the resolved ENS policy into every live agent prompt and verifies
+  each answer against the same manifest.
 - [`ens-fleet.mjs`](Plugins/EQLTY-ENS-Plugin/skills/ens-agent-fleet/scripts/ens-fleet.mjs#L93)
   is the reusable fleet directory and policy preset tool.
 

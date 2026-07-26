@@ -157,7 +157,7 @@ describe("HermesConsultationService", () => {
     expect(result.mode).toBe("deterministic-fallback");
     expect(result.scout.status).toBe("invalid");
     expect(result.risk.status).toBe("skipped");
-    expect(fetchFn).toHaveBeenCalledOnce();
+    expect(fetchFn).toHaveBeenCalledTimes(2);
   });
 
   it("uses the deterministic fallback without owner credentials", async () => {
@@ -178,6 +178,60 @@ describe("HermesConsultationService", () => {
       status: "unavailable",
     });
     expect(fetchFn).not.toHaveBeenCalled();
+  });
+
+  it("lets Scout correct one malformed handoff", async () => {
+    const replies = [
+      "NVDA is the best route.",
+      JSON.stringify({
+        recommendedTicker: "NVDA",
+        thesis:
+          "NVDA is indexed at block 12345 with route deviation 90 bps and the strongest sealed liquidity.",
+        evidence: [
+          "graphLiquidity",
+          "graphBlock",
+          "routeDeviation",
+        ],
+      }),
+      JSON.stringify({
+        decision: "approve",
+        ticker: "NVDA",
+        summary:
+          "NVDA route deviation 90 bps remains below the ENS limit of 300 bps.",
+        checks: [
+          "ensAllowed",
+          "deviationWithinLimit",
+          "liquidityAboveMinimum",
+          "graphEvidencePresent",
+        ],
+      }),
+    ];
+    const fetchFn = vi.fn(
+      async (_input: string | URL | Request, _init?: RequestInit) =>
+        Response.json({
+          ok: true,
+          reply: replies.shift(),
+        }),
+    );
+    const service = new HermesConsultationService(loadConfig({}), {
+      fetchFn,
+    });
+
+    const result = await service.consult({
+      goal: "Choose a route",
+      candidates,
+      manifest,
+      agents,
+      idToken: "owner-token",
+    });
+
+    expect(result.status).toBe("verified");
+    expect(result.scout.status).toBe("verified");
+    expect(result.risk.status).toBe("verified");
+    expect(fetchFn).toHaveBeenCalledTimes(3);
+    expect(fetchFn.mock.calls[1]?.[1]?.body).toContain(
+      "Retry once",
+    );
   });
 });
 

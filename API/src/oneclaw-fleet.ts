@@ -135,7 +135,7 @@ export class OneClawFleetProvisioner {
         executionAgent: {
           role: "trader",
           perkosAgentId: trader.agentId,
-          oneclawAgentId: connected.agent_ids[0],
+          oneclawAgentId: connected.agent_ids[0]!,
           reprovisionJobId: "already-linked",
         },
         eip712Restrictions: "disabled",
@@ -343,7 +343,7 @@ export class OneClawFleetProvisioner {
       executionAgent: {
         role: "trader",
         perkosAgentId: trader.agentId,
-        oneclawAgentId: connected.agent_ids[0],
+        oneclawAgentId: connected.agent_ids[0]!,
       },
       eip712Restrictions: "disabled",
     };

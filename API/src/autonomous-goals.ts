@@ -6,7 +6,6 @@ import type {
   OpportunityAnalysis,
 } from "./goal-types.js";
 import type { FleetRole } from "./fleet-types.js";
-import { fleetRoles } from "./fleet-types.js";
 import type { OpportunityAnalysisService } from "./opportunity-analysis.js";
 import {
   defaultOneClawMinimumAmount,
@@ -46,9 +45,7 @@ export class AutonomousGoalService {
 
   async start(input: GoalInput): Promise<AutonomousGoal> {
     const startedAt = this.now();
-    const requiredRoles = fleetRoles.map(
-      ({ role }) => role,
-    ) as FleetRole[];
+    const requiredRoles: FleetRole[] = ["trader"];
     const linkedRoles = requiredRoles.filter((role) =>
       input.linkedRoles.includes(role),
     );
@@ -192,9 +189,9 @@ function gateDetail(gate: ReturnType<typeof oneClawGate>): string {
     return "This purchase is below the 3 USDG 1Claw threshold.";
   }
   if (gate.linked) {
-    return "Every fleet role has an active 1Claw security link.";
+    return "The trader has an active 1Claw execution rail.";
   }
-  return "Analysis may continue, but purchases of 3 USDG or more are locked until every fleet role has an active 1Claw security link.";
+  return "Analysis may continue, but purchases of 3 USDG or more are locked until the trader has an active 1Claw execution rail.";
 }
 
 function publicGoal(goal: StoredGoal): AutonomousGoal {

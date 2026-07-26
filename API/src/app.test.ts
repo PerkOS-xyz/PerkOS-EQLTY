@@ -815,7 +815,7 @@ describe("API foundation", () => {
   it("links the wallet-created onchain strategy", async () => {
     const session = testSession();
     const bindOnchain = vi.fn(
-      (id, owner, onchain): ExecutionStrategy => ({
+      async (id, owner, onchain): Promise<ExecutionStrategy> => ({
         id,
         owner,
         onchain,
@@ -935,7 +935,6 @@ describe("API foundation", () => {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           strategyId: "strategy-1",
-          strategy: { ignored: true },
           amountIn: "1000000",
           execute: false,
         }),

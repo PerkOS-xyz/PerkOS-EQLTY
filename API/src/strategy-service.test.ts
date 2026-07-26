@@ -71,15 +71,62 @@ describe("strategy service", () => {
     };
 
     expect(
-      service.bindOnchain(strategy.id, owner, onchain).onchain,
+      (await service.bindOnchain(strategy.id, owner, onchain)).onchain,
     ).toEqual(onchain);
-    expect(() =>
+    await expect(
       service.bindOnchain(
         strategy.id,
         "0x2222222222222222222222222222222222222222",
         onchain,
       ),
-    ).toThrow("cannot be linked");
+    ).rejects.toThrow();
+  });
+
+  it("restores a serialized strategy in a new server instance", async () => {
+    const first = createService(asset(true));
+    const strategy = await first.create(input());
+    const second = createService(asset(true));
+
+    await expect(second.restore(strategy, owner)).resolves.toEqual(strategy);
+  });
+
+  it("rebuilds a missing strategy from its funded onchain record", async () => {
+    const entry = asset(true);
+    const store = new StrategyStore({ now: () => now });
+    const onchain = {
+      chainId: 4663 as const,
+      strategyId: "9",
+      creationTransactionHash: `0x${"11".repeat(32)}` as const,
+      approvalTransactionHash: `0x${"22".repeat(32)}` as const,
+      fundingTransactionHash: `0x${"33".repeat(32)}` as const,
+    };
+    const record = {
+      ...input(),
+      ticker: undefined,
+      spent: "0",
+      humanProofHash: `0x${"44".repeat(32)}` as const,
+      available: "1000000",
+      onchain,
+    };
+    const service = new StrategyService(loadConfig({}), store, {
+      catalog: {
+        assessTicker: async () => entry,
+        catalog: async () => catalog(entry),
+      },
+      registry: {
+        verify: async () => record,
+        find: async () => undefined,
+      },
+      now: () => now,
+    });
+
+    await expect(
+      service.bindOnchain("strategy-missing", owner, onchain),
+    ).resolves.toMatchObject({
+      id: "strategy-missing",
+      ticker: "NVDA",
+      onchain,
+    });
   });
 });
 
@@ -91,10 +138,42 @@ function createService(entry: StockCatalogAsset) {
       now: () => now,
     }),
     {
-      catalog: { assessTicker: async () => entry },
+      catalog: {
+        assessTicker: async () => entry,
+        catalog: async () => catalog(entry),
+      },
+      registry: {
+        verify: async () => {
+          throw new Error("Funded strategy owner does not match");
+        },
+        find: async () => undefined,
+      },
       now: () => now,
     },
   );
+}
+
+function catalog(entry: StockCatalogAsset) {
+  return {
+    chainId: 4663 as const,
+    quoteToken: "USDG" as const,
+    quoteAmount: "1000000",
+    observedAt: "2026-07-25T12:00:00.000Z",
+    thresholds: {
+      availableDeviationBps: 100,
+      maxDeviationBps: 300,
+      maxReferenceAgeSeconds: 86_400,
+    },
+    summary: {
+      total: 1,
+      available: 1,
+      caution: 0,
+      blocked: 0,
+      routed: 1,
+      orchestrationReady: entry.orchestrationReady ? 1 : 0,
+    },
+    assets: [entry],
+  };
 }
 
 function input() {

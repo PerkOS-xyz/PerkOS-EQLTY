@@ -13,6 +13,15 @@ export type OpportunityCandidate = {
   deviationBps?: number;
   quotedAmountOut?: string;
   uniswapRequestId?: string;
+  uniswapRouting?: string;
+  graphEvidence?: {
+    blockNumber: string;
+    transactionHash: `0x${string}`;
+    poolIdentifier: string;
+    poolAddress: EvmAddress;
+    capturedAt: string;
+    liquidityUsd: number;
+  };
   orchestrationReady: boolean;
 };
 
@@ -23,6 +32,7 @@ export type OpportunityAnalysis = {
   mode: "analysis";
   policy: {
     source: "durin";
+    rootName: string;
     version: number;
     manifestHash: `0x${string}`;
     allowedTickers: string[];

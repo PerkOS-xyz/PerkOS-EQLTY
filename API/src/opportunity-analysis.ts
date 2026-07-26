@@ -52,6 +52,7 @@ export class OpportunityAnalysisService {
     });
     if (
       controlPlane.status !== "active" ||
+      !controlPlane.rootName ||
       !controlPlane.manifest ||
       !controlPlane.manifestHash
     ) {
@@ -152,6 +153,7 @@ export class OpportunityAnalysisService {
       mode: "analysis",
       policy: {
         source: "durin",
+        rootName: controlPlane.rootName,
         version: manifest.version,
         manifestHash: controlPlane.manifestHash,
         allowedTickers,
@@ -183,6 +185,17 @@ function score(
     deviationBps: asset.deviationBps,
     quotedAmountOut: asset.quotedAmountOut,
     uniswapRequestId: asset.uniswapRequestId,
+    uniswapRouting: asset.uniswapRouting,
+    graphEvidence: asset.graphEvidence
+      ? {
+          blockNumber: asset.graphEvidence.blockNumber,
+          transactionHash: asset.graphEvidence.transactionHash,
+          poolIdentifier: asset.graphEvidence.poolIdentifier,
+          poolAddress: asset.graphEvidence.poolAddress,
+          capturedAt: asset.graphEvidence.capturedAt,
+          liquidityUsd: asset.graphEvidence.liquidityUsd,
+        }
+      : undefined,
   };
   const evidenceAge = asset.referenceUpdatedAt
     ? Math.max(

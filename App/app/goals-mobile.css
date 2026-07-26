@@ -57,6 +57,22 @@
     grid-template-columns: 1fr;
   }
 
+  .decisionRoomGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .decisionMessages article {
+    grid-template-columns: 92px minmax(0, 1fr);
+  }
+
+  .decisionMessages article::after {
+    left: 89px;
+  }
+
+  .decisionConsole {
+    min-height: 250px;
+  }
+
   .candidateCard p {
     min-height: auto;
   }
@@ -89,5 +105,27 @@
   .goalProgress > header {
     flex-direction: column;
     gap: 7px;
+  }
+
+  .decisionRoom {
+    padding: 12px;
+  }
+
+  .decisionRoom > header {
+    flex-direction: column;
+  }
+
+  .decisionMessages article {
+    grid-template-columns: 1fr;
+  }
+
+  .decisionMessages article::after {
+    display: none;
+  }
+
+  .decisionActor {
+    padding: 9px 11px;
+    border-right: 0;
+    border-bottom: 1px solid #222d26;
   }
 }

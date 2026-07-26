@@ -52,6 +52,8 @@ Plugins/
 | Evidence | Location |
 |---|---|
 | V4-only exact-input quote request on Robinhood Chain | `API/src/uniswap-client.ts:22-68` |
+| Official 1D RWA market series | `API/src/uniswap-rwa-market.ts` |
+| Real timestamp-based stock curves | `App/app/market-card.tsx` |
 | Quote, reference price and route comparison | `API/src/stock-catalog.ts:80-161` |
 | Quote handoff from Trader to Auditor | `API/src/proof-run.ts:227-255` |
 | Executed PoolManager, poolId and receipt | `API/src/purchase-audit.ts` |
@@ -59,7 +61,8 @@ Plugins/
 | Reusable Hermes and OpenClaw commands | `Plugins/EQLTY-Uniswap-Plugin/skills/execute-stock-token-trade/scripts/uniswap-agent.mjs:48-145` |
 
 The API keeps the Uniswap request ID and quoted output in the proof run. A dry
-run is never described as an executed swap.
+run is never described as an executed swap. The 1D chart uses Uniswap RWA
+sparkline points; Substreams swaps remain separate execution evidence.
 
 ### The Graph
 
@@ -70,6 +73,7 @@ run is never described as an executed swap.
 | Graph risk handoff and transaction evidence | `API/src/proof-run.ts:204-226` |
 | Stored request, stream, package and checkpoint | `API/src/purchase-audit.ts` |
 | Judge-facing Substreams call and response | `App/app/history/[transactionHash]/page.tsx` |
+| Agent decision log with event and block links | `App/app/decision-room.tsx` |
 | Robinhood Uniswap V4 event module | `Plugins/EQLTY-The-Graph-Plugin/substreams/src/lib.rs:1-56` |
 | Parameterized 94-pool agent tool | `Plugins/EQLTY-The-Graph-Plugin/skills/robinhood-stock-substreams/scripts/stock-substreams.mjs` |
 
@@ -85,6 +89,7 @@ freshness.
 | Manifest expiry, version and settings-hash checks | `API/src/ens-policy.ts:115-181` |
 | Per-user fleet and subname provisioning | `API/src/durin-provisioner.ts:45-177` |
 | Hash-bound policy preparation | `API/src/ens-policy-preparation.ts:47-145` |
+| Policy handoff inside the agent decision room | `App/app/decision-room.tsx` |
 | Reusable fleet directory and preset tool | `Plugins/EQLTY-ENS-Plugin/skills/ens-agent-fleet/scripts/ens-fleet.mjs:93-242` |
 
 ENS is the behavior source of truth. Policy preparation produces the next

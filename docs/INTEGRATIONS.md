@@ -96,7 +96,7 @@ freshness.
 
 ENS is the behavior source of truth. Policy preparation produces the next
 manifest and role hashes but does not publish them before owner-wallet and
-World authorization.
+The authenticated owner wallet authorizes ENS policy changes.
 
 The testnet UI opens names in the current ENSv2 app at `app.ens.dev`. EQLTY's
 control plane still uses the deployed Durin L2 registry and does not claim that
@@ -159,6 +159,6 @@ Robinhood EIP-712 restrictions remain disabled for the MVP. Transaction
 guardrails still limit the trader to Robinhood Chain, the EQLTY vault, Uniswap
 contracts, USDG and six transactions per day.
 
-World Selfie authorization remains required for future ENS settings
+ENS settings are authorized by the authenticated owner wallet
 publication, not for reading the current policy or demonstrating a 1 USDG
 purchase.

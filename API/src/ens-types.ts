@@ -25,7 +25,6 @@ export type EnsAgentSettings = {
     actions: Array<
       "recommend" | "risk-gate" | "swap-uniswap" | "audit"
     >;
-    requiresWorldSelfieForChanges: true;
   };
   security: {
     provider: "1claw";

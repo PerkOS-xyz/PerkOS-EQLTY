@@ -18,4 +18,4 @@ Set `EQLTY_AGENT_API_URL` when the API is not running at
 `EQLTY_SESSION_COOKIE`; never commit or print that value.
 
 Preparation returns semantic differences and hash-bound records. It never
-publishes ENS changes or bypasses owner-wallet and World authorization.
+publishes ENS changes or bypasses owner-wallet authorization.

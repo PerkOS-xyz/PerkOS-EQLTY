@@ -51,7 +51,7 @@ describe("ENS policy preparation", () => {
       rootName: "u-12345678.demo.eth",
       currentManifestHash: bundle.manifestHash,
       publicationMode: "prepared-only",
-      requiredAuthorization: ["owner-wallet", "world-selfie"],
+      requiredAuthorization: ["owner-wallet"],
       manifest: {
         version: 2,
         updatedAt: "2026-07-25T12:30:00.000Z",
@@ -113,6 +113,80 @@ describe("ENS policy preparation", () => {
     expect(prepared.diff).toEqual([
       { field: "paused", before: false, after: true },
     ]);
+  });
+
+  it("publishes role records before the manifest and verifies the result", async () => {
+    const { config, bundle } = fixture();
+    const writes: Array<{
+      name: string;
+      key: string;
+      value: string;
+    }> = [];
+    let resolveCount = 0;
+    const service = new EnsPolicyPreparationService(config, {
+      controlPlane: {
+        resolve: async () => {
+          resolveCount += 1;
+          if (resolveCount === 1) {
+            return {
+              source: "durin",
+              mode: "live",
+              status: "active",
+              rootName: bundle.names.user,
+              manifestHash: bundle.manifestHash,
+              resolvedAt: currentTime.toISOString(),
+              owner,
+              manifest: bundle.manifest,
+              agentSettings: settingsFor(bundle),
+            };
+          }
+          const manifestJson = writes.at(-1)?.value ?? "";
+          return {
+            source: "durin",
+            mode: "live",
+            status: "active",
+            rootName: bundle.names.user,
+            manifestHash: hashEnsRecord(manifestJson),
+            resolvedAt: preparedTime.toISOString(),
+            owner,
+            manifest: JSON.parse(manifestJson),
+            agentSettings: settingsFor(bundle),
+          };
+        },
+      },
+      writer: {
+        ready: () => true,
+        setText: async (name, key, value) => {
+          writes.push({ name, key, value });
+          return `0x${writes.length.toString(16).padStart(64, "0")}`;
+        },
+      },
+      now: () => preparedTime,
+    });
+
+    const published = await service.publish({
+      userId: "u-12345678",
+      owner,
+      change: {
+        paused: true,
+        ...bundle.manifest.policy,
+      },
+    });
+
+    expect(writes).toHaveLength(5);
+    expect(writes.slice(0, 4).map(({ name }) => name)).toEqual([
+      bundle.names.agents.scout,
+      bundle.names.agents.risk,
+      bundle.names.agents.trader,
+      bundle.names.agents.auditor,
+    ]);
+    expect(writes[4]).toMatchObject({
+      name: bundle.names.user,
+      key: "agent-context",
+      value: published.manifestJson,
+    });
+    expect(published.transactions).toHaveLength(5);
+    expect(published.verified).toBe(true);
   });
 
   it("rejects inactive control planes and no-op changes", async () => {

@@ -35,6 +35,11 @@ export interface DurinWriter {
   baseNode(): Promise<`0x${string}`>;
   registrarApproved(): Promise<boolean>;
   createNode(input: DurinNodeInput): Promise<`0x${string}`>;
+  setText(
+    name: string,
+    key: string,
+    value: string,
+  ): Promise<`0x${string}`>;
 }
 
 export class ViemDurinWriter implements DurinWriter {
@@ -127,6 +132,30 @@ export class ViemDurinWriter implements DurinWriter {
       abi: registryAbi,
       functionName: "createSubnode",
       args: [input.parentNode, input.label, input.owner, data],
+      chain: this.chain,
+      gas: 5_000_000n,
+    });
+    const receipt = await this.publicClient.waitForTransactionReceipt({
+      hash,
+    });
+    if (receipt.status !== "success") {
+      throw new Error(`Durin transaction ${hash} reverted`);
+    }
+    return hash;
+  }
+
+  async setText(
+    name: string,
+    key: string,
+    value: string,
+  ): Promise<`0x${string}`> {
+    await this.verifyNetwork();
+    const hash = await this.walletClient.writeContract({
+      account: this.requiredAccount(),
+      address: this.requiredRegistry(),
+      abi: registryAbi,
+      functionName: "setText",
+      args: [namehash(name), key, value],
       chain: this.chain,
       gas: 5_000_000n,
     });

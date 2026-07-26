@@ -116,7 +116,6 @@ function records() {
           objective: `${role} objective`,
           inputs: ["ens", "the-graph-substreams"],
           actions: [action(role)],
-          requiresWorldSelfieForChanges: true,
         },
         security: {
           provider: "1claw",

@@ -173,7 +173,6 @@ function agentSettings(role: FleetRole): string {
       objective: `${role} objective`,
       inputs: ["ens", "the-graph-substreams"],
       actions: [action],
-      requiresWorldSelfieForChanges: true,
     },
     security: {
       provider: "1claw",

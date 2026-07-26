@@ -29,7 +29,6 @@ export type PublicApiConfig = {
     perkos: "disabled" | "live" | "preview";
     theGraph: "ready" | "pending";
     uniswap: "ready" | "pending";
-    world: "pending";
   };
 };
 
@@ -80,7 +79,6 @@ export function publicConfig(config: ApiConfig): PublicApiConfig {
         config.UNISWAP_API_KEY && config.SWAPPER_ADDRESS
           ? "ready"
           : "pending",
-      world: "pending",
     },
   };
 }

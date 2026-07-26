@@ -58,6 +58,12 @@ The product focuses on three sponsor integrations:
 - [`uniswap-agent.mjs`](Plugins/EQLTY-Uniswap-Plugin/skills/execute-stock-token-trade/scripts/uniswap-agent.mjs#L103)
   packages quote review and guarded execution as a reusable agent skill.
 
+Together these pieces support two Uniswap capabilities that usually live in
+separate products: agent driven trade execution, where every swap stays bound
+to the exact Trading API quote and is enforced by the vault on chain, and
+market intelligence, where official RWA series power the charts and reference
+prices the fleet reasons over.
+
 ### How we use The Graph
 
 - [`lib.rs`](Plugins/EQLTY-The-Graph-Plugin/substreams/src/lib.rs#L13) is the
@@ -78,6 +84,13 @@ The product focuses on three sponsor integrations:
   exposes the 94 pool catalog, snapshots and direct streaming as an agent
   tool.
 
+The Graph does two jobs inside EQLTY. As a data source, Substreams provenance
+is the load bearing input that the live agents reason over and that gates
+every decision. As tooling, the Substreams package, the pool registry and the
+agent skill are self contained and reusable by any project that needs
+verifiable Uniswap V4 stock token evidence, with or without the rest of
+EQLTY.
+
 ### How we use ENS
 
 - [`ens-control-plane.ts`](API/src/ens-control-plane.ts#L37) resolves the
@@ -90,6 +103,12 @@ The product focuses on three sponsor integrations:
   prepares hash bound policy changes that wait for owner authorization.
 - [`ens-fleet.mjs`](Plugins/EQLTY-ENS-Plugin/skills/ens-agent-fleet/scripts/ens-fleet.mjs#L93)
   is the reusable fleet directory and policy preset tool.
+
+ENS plays three roles at once here: the public identity that makes each agent
+independently discoverable and verifiable, the behavior control plane that
+changes live agent reasoning without redeploying anything, and the mechanism
+that lets an existing agent platform gain user auditable policy as a brand
+new capability.
 
 ## Architecture
 

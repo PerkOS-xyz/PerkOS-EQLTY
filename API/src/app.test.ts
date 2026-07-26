@@ -531,24 +531,8 @@ describe("API foundation", () => {
     });
   });
 
-  it("serves authenticated Graph evidence", async () => {
-    const session = {
-      sub: "eip155:4663:0x1234567890abcdef1234567890abcdef12345678",
-      provider: "wallet" as const,
-      walletAddress:
-        "0x1234567890abcdef1234567890abcdef12345678" as const,
-      fleetUserId: "u-12345678",
-      expiresAt: "2026-07-25T13:00:00.000Z",
-    };
+  it("serves public Graph evidence for independent verification", async () => {
     const response = await request("/api/evidence/nvda", {
-      ownerAuth: {
-        challenge: async () => {
-          throw new Error("not called");
-        },
-        verify: async () => session,
-        session: () => session,
-        logout: () => undefined,
-      },
       graphEvidence: {
         evidence: async (ticker: string) => ({
           ticker: ticker.toUpperCase(),

@@ -46,18 +46,19 @@ describe("HermesConsultationService", () => {
       {
         recommendedTicker: "NVDA",
         thesis:
-          "Deep indexed liquidity and route quality best fit the stated goal.",
+          "NVDA is indexed at block 12345 with route deviation 90 bps, giving it the strongest sealed route.",
         evidence: [
           "graphLiquidity",
           "graphBlock",
           "routeDeviation",
         ],
+        confidence: "high",
       },
       {
         decision: "approve",
         ticker: "NVDA",
         summary:
-          "The candidate remains inside every active policy boundary.",
+          "NVDA route deviation 90 bps remains below the ENS limit of 300 bps.",
         checks: [
           "ensAllowed",
           "deviationWithinLimit",
@@ -132,7 +133,7 @@ describe("HermesConsultationService", () => {
         reply: JSON.stringify({
           recommendedTicker: "AMZN",
           thesis:
-            "The rejected candidate appears preferable despite its failed gates.",
+            "AMZN appears preferable at block 12345 with route deviation 120 bps despite its failed gates.",
           evidence: ["graphLiquidity", "routeDeviation"],
         }),
       }),

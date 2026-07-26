@@ -22,34 +22,32 @@ const riskCheck = z.enum([
   "liquidityAboveMinimum",
   "graphEvidencePresent",
 ]);
-const textWithoutNumbers = z
+const evidenceReasoning = z
   .string()
   .trim()
   .min(20)
-  .max(320)
-  .refine((value) => !/\d/.test(value));
+  .max(500)
+  .refine((value) => /\d/.test(value));
 const scoutReply = z
   .object({
     recommendedTicker: z.string().regex(/^[A-Z][A-Z0-9.-]{0,11}$/),
-    thesis: textWithoutNumbers,
+    thesis: evidenceReasoning,
     evidence: z
       .array(evidenceKey)
       .min(2)
       .max(4)
       .refine((items) => new Set(items).size === items.length),
-  })
-  .strict();
+  });
 const riskReply = z
   .object({
     decision: z.enum(["approve", "reject"]),
     ticker: z.string().regex(/^[A-Z][A-Z0-9.-]{0,11}$/),
-    summary: textWithoutNumbers,
+    summary: evidenceReasoning,
     checks: z
       .array(riskCheck)
       .length(4)
       .refine((items) => new Set(items).size === items.length),
-  })
-  .strict();
+  });
 
 export type ConsultationTaskResponse = {
   ok?: boolean;
@@ -83,6 +81,13 @@ export function verifyScout(
       agent,
       task.reply,
       "Scout selected a candidate rejected by the deterministic gates",
+    );
+  }
+  if (!citesSealedMarketValues(parsed.data.thesis, candidate)) {
+    return invalid(
+      agent,
+      task.reply,
+      "Scout reasoning did not cite the sealed block and route deviation",
     );
   }
   const facts = parsed.data.evidence
@@ -157,7 +162,8 @@ export function scoutPrompt(input: {
     "Reason only over the sealed JSON below. Do not invent or fetch values.",
     "Select one candidate whose status is eligible.",
     "Return only JSON with recommendedTicker, thesis and evidence.",
-    "thesis must contain no digits. evidence must contain two to four of:",
+    "In thesis, cite the selected candidate's exact graph blockNumber and exact deviationBps without rounding.",
+    "evidence must contain two to four of:",
     "graphLiquidity, graphBlock, routeDeviation, uniswapRouting.",
     JSON.stringify({
       goal: input.goal,
@@ -177,7 +183,8 @@ export function riskPrompt(
     "You are the Risk member of an EQLTY Hermes fleet.",
     "Check the Scout handoff against the sealed ENS policy and evidence.",
     "Return only JSON with decision, ticker, summary and checks.",
-    "summary must contain no digits. checks must contain all four of:",
+    "In summary, cite exact candidate and ENS limit values from the sealed JSON.",
+    "checks must contain all four of:",
     "ensAllowed, deviationWithinLimit, liquidityAboveMinimum, graphEvidencePresent.",
     JSON.stringify({
       goal,
@@ -306,10 +313,27 @@ function parseReply(reply: string): unknown {
   const last = reply.lastIndexOf("}");
   if (first < 0 || last <= first) return undefined;
   try {
-    return JSON.parse(reply.slice(first, last + 1));
+    const parsed = JSON.parse(reply.slice(first, last + 1));
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return parsed;
+    }
+    const record = parsed as Record<string, unknown>;
+    return record.result ?? record.handoff ?? record.response ?? parsed;
   } catch {
     return undefined;
   }
+}
+
+function citesSealedMarketValues(
+  thesis: string,
+  candidate: OpportunityCandidate,
+): boolean {
+  return Boolean(
+    candidate.graphEvidence?.blockNumber &&
+      candidate.deviationBps !== undefined &&
+      thesis.includes(candidate.graphEvidence.blockNumber) &&
+      thesis.includes(String(candidate.deviationBps)),
+  );
 }
 
 function hashReply(reply: string): `0x${string}` {

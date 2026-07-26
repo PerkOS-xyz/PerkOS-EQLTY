@@ -597,11 +597,6 @@ export function createApp(
   });
 
   app.get("/api/evidence/:ticker", async (request, response) => {
-    if (!ownerAuth.session(request)) {
-      return response
-        .status(401)
-        .json({ error: "owner_session_required" });
-    }
     const parsed = ticker.safeParse(request.params.ticker);
     if (!parsed.success) {
       return response.status(400).json({ error: "invalid_ticker" });

@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   addressUrl,
   blockUrl,
-  graphEvidenceUrl,
   transactionEventsUrl,
 } from "../lib/execution-api";
 import { ensManagerUrl } from "../lib/fleet-api";
@@ -13,6 +12,7 @@ import type {
   OpportunityAnalysis,
   OpportunityCandidate,
 } from "../lib/goal-types";
+import { GraphEvidenceModal } from "./graph-evidence-modal";
 
 type DecisionEvent = {
   actor: "ENS" | "Scout" | "Risk" | "Trader" | "Auditor";
@@ -22,6 +22,11 @@ type DecisionEvent = {
   detail: string;
   fact: string;
   links: Array<{ href: string; label: string }>;
+  graphEvidence?: {
+    ticker: string;
+    fallback: Record<string, unknown>;
+    transactionHash: string;
+  };
   stopped?: boolean;
 };
 
@@ -88,7 +93,7 @@ export function DecisionRoom({
                   <strong>{event.title}</strong>
                   <p>{event.detail}</p>
                   <code>{event.fact}</code>
-                  {event.links.length > 0 && (
+                  {(event.links.length > 0 || event.graphEvidence) && (
                     <footer>
                       {event.links.map((link) => (
                         <a
@@ -100,6 +105,17 @@ export function DecisionRoom({
                           {link.label} ↗
                         </a>
                       ))}
+                      {event.graphEvidence && (
+                        <GraphEvidenceModal
+                          expectedTransaction={
+                            event.graphEvidence.transactionHash
+                          }
+                          fallback={event.graphEvidence.fallback}
+                          ticker={event.graphEvidence.ticker}
+                        >
+                          View Graph evidence
+                        </GraphEvidenceModal>
+                      )}
                     </footer>
                   )}
                 </div>
@@ -191,6 +207,13 @@ function decisionEvents(analysis: OpportunityAnalysis): DecisionEvent[] {
           : "indexed evidence unavailable",
       ),
       links: graphLinks(winner),
+      graphEvidence: evidence
+        ? {
+            ticker: winner.ticker,
+            fallback: { ...evidence, ticker: winner.ticker },
+            transactionHash: evidence.transactionHash,
+          }
+        : undefined,
       stopped:
         consultation.scout.status === "invalid" ||
         (!evidence && consultation.scout.status !== "verified"),
@@ -257,9 +280,15 @@ function decisionEvents(analysis: OpportunityAnalysis): DecisionEvent[] {
         ? "The auditor bound the policy, market evidence, risk result and Uniswap request into one reproducible proof root."
         : "The auditor sealed the rejection reason so the stopped workflow remains auditable.",
       fact: `proof ${short(analysis.proofRoot)}`,
-      links: winner
-        ? [{ href: graphEvidenceUrl(winner.ticker), label: "Open Graph JSON" }]
-        : [],
+      links: [],
+      graphEvidence:
+        winner && evidence
+          ? {
+              ticker: winner.ticker,
+              fallback: { ...evidence, ticker: winner.ticker },
+              transactionHash: evidence.transactionHash,
+            }
+          : undefined,
       stopped: !winner,
     },
   ];
@@ -288,10 +317,6 @@ function graphLinks(
     {
       href: transactionEventsUrl(evidence.transactionHash),
       label: "Verify indexed event",
-    },
-    {
-      href: graphEvidenceUrl(candidate.ticker),
-      label: "Open Graph JSON",
     },
   ];
 }

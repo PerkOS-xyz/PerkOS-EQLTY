@@ -136,3 +136,12 @@ export function addressUrl(address: string): string {
 export function graphEvidenceUrl(ticker: string): string {
   return `${apiUrl()}/api/evidence/${encodeURIComponent(ticker)}`;
 }
+
+export function loadGraphEvidence(
+  ticker: string,
+): Promise<Record<string, unknown>> {
+  return request<Record<string, unknown>>(
+    `/api/evidence/${encodeURIComponent(ticker)}`,
+    { method: "GET" },
+  );
+}

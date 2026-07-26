@@ -1,6 +1,34 @@
 export const eqltyVaultAbi = [
   {
     type: "event",
+    name: "StrategyCreated",
+    anonymous: false,
+    inputs: [
+      { name: "strategyId", type: "uint256", indexed: true },
+      { name: "owner", type: "address", indexed: true },
+      { name: "agent", type: "address", indexed: true },
+      { name: "inputToken", type: "address", indexed: false },
+      { name: "outputToken", type: "address", indexed: false },
+      { name: "router", type: "address", indexed: false },
+      { name: "maxAmountPerTrade", type: "uint256", indexed: false },
+      { name: "maxTotalSpend", type: "uint256", indexed: false },
+      { name: "expiresAt", type: "uint256", indexed: false },
+      { name: "maxSlippageBps", type: "uint256", indexed: false },
+      { name: "humanProofHash", type: "bytes32", indexed: false },
+    ],
+  },
+  {
+    type: "event",
+    name: "StrategyFunded",
+    anonymous: false,
+    inputs: [
+      { name: "strategyId", type: "uint256", indexed: true },
+      { name: "amount", type: "uint256", indexed: false },
+      { name: "available", type: "uint256", indexed: false },
+    ],
+  },
+  {
+    type: "event",
     name: "TradeExecuted",
     anonymous: false,
     inputs: [

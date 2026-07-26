@@ -7,6 +7,7 @@ import { EnsControlPlaneService } from "./ens-control-plane.js";
 import { EnsPolicyPreparationService } from "./ens-policy-preparation.js";
 import { EqltyVaultExecutor } from "./eqlty-vault-executor.js";
 import { executionTraderAddress } from "./execution-addresses.js";
+import type { ExecutionStrategy } from "./execution-types.js";
 import { FleetActivationService } from "./fleet-activation.js";
 import { GraphEvidenceService } from "./graph-evidence.js";
 import { OwnerAuth } from "./owner-auth.js";
@@ -79,14 +80,6 @@ const strategyInput = z
     humanVerified: z.boolean(),
   })
   .strict();
-const runInput = z
-  .object({
-    strategyId: goalId,
-    strategy: z.unknown().optional(),
-    amountIn: uint256,
-    execute: z.boolean().default(false),
-  })
-  .strict();
 const transactionHash = z
   .string()
   .regex(/^0x[0-9a-fA-F]{64}$/)
@@ -98,6 +91,44 @@ const onchainStrategyInput = z
     creationTransactionHash: transactionHash,
     approvalTransactionHash: transactionHash,
     fundingTransactionHash: transactionHash,
+  })
+  .strict();
+const executionStrategyInput = z
+  .object({
+    id: goalId,
+    ticker: ticker,
+    owner: address,
+    agent: address,
+    inputToken: address,
+    outputToken: address,
+    router: address,
+    maxAmountPerTrade: uint256,
+    maxTotalSpend: uint256,
+    spent: z
+      .string()
+      .max(78)
+      .regex(/^(0|[1-9]\d*)$/)
+      .refine((value) => BigInt(value) < 2n ** 256n),
+    maxSlippageBps: z.number().int().min(1).max(1_000),
+    expiresAt: z.string().datetime(),
+    status: z.enum(["active", "paused", "revoked", "expired"]),
+    humanProof: z
+      .object({
+        provider: z.literal("owner-wallet-session"),
+        status: z.literal("verified"),
+        proofHash: z.string().regex(/^0x[0-9a-fA-F]{64}$/),
+      })
+      .strict(),
+    executionMode: z.enum(["analysis", "full"]),
+    onchain: onchainStrategyInput.optional(),
+  })
+  .strict();
+const runInput = z
+  .object({
+    strategyId: goalId,
+    strategy: executionStrategyInput.optional(),
+    amountIn: uint256,
+    execute: z.boolean().default(false),
   })
   .strict();
 const ensPolicyChange = z
@@ -193,7 +224,9 @@ type AppDependencies = {
   uniswapRwaMarket?: Pick<UniswapRwaMarketService, "series">;
   goals?: Pick<AutonomousGoalService, "read" | "start" | "tick">;
   strategies?: Pick<StrategyService, "create"> &
-    Partial<Pick<StrategyService, "bindOnchain">>;
+    Partial<
+      Pick<StrategyService, "bindOnchain" | "recover" | "restore">
+    >;
   proofRuns?: Pick<ProofRunService, "run">;
   purchaseAudit?: Pick<PurchaseAuditService, "capture" | "read">;
   purchaseHistory?: Pick<PurchaseHistoryService, "list">;
@@ -764,7 +797,7 @@ export function createApp(
       try {
         response.setHeader("cache-control", "no-store");
         return response.json(
-          strategies.bindOnchain(
+          await strategies.bindOnchain(
             parsedId.data,
             session.walletAddress,
             parsed.data,
@@ -773,6 +806,49 @@ export function createApp(
       } catch (error) {
         return response.status(400).json({
           error: "strategy_link_rejected",
+          message: safeMessage(error),
+        });
+      }
+    },
+  );
+
+  app.post(
+    "/api/strategies/:id/recover",
+    async (request, response) => {
+      const session = ownerAuth.session(request);
+      if (!session) {
+        return response
+          .status(401)
+          .json({ error: "owner_session_required" });
+      }
+      const parsedId = goalId.safeParse(request.params.id);
+      const parsed = executionStrategyInput.safeParse(request.body);
+      if (!parsedId.success || !parsed.success) {
+        return response.status(400).json({
+          error: "invalid_strategy_recovery",
+        });
+      }
+      if (!strategies.restore || !strategies.recover) {
+        return response.status(503).json({
+          error: "strategy_recovery_unavailable",
+        });
+      }
+      try {
+        await strategies.restore(
+          parsed.data as ExecutionStrategy,
+          session.walletAddress,
+        );
+        const recovered = await strategies.recover(
+          parsedId.data,
+          session.walletAddress,
+        );
+        response.setHeader("cache-control", "no-store");
+        return recovered
+          ? response.json(recovered)
+          : response.status(204).send();
+      } catch (error) {
+        return response.status(400).json({
+          error: "strategy_recovery_rejected",
           message: safeMessage(error),
         });
       }
@@ -794,6 +870,12 @@ export function createApp(
       });
     }
     try {
+      if (parsed.data.strategy && strategies.restore) {
+        await strategies.restore(
+          parsed.data.strategy as ExecutionStrategy,
+          session.walletAddress,
+        );
+      }
       const perkosIdToken = ownerAuth.perkosIdToken?.(request);
       const activation = await fleetActivation.activate({
         userId: session.fleetUserId,

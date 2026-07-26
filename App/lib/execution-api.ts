@@ -62,6 +62,18 @@ export function linkExecutionStrategy(
   );
 }
 
+export function recoverExecutionStrategy(
+  strategy: ExecutionStrategy,
+): Promise<ExecutionStrategy | undefined> {
+  return request<ExecutionStrategy | undefined>(
+    `/api/strategies/${encodeURIComponent(strategy.id)}/recover`,
+    {
+      method: "POST",
+      body: JSON.stringify(strategy),
+    },
+  );
+}
+
 export type ExecutionConfig = {
   network: {
     chainId: number;

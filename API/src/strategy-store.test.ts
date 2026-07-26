@@ -91,6 +91,20 @@ describe("strategy store", () => {
       }),
     ).toBeUndefined();
   });
+
+  it("restores the same strategy snapshot only once", () => {
+    const first = new StrategyStore({
+      id: () => "strategy-1",
+      now: () => Date.parse("2026-07-25T12:00:00.000Z"),
+    });
+    const snapshot = first.create(strategyInput());
+    const restored = new StrategyStore();
+
+    expect(restored.restore(snapshot)).toEqual(snapshot);
+    expect(
+      restored.restore({ ...snapshot, ticker: "AMZN" }),
+    ).toBeUndefined();
+  });
 });
 
 function strategyInput() {

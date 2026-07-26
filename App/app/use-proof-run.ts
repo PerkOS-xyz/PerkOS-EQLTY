@@ -8,6 +8,7 @@ import {
 import {
   createExecutionStrategy,
   linkExecutionStrategy,
+  recoverExecutionStrategy,
   readExecutionConfig,
   readWalletReadiness,
   robinhoodUsdG,
@@ -84,7 +85,16 @@ export function useProofRun(session?: AutonomousGoal): ProofRunState {
         humanVerified: true,
       });
       setStrategy(nextStrategy);
-      setRun(await startProofRun(nextStrategy, session.amountIn, false));
+      const proof = await startProofRun(
+        nextStrategy,
+        session.amountIn,
+        false,
+      );
+      const fundedStrategy = await recoverExecutionStrategy(
+        nextStrategy,
+      ).catch(() => undefined);
+      setStrategy(fundedStrategy ?? nextStrategy);
+      setRun(proof);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Proof run failed");
     } finally {
@@ -140,6 +150,8 @@ export function useProofRun(session?: AutonomousGoal): ProofRunState {
           onStage: setPurchaseStage,
         });
         setPurchaseStage("linking");
+        activeStrategy = { ...activeStrategy, onchain };
+        setStrategy(activeStrategy);
         activeStrategy = await linkExecutionStrategy(
           activeStrategy,
           onchain,
@@ -167,7 +179,20 @@ export function useProofRun(session?: AutonomousGoal): ProofRunState {
     setReadiness(undefined);
     setError(undefined);
     try {
-      setReadiness(await readWalletReadiness(run.amountIn));
+      const walletReadiness = await readWalletReadiness(run.amountIn);
+      setReadiness(
+        strategy?.onchain
+          ? {
+              ...walletReadiness,
+              ready: walletReadiness.checks.vault,
+              checks: {
+                ...walletReadiness.checks,
+                funds: true,
+                gas: true,
+              },
+            }
+          : walletReadiness,
+      );
     } catch (cause) {
       setError(
         cause instanceof Error
@@ -177,7 +202,7 @@ export function useProofRun(session?: AutonomousGoal): ProofRunState {
     } finally {
       setReviewBusy(false);
     }
-  }, [run]);
+  }, [run, strategy?.onchain]);
 
   const closeReview = useCallback(() => {
     if (purchaseBusy) return;

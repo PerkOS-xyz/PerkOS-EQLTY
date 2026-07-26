@@ -43,6 +43,18 @@ export class StrategyStore {
     return structuredClone(strategy);
   }
 
+  restore(strategy: ExecutionStrategy): ExecutionStrategy | undefined {
+    const current = this.strategies.get(strategy.id);
+    if (
+      current &&
+      JSON.stringify(current) !== JSON.stringify(strategy)
+    ) {
+      return undefined;
+    }
+    this.strategies.set(strategy.id, structuredClone(strategy));
+    return structuredClone(strategy);
+  }
+
   strategy(
     id: string,
     owner: EvmAddress,

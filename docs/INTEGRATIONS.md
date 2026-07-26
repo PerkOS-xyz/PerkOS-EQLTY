@@ -25,6 +25,7 @@ App/
   app/fleet-panel.tsx               Hermes lifecycle and 1Claw state
   app/goal-analyzer.tsx             Two-minute autonomous workflow
   app/proof-run-panel.tsx           Four-agent proof and verification logs
+  app/history/[transactionHash]/    Stored purchase evidence for judges
 API/
   src/stock-catalog.ts              Robinhood, Uniswap and Graph composition
   src/uniswap-client.ts             Uniswap Trading API quotes
@@ -34,6 +35,8 @@ API/
   src/perkos-fleet.ts               Hermes provisioning and wake-up
   src/autonomous-goals.ts           Repeated fleet evaluation
   src/proof-run.ts                  Ordered execution gates and proof bundle
+  src/purchase-audit.ts             Receipt, pool and transfer reconciliation
+  src/firestore-audit.ts            Wallet-scoped immutable audit storage
 Contracts/
   src/EQLTYVault.sol                Guarded Stock Token execution
 Plugins/
@@ -51,6 +54,8 @@ Plugins/
 | V4-only exact-input quote request on Robinhood Chain | `API/src/uniswap-client.ts:22-68` |
 | Quote, reference price and route comparison | `API/src/stock-catalog.ts:80-161` |
 | Quote handoff from Trader to Auditor | `API/src/proof-run.ts:227-255` |
+| Executed PoolManager, poolId and receipt | `API/src/purchase-audit.ts` |
+| Judge-facing purchase evidence | `App/app/history/[transactionHash]/page.tsx` |
 | Reusable Hermes and OpenClaw commands | `Plugins/EQLTY-Uniswap-Plugin/skills/execute-stock-token-trade/scripts/uniswap-agent.mjs:48-145` |
 
 The API keeps the Uniswap request ID and quoted output in the proof run. A dry
@@ -63,6 +68,8 @@ run is never described as an executed swap.
 | Strict Substreams evidence and provider schema | `API/src/graph-evidence.ts:7-46` |
 | Freshness, lag and ticker validation | `API/src/graph-evidence.ts:80-153` |
 | Graph risk handoff and transaction evidence | `API/src/proof-run.ts:204-226` |
+| Stored request, stream, package and checkpoint | `API/src/purchase-audit.ts` |
+| Judge-facing Substreams call and response | `App/app/history/[transactionHash]/page.tsx` |
 | Robinhood Uniswap V4 event module | `Plugins/EQLTY-The-Graph-Plugin/substreams/src/lib.rs:1-56` |
 | Parameterized 94-pool agent tool | `Plugins/EQLTY-The-Graph-Plugin/skills/robinhood-stock-substreams/scripts/stock-substreams.mjs` |
 
@@ -93,6 +100,24 @@ World authorization.
 | 1Claw | Require all four security links for purchases from 3 USDG | `API/src/oneclaw-policy.ts`, `API/src/autonomous-goals.ts`, `API/src/proof-run.ts` |
 | Dynamic | Single user wallet modal and message signing | `App/app/dynamic-wallet-provider.tsx:15-84` |
 | EQLTY Vault | Limits, nonce protection, risk signature and router call | `Contracts/src/EQLTYVault.sol:214-289` |
+| PerkOS Firestore | Wallet-scoped audit bundle keyed by purchase hash | `API/src/firestore-audit.ts` |
+
+## Purchase audit bundle
+
+Every successful purchase writes one document at:
+
+```text
+wallets/{owner}/eqlty_audits/{transactionHash}
+```
+
+The document contains the wallet setup transactions, ENS manifest hash,
+Substreams request and response, stream package and module, Uniswap quote
+request, router, PoolManager, poolId, proof commitments, confirmed receipt and
+decoded ERC-20 transfers. Authorization headers are represented as redacted
+metadata and credential values are never stored.
+
+The chain remains the source of truth for execution. Firestore preserves the
+human-readable inputs needed to explain why the transaction was allowed.
 
 ## Current readiness boundary
 
@@ -104,19 +129,15 @@ The following path is implemented and testable now:
 4. Robinhood Stock Token discovery;
 5. Uniswap quote and The Graph evidence;
 6. repeated two-minute recommendation;
-7. four-agent proof bundle with a dry execution decision.
+7. wallet-owned strategy creation and funding;
+8. guarded Uniswap execution;
+9. wallet-scoped audit bundle and historical evidence page.
 
 The proof panel exposes the indexed Swap event, source block, PoolManager,
 Substreams JSON and final purchase receipt when present. Explorer links are
 kept separate from quote request IDs and offchain proof hashes.
 
-Live purchase submission remains fail-closed until all of these are connected:
-
-- production 1Claw links for every role when the amount is 3 USDG or more;
-- live x401 and x402 authorization;
-- the vault-backed `TradeExecutor`;
-- deployed contract addresses and funded strategy;
-- World Selfie authorization for ENS settings publication.
-
-`API/src/proof-run.ts:257-284` enforces this boundary. A live demo must show
-`status: executed` and a transaction hash before claiming funds moved.
+Purchases of 3 USDG or more remain fail-closed until all four 1Claw rails are
+linked. World Selfie authorization remains required for future ENS settings
+publication, not for reading the current policy or demonstrating a 1 USDG
+purchase.

@@ -31,6 +31,12 @@ Current endpoints:
 - `POST /api/strategies`
 - `POST /api/runs`
 - `GET /api/evidence/:ticker`
+- `GET /api/audits/:transactionHash`
+
+Executed runs create a wallet-scoped Firestore audit bundle through the
+existing PerkOS Firebase session. The bundle stores no credential values. It
+preserves the Graph request and response, Uniswap pool evidence, proof hashes,
+receipt and decoded token transfers.
 
 ENS policy preparation returns hash-bound records for review. It does not
 publish changes before wallet and World authorization are complete.

@@ -7,6 +7,7 @@ import type {
 } from "../lib/goal-types";
 import { ProofRunPanel } from "./proof-run-panel";
 import type { GoalAnalysisState } from "./use-goal-analysis";
+import { DecisionRoom } from "./decision-room";
 import { useProofRun } from "./use-proof-run";
 
 const roles = ["Scout", "Risk", "Trader", "Auditor"];
@@ -19,10 +20,10 @@ export function GoalAnalyzer({ state }: { state: GoalAnalysisState }) {
       <header className="goalHeading">
         <div>
           <span className="eyebrow">Autonomous goal</span>
-          <h2>Give the fleet two minutes</h2>
+          <h2>Ask the fleet for a recommendation</h2>
           <p>
-            Define an outcome. Four agents repeatedly compare eligible stock
-            tokens without receiving unrestricted control of your funds.
+            Define an outcome. Watch four agents consult ENS rules, compare
+            candidates and explain one recommendation before any execution.
           </p>
         </div>
         <span className="goalWindow">02:00 demo window</span>
@@ -77,9 +78,9 @@ export function GoalAnalyzer({ state }: { state: GoalAnalysisState }) {
               type="button"
             >
               {state.busy
-                ? "Starting the fleet..."
+                ? "Consulting the fleet..."
                 : state.connected
-                  ? `Compare for ${state.windowMinutes} minutes`
+                  ? `Start ${state.windowMinutes} minute consultation`
                   : "Connect wallet to begin"}
             </button>
 
@@ -179,10 +180,13 @@ function GoalProgress({
 
       {analysis && (
         <div className="candidateResult">
+          <DecisionRoom analysis={analysis} />
           <header>
             <div>
-              <span>Latest shortlist</span>
-              <strong>{analysis.candidates.length} candidates compared</strong>
+              <span>Fleet conclusion</span>
+              <strong>
+                {analysis.candidates.length} candidates with auditable scores
+              </strong>
             </div>
             <code>
               {analysis.policy.version
@@ -207,10 +211,11 @@ function GoalProgress({
                   : "No candidate passed this cycle"}
               </strong>
               <small>
-                A purchase still requires policy, evidence and quote approval.
+                The analysis is complete. Execution remains optional and
+                requires explicit wallet approval.
               </small>
             </div>
-            <span>Proof required</span>
+            <span>No funds moved</span>
           </footer>
           <ProofRunPanel
             hasCandidate={analysis.candidates.some(

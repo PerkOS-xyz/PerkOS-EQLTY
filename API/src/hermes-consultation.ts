@@ -46,16 +46,28 @@ export class HermesConsultationService {
       );
     }
 
-    const scoutTask = await this.task(
+    let scoutTask = await this.task(
       scoutAgent,
       input.idToken,
       scoutPrompt(input),
     );
-    const scout = verifyScout(
+    let scout = verifyScout(
       scoutAgent,
       scoutTask,
       input.candidates,
     );
+    if (scout.status === "invalid") {
+      scoutTask = await this.task(
+        scoutAgent,
+        input.idToken,
+        repairPrompt("scout", scoutPrompt(input)),
+      );
+      scout = verifyScout(
+        scoutAgent,
+        scoutTask,
+        input.candidates,
+      );
+    }
     if (scout.status !== "verified" || !scout.ticker) {
       return {
         mode: "deterministic-fallback",
@@ -69,17 +81,33 @@ export class HermesConsultationService {
     const candidate = input.candidates.find(
       (item) => item.ticker === scout.ticker,
     )!;
-    const riskTask = await this.task(
+    let riskTask = await this.task(
       riskAgent,
       input.idToken,
       riskPrompt(input.goal, candidate, input.manifest, scout),
     );
-    const risk = verifyRisk(
+    let risk = verifyRisk(
       riskAgent,
       riskTask,
       candidate,
       input.manifest,
     );
+    if (risk.status === "invalid") {
+      riskTask = await this.task(
+        riskAgent,
+        input.idToken,
+        repairPrompt(
+          "risk",
+          riskPrompt(input.goal, candidate, input.manifest, scout),
+        ),
+      );
+      risk = verifyRisk(
+        riskAgent,
+        riskTask,
+        candidate,
+        input.manifest,
+      );
+    }
     if (risk.status !== "verified") {
       return {
         mode: "deterministic-fallback",
@@ -146,6 +174,23 @@ export class HermesConsultationService {
       };
     }
   }
+}
+
+function repairPrompt(
+  role: "scout" | "risk",
+  originalPrompt: string,
+): string {
+  const shape =
+    role === "scout"
+      ? '{"recommendedTicker":"TICKER","thesis":"reason with the exact block and deviation numbers","evidence":["graphLiquidity","graphBlock","routeDeviation","uniswapRouting"]}'
+      : '{"decision":"approve","ticker":"TICKER","summary":"reason with exact candidate and ENS limit numbers","checks":["ensAllowed","deviationWithinLimit","liquidityAboveMinimum","graphEvidencePresent"]}';
+  return [
+    `Your previous ${role} handoff failed schema verification.`,
+    "Retry once using the same sealed evidence below.",
+    "Return exactly one raw JSON object with no markdown or commentary.",
+    `Required shape: ${shape}`,
+    originalPrompt,
+  ].join("\n");
 }
 
 function readyAgent(

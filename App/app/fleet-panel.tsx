@@ -9,20 +9,35 @@ import {
   oneclawAgentSettingsUrl,
 } from "../lib/fleet-api";
 import type {
+  AgentRole,
   AgentState,
   EnsAgentMetadata,
   FleetAgent,
   FleetPhase,
 } from "../lib/fleet-types";
 import { fleetRoles } from "../lib/fleet-types";
+import {
+  connectorState,
+  policyChecks,
+  policyResultLabel,
+  roleWorkflowState,
+  workflowFromGoal,
+  workflowHeadline,
+  workflowStateCopy,
+  workflowTechnologySteps,
+  type FleetWorkflow,
+  type WorkflowState,
+} from "./fleet-workflow";
+import type { GoalAnalysisState } from "./use-goal-analysis";
 import { useWalletAccess } from "./wallet-access-context";
 import { useFleetActivation } from "./use-fleet-activation";
 
 const steps = ["Locate", "Create", "Provision", "Wake"];
 
-export function FleetPanel() {
+export function FleetPanel({ goal }: { goal: GoalAnalysisState }) {
   const wallet = useWalletAccess();
   const state = useFleetActivation();
+  const workflow = workflowFromGoal(goal);
   const runtime = state.activation?.runtime;
   const suffix = (
     state.session?.fleetUserId ??
@@ -88,7 +103,7 @@ export function FleetPanel() {
       <header className="fleetHeader runtimeHeader">
         <div>
           <span className="eyebrow">PerkOS infrastructure</span>
-          <h2>Your Hermes fleet</h2>
+          <h2>Your Financial Assistant Fleet</h2>
           <p className="fleetCopy">
             {fleetHeadline(state.phase, wallet.connected)}
           </p>
@@ -108,20 +123,40 @@ export function FleetPanel() {
         />
       </div>
 
+      <WorkflowBanner workflow={workflow} />
+
       <div className="fleetGrid runtimeGrid">
-        {agents.map((agent, index) => (
-          <AgentCard
-            agent={agent}
-            index={index}
-            key={agent.role}
-            oneclawAgentId={
-              agent.role === "trader" ? oneclawAgentId : undefined
-            }
-            phase={state.phase}
-            rootName={state.activation?.rootName}
-            runtimeAvailable={Boolean(runtime)}
-          />
-        ))}
+        {agents.map((agent, index) => {
+          const workflowState = roleWorkflowState(agent.role, workflow);
+          return (
+            <div
+              className={`agentNode workflow-${workflowState}`}
+              key={agent.role}
+            >
+              <AgentCard
+                agent={agent}
+                index={index}
+                oneclawAgentId={
+                  agent.role === "trader" ? oneclawAgentId : undefined
+                }
+                phase={state.phase}
+                rootName={state.activation?.rootName}
+                runtimeAvailable={Boolean(runtime)}
+                workflow={workflow}
+                workflowState={workflowState}
+              />
+              {index < agents.length - 1 && (
+                <span
+                  aria-hidden="true"
+                  className={`agentConnector ${connectorState(index, workflow)}`}
+                >
+                  <i />
+                  <b>›</b>
+                </span>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {runtime?.mode === "live" && (
@@ -258,6 +293,51 @@ export function FleetPanel() {
   );
 }
 
+function WorkflowBanner({ workflow }: { workflow: FleetWorkflow }) {
+  if (!workflow.started) {
+    return null;
+  }
+  const cycle = workflow.session?.cyclesCompleted ?? 0;
+  const technology = workflowTechnologySteps(workflow);
+
+  return (
+    <div
+      aria-live="polite"
+      className={`fleetWorkflowBanner ${workflow.phase}`}
+    >
+      <span>
+        <i />
+        {workflow.phase === "blocked"
+          ? "Workflow stopped"
+          : workflow.processing
+            ? "Agents communicating"
+            : "Cycle validated"}
+      </span>
+      <strong>{workflowHeadline(workflow)}</strong>
+      <small>
+        {workflow.stopReason ??
+          (cycle > 0
+            ? `Cycle ${cycle} is sealed with verifiable evidence.`
+            : "ENS rules are being checked for every agent.")}
+      </small>
+      <ol aria-label="Live technology workflow" className="workflowTechRail">
+        {technology.map((step, index) => (
+          <li className={step.state} key={step.label}>
+            <i />
+            <span>
+              <b>{step.label}</b>
+              <small>{step.detail}</small>
+            </span>
+            {index < technology.length - 1 && (
+              <em aria-hidden="true">›</em>
+            )}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
 function AgentCard({
   agent,
   index,
@@ -265,6 +345,8 @@ function AgentCard({
   phase,
   rootName,
   runtimeAvailable,
+  workflow,
+  workflowState,
 }: {
   agent: FleetAgent;
   index: number;
@@ -272,6 +354,8 @@ function AgentCard({
   phase: FleetPhase;
   rootName?: string;
   runtimeAvailable: boolean;
+  workflow: FleetWorkflow;
+  workflowState: WorkflowState;
 }) {
   const visualPhase = runtimeAvailable
     ? agentStateToPhase(agent.state)
@@ -282,7 +366,7 @@ function AgentCard({
     <article
       className={`agentCard ${agent.state} ${
         agent.role === "trader" ? "hasOneclaw" : ""
-      }`}
+      } workflow-${workflowState}`}
     >
       <span className="roleMark">
         <i />
@@ -306,7 +390,11 @@ function AgentCard({
         <p>{agent.plugins.join(" · ")}</p>
       </div>
       <div className="agentState">
-        <b className={agent.state}>{agentPhaseCopy(visualPhase)}</b>
+        <b className={workflowState}>
+          {workflow.started
+            ? workflowStateCopy(workflowState)
+            : agentPhaseCopy(visualPhase)}
+        </b>
         <small>
           {agent.role !== "trader"
             ? "No spending authority"
@@ -315,6 +403,13 @@ function AgentCard({
               : "1Claw pending"}
         </small>
       </div>
+      {workflow.started && (
+        <AgentPolicyChecks
+          role={agent.role}
+          workflow={workflow}
+          workflowState={workflowState}
+        />
+      )}
       {runtimeAvailable && (
         <AgentMetadata role={agent.role} rootName={rootName} />
       )}
@@ -339,6 +434,79 @@ function AgentCard({
         ))}
       </ol>
     </article>
+  );
+}
+
+function AgentPolicyChecks({
+  role,
+  workflow,
+  workflowState,
+}: {
+  role: AgentRole;
+  workflow: FleetWorkflow;
+  workflowState: WorkflowState;
+}) {
+  const [metadata, setMetadata] = useState<EnsAgentMetadata>();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string>();
+
+  useEffect(() => {
+    if (!workflow.runKey) {
+      return;
+    }
+    let cancelled = false;
+    setMetadata(undefined);
+    setError(undefined);
+    setLoading(true);
+    loadFleetMetadata(role)
+      .then((next) => {
+        if (!cancelled) setMetadata(next);
+      })
+      .catch(() => {
+        if (!cancelled) setError("ENS metadata unavailable");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [role, workflow.runKey]);
+
+  const checks = policyChecks(
+    role,
+    metadata,
+    loading,
+    error,
+    workflow,
+    workflowState,
+  );
+  const result = policyResultLabel(checks);
+  const resultClass =
+    result === "Rules pass" ? "passed" : result.toLowerCase();
+
+  return (
+    <div
+      className={`agentPolicyChecks ${workflowState} result-${resultClass}`}
+    >
+      <header>
+        <span>ENS rule validation</span>
+        <b>{result}</b>
+      </header>
+      <ul>
+        {checks.map((check, index) => (
+          <li
+            className={check.state}
+            key={check.label}
+            style={{ animationDelay: `${index * 120}ms` }}
+          >
+            <i />
+            <span>{check.label}</span>
+            <small title={check.value}>{check.value}</small>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

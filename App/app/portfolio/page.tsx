@@ -13,6 +13,7 @@ import {
 import type { PortfolioHolding } from "../../lib/audit-types";
 import { addressUrl } from "../../lib/execution-api";
 import { money } from "../../lib/market-format";
+import { RecoverableFunds } from "./recoverable-funds";
 
 export default function PortfolioPage() {
   const state = useAuditResource(loadPortfolio);
@@ -66,6 +67,8 @@ export default function PortfolioPage() {
             </span>
           </section>
         )}
+
+        <RecoverableFunds />
 
         {state.phase === "disconnected" && (
           <PortfolioState

@@ -45,6 +45,11 @@
     grid-template-columns: 1fr 1fr;
   }
 
+  .recoverableFunds > header,
+  .recoverableFunds > article {
+    align-items: flex-start;
+  }
+
   .proofHashes {
     grid-template-columns: 1fr;
   }
@@ -209,6 +214,11 @@
   .portfolioSummary,
   .holdingCard dl {
     grid-template-columns: 1fr;
+  }
+
+  .recoverableFunds > article {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
 

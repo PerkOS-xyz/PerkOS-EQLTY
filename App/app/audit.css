@@ -337,6 +337,79 @@
   font-size: 15px;
 }
 
+.recoverableFunds {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid #51482c;
+  border-radius: 11px;
+  background: #17150d;
+}
+
+.recoverableFunds > header,
+.recoverableFunds > article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.recoverableFunds > header div,
+.recoverableFunds > article div {
+  display: grid;
+  gap: 3px;
+}
+
+.recoverableFunds > header span,
+.recoverableFunds > article span,
+.recoverableFunds > header small {
+  color: #9b8f69;
+  font-size: 8px;
+}
+
+.recoverableFunds > article {
+  padding-top: 10px;
+  border-top: 1px solid #3c351f;
+}
+
+.recoverableFunds button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: #d8c778;
+  color: #14140d;
+  cursor: pointer;
+  font: 700 8px inherit;
+}
+
+.recoverableFunds button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.recoverableFunds > a {
+  color: #d8c778;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.recoverableFunds > p {
+  margin: 0;
+  color: #e39a83;
+  font-size: 8px;
+}
+
+.recoverableFunds > p button {
+  min-height: auto;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  text-decoration: underline;
+}
+
 .holdingGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

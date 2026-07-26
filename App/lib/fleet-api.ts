@@ -2,6 +2,7 @@ import type {
   AgentRole,
   EnsAgentMetadata,
   FleetActivation,
+  FleetPolicy,
   OneClawFleetSecurity,
   UserSession,
 } from "./fleet-types";
@@ -116,4 +117,8 @@ export async function loadFleetMetadata(
   role: AgentRole,
 ): Promise<EnsAgentMetadata> {
   return request<EnsAgentMetadata>(`/api/fleet/metadata/${role}`);
+}
+
+export async function loadFleetPolicy(): Promise<FleetPolicy> {
+  return request<FleetPolicy>("/api/fleet/policy");
 }

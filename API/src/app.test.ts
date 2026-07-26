@@ -304,6 +304,60 @@ describe("API foundation", () => {
     });
   });
 
+  it("serves the authenticated ENS fleet policy", async () => {
+    const session = testSession();
+    const response = await request("/api/fleet/policy", {
+      ownerAuth: testOwnerAuth(session),
+      ensControlPlane: {
+        resolve: async () => ({
+          source: "durin",
+          mode: "live",
+          status: "active",
+          rootName: "u-12345678.demo.eth",
+          manifestHash: `0x${"ab".repeat(32)}` as const,
+          resolvedAt: "2026-07-25T12:00:00.000Z",
+          owner: session.walletAddress,
+          manifest: {
+            schema: "urn:eqlty:ens-orchestration:v1",
+            version: 2,
+            network: "eip155:4663",
+            updatedAt: "2026-07-25T12:00:00.000Z",
+            expiresAt: "2026-07-26T12:00:00.000Z",
+            paused: false,
+            fleet: {
+              scout: "agent-scout",
+              risk: "agent-risk",
+              trader: "agent-trader",
+              auditor: "agent-auditor",
+            },
+            policy: {
+              allowedTickers: ["NVDA", "AMD", "AMZN"],
+              maxAmountPerTrade: "3000000",
+              maxDeviationBps: 300,
+              minLiquidityUsd: 50_000,
+              maxOracleAgeSeconds: 900,
+            },
+          },
+        }),
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    await expect(response.json()).resolves.toMatchObject({
+      schema: "urn:eqlty:ens-fleet-policy:v1",
+      source: "durin",
+      rootName: "u-12345678.demo.eth",
+      version: 2,
+      paused: false,
+      allowedTickers: ["NVDA", "AMD", "AMZN"],
+      limits: {
+        maxAmountPerTrade: "3000000",
+        maxDeviationBps: 300,
+      },
+    });
+  });
+
   it("activates the authenticated owner's fleet", async () => {
     const session = {
       sub: "eip155:4663:0x1234567890abcdef1234567890abcdef12345678",

@@ -42,6 +42,40 @@ export function GoalAnalyzer({ state }: { state: GoalAnalysisState }) {
           </label>
 
           <div className="goalControlStack">
+            <label className="goalCandidateFocus">
+              <span>Candidate focus</span>
+              <select
+                aria-label="Stock token candidate focus"
+                disabled={state.policyLoading || !state.policy}
+                onChange={(event) =>
+                  state.setCandidateTicker(event.target.value)
+                }
+                value={state.candidateTicker}
+              >
+                <option value="">
+                  {state.policyLoading
+                    ? "Resolving ENS policy..."
+                    : state.policy
+                      ? `Fleet decides · ${state.policy.allowedTickers.length} ENS allowed`
+                      : "Fleet decides from ENS policy"}
+                </option>
+                {state.policy?.allowedTickers.map((ticker) => (
+                  <option key={ticker} value={ticker}>
+                    Evaluate {ticker}
+                  </option>
+                ))}
+              </select>
+              <small className="goalPolicyHint">
+                {state.candidateTicker
+                  ? `${state.candidateTicker} must still pass ENS, The Graph and Uniswap gates.`
+                  : state.policy
+                    ? `The fleet compares up to ${Math.min(10, state.policy.allowedTickers.length)} assets allowed by ENS policy v${state.policy.version}.`
+                    : state.policyError
+                      ? "The active policy will resolve again when consultation starts."
+                      : "Reading the active ENS policy."}
+              </small>
+            </label>
+
             <div className="goalInputs">
               <label>
                 <span>Fleet budget</span>

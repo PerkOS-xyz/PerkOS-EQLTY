@@ -302,6 +302,7 @@
 }
 
 .historyCard > footer a,
+.historyCard > footer button,
 .holdingCard > footer a,
 .holdingCard > footer button {
   padding: 7px 9px;
@@ -558,6 +559,167 @@
   font-size: 18px;
 }
 
+.sellJourney {
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid #293b30;
+  border-radius: 12px;
+  background: rgb(5 11 7 / 78%);
+}
+
+.sellJourney > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sellJourney > header div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sellJourney > header span,
+.sellJourney > header small {
+  color: #68766d;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sellJourney > header strong {
+  color: #d8e5db;
+  font-size: 11px;
+}
+
+.sellJourneyBar {
+  height: 3px;
+  margin: 12px 0 13px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #18221b;
+}
+
+.sellJourneyBar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #59d27b, #a3f1b8);
+  box-shadow: 0 0 12px rgb(89 210 123 / 30%);
+  transition: width 260ms ease;
+}
+
+.sellJourney ol {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sellJourney li {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  min-height: 41px;
+  padding: 7px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: #667169;
+}
+
+.sellJourney li > span {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  border: 1px solid #2d3931;
+  border-radius: 50%;
+  place-items: center;
+  color: #68756d;
+  font: 600 8px "DM Mono", monospace;
+}
+
+.sellJourney li > span:empty::after {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #38443c;
+  content: "";
+}
+
+.sellJourney li > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sellJourney li strong {
+  color: inherit;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.sellJourney li small {
+  overflow: hidden;
+  color: #5d6961;
+  font-size: 8px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sellJourney li a {
+  padding: 5px 7px;
+  border: 1px solid #31503a;
+  border-radius: 6px;
+  color: #83dfa0;
+  font-size: 7px;
+  text-decoration: none;
+}
+
+.sellJourney li.active {
+  border-color: #35573f;
+  background: #102017;
+  color: #a1efb6;
+}
+
+.sellJourney li.active > span {
+  border-color: #4b805a;
+}
+
+.sellJourney li.active > span i,
+.sellActionContent > i {
+  width: 10px;
+  height: 10px;
+  border: 2px solid rgb(126 226 153 / 25%);
+  border-top-color: #8be5a3;
+  border-radius: 50%;
+  animation: auditSpin 700ms linear infinite;
+}
+
+.sellJourney li.complete {
+  color: #83d99a;
+}
+
+.sellJourney li.complete > span {
+  border-color: #3f704c;
+  background: #14291b;
+}
+
+.sellJourney li.skipped {
+  opacity: 0.65;
+}
+
+.sellJourney li.error {
+  border-color: #643d35;
+  background: #21120e;
+  color: #ef9d8f;
+}
+
 .sellAmount {
   display: flex;
   flex-direction: column;
@@ -664,6 +826,13 @@
   color: #7b8880;
 }
 
+.sellActionContent {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
 .sellDialog button:disabled {
   cursor: wait;
   opacity: 0.55;
@@ -724,13 +893,258 @@
   margin-top: 17px;
 }
 
-.sellResult a {
+.sellResult a,
+.sellResult .graphEvidenceTrigger {
   padding: 8px 10px;
   border: 1px solid #31503a;
   border-radius: 7px;
+  background: transparent;
   color: #8be5a3;
+  cursor: pointer;
   font-size: 8px;
   text-decoration: none;
+}
+
+.graphEvidenceBackdrop {
+  position: fixed;
+  z-index: 100;
+  display: grid;
+  padding: 24px;
+  background: rgb(2 6 4 / 88%);
+  inset: 0;
+  place-items: center;
+}
+
+.graphEvidenceDialog {
+  width: min(100%, 760px);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  padding: 22px;
+  border: 1px solid #345440;
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 100% 0%, rgb(77 201 112 / 13%), transparent 34%),
+    #0a100c;
+  box-shadow: 0 35px 90px rgb(0 0 0 / 60%);
+}
+
+.graphEvidenceDialog > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.graphEvidenceDialog > header > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.graphEvidenceDialog > header strong {
+  margin-top: 4px;
+  color: #edf5ef;
+  font-size: 19px;
+}
+
+.graphEvidenceDialog > header small {
+  margin-top: 3px;
+  color: #728078;
+  font-size: 10px;
+}
+
+.graphEvidenceDialog > header > button {
+  width: 31px;
+  height: 31px;
+  flex: 0 0 auto;
+  border: 1px solid #2c3d32;
+  border-radius: 8px;
+  background: #101813;
+  color: #8d9991;
+  cursor: pointer;
+  font-size: 18px;
+}
+
+.graphEvidenceFreshness {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 17px;
+  padding: 6px 9px;
+  border: 1px solid #31543c;
+  border-radius: 999px;
+  background: #0d1911;
+  color: #83e3a0;
+  font: 500 8px "DM Mono", monospace;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.graphEvidenceFreshness i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 9px currentColor;
+}
+
+.graphEvidenceFreshness.loading i {
+  width: 9px;
+  height: 9px;
+  border: 2px solid rgb(131 227 160 / 22%);
+  border-top-color: currentColor;
+  background: transparent;
+  animation: auditSpin 700ms linear infinite;
+}
+
+.graphEvidenceFreshness.fallback {
+  border-color: #554b31;
+  background: #18150d;
+  color: #d9bd70;
+}
+
+.graphEvidenceSummary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 15px 0 0;
+}
+
+.graphEvidenceSummary > div {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #26342c;
+  border-radius: 9px;
+  background: #090e0b;
+}
+
+.graphEvidenceSummary dt {
+  color: #657169;
+  font-size: 8px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.graphEvidenceSummary dd {
+  margin: 4px 0 0;
+  overflow: hidden;
+  color: #b9c6bd;
+  font: 500 10px "DM Mono", monospace;
+  text-overflow: ellipsis;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.graphEvidenceFacts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  margin-top: 9px;
+}
+
+.graphEvidenceFacts > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+  padding: 11px;
+  border: 1px solid #233028;
+  border-radius: 8px;
+}
+
+.graphEvidenceFacts span {
+  color: #657169;
+  font-size: 8px;
+  text-transform: uppercase;
+}
+
+.graphEvidenceFacts code,
+.graphEvidenceFacts a {
+  overflow: hidden;
+  color: #a7b3ab;
+  font: 500 9px "DM Mono", monospace;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graphEvidenceFacts a {
+  color: #80dda0;
+}
+
+.graphEvidenceJson {
+  margin-top: 10px;
+  border: 1px solid #26342c;
+  border-radius: 10px;
+  background: #060a07;
+}
+
+.graphEvidenceJson summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 13px;
+  color: #aab7ae;
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 700;
+  list-style: none;
+}
+
+.graphEvidenceJson summary::-webkit-details-marker {
+  display: none;
+}
+
+.graphEvidenceJson summary small {
+  padding: 3px 6px;
+  border: 1px solid #2d4134;
+  border-radius: 5px;
+  color: #6fd991;
+  font: 500 7px "DM Mono", monospace;
+}
+
+.graphEvidenceJson pre {
+  max-height: 250px;
+  margin: 0;
+  overflow: auto;
+  padding: 14px;
+  border-top: 1px solid #202b24;
+  color: #91b99e;
+  direction: ltr;
+  font: 400 10px/1.65 "DM Mono", monospace;
+  tab-size: 2;
+  text-align: left;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.graphEvidenceDialog > footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 13px;
+}
+
+.graphEvidenceDialog > footer a,
+.graphEvidenceDialog > footer button {
+  min-height: 34px;
+  padding: 8px 11px;
+  border: 1px solid #31503a;
+  border-radius: 7px;
+  background: #101b14;
+  color: #82dfa0;
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.graphEvidenceDialog > footer button:last-child {
+  margin-left: auto;
+  border-color: #3e6d4b;
+  background: #18301f;
+  color: #9bf1b2;
 }
 
 .auditDetailContent {

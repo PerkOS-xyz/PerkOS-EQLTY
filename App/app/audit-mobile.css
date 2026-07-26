@@ -63,6 +63,11 @@
     grid-template-columns: 1fr;
   }
 
+  .graphEvidenceSummary,
+  .graphEvidenceFacts {
+    grid-template-columns: 1fr 1fr;
+  }
+
   .transferTable > header {
     display: none;
   }
@@ -152,6 +157,7 @@
   }
 
   .historyCard > footer a,
+  .historyCard > footer button,
   .holdingCard > footer a,
   .holdingCard > footer button {
     min-height: 38px;
@@ -175,14 +181,65 @@
     grid-template-columns: 1fr;
   }
 
+  .sellJourney {
+    padding: 11px;
+  }
+
+  .sellJourney li {
+    grid-template-columns: 22px minmax(0, 1fr) auto;
+    padding: 7px 5px;
+  }
+
+  .sellJourney li small {
+    white-space: normal;
+  }
+
   .sellResult nav {
     display: grid;
     width: 100%;
   }
 
-  .sellResult a {
+  .sellResult a,
+  .sellResult .graphEvidenceTrigger {
     min-height: 38px;
     padding: 11px;
+  }
+
+  .graphEvidenceBackdrop {
+    align-items: end;
+    padding: 0;
+  }
+
+  .graphEvidenceDialog {
+    width: 100%;
+    max-height: 94vh;
+    padding: 18px;
+    border-radius: 18px 18px 0 0;
+  }
+
+  .graphEvidenceSummary,
+  .graphEvidenceFacts,
+  .graphEvidenceDialog > footer {
+    grid-template-columns: 1fr;
+  }
+
+  .graphEvidenceDialog > footer {
+    display: grid;
+  }
+
+  .graphEvidenceDialog > footer a,
+  .graphEvidenceDialog > footer button {
+    display: grid;
+    min-height: 40px;
+    place-items: center;
+  }
+
+  .graphEvidenceDialog > footer button:last-child {
+    margin-left: 0;
+  }
+
+  .graphEvidenceJson pre {
+    max-height: 220px;
   }
 
   .holdingCard dl {

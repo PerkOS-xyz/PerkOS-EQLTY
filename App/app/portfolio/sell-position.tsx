@@ -5,7 +5,6 @@ import { formatUnits, parseUnits } from "viem";
 import type { PortfolioHolding } from "../../lib/audit-types";
 import {
   blockUrl,
-  graphEvidenceUrl,
   transactionEventsUrl,
   transactionUrl,
 } from "../../lib/execution-api";
@@ -20,9 +19,18 @@ import {
   type SellStage,
   type WalletSellResult,
 } from "../../lib/wallet-sell";
+import { GraphEvidenceModal } from "../graph-evidence-modal";
 import { useWalletAccess } from "../wallet-access-context";
 
 const percentages = [25, 50, 100] as const;
+type JourneyStage =
+  | "idle"
+  | "quoting"
+  | "quoted"
+  | SellStage
+  | "complete"
+  | "evidence-error";
+type JourneyStatus = "pending" | "active" | "complete" | "skipped" | "error";
 
 export function SellPosition({
   holding,
@@ -38,6 +46,11 @@ export function SellPosition({
   const [result, setResult] = useState<WalletSellResult>();
   const [audit, setAudit] = useState<SaleAuditBundle>();
   const [stage, setStage] = useState<SellStage>("idle");
+  const [journeyStage, setJourneyStage] =
+    useState<JourneyStage>("idle");
+  const [approvalRequired, setApprovalRequired] = useState(false);
+  const [permitRequired, setPermitRequired] = useState(false);
+  const [failedStage, setFailedStage] = useState<SellStage>();
   const [quoting, setQuoting] = useState(false);
   const [error, setError] = useState<string>();
   const rawBalance = useMemo(
@@ -57,23 +70,30 @@ export function SellPosition({
     setQuote(undefined);
     setAudit(undefined);
     setError(undefined);
+    setJourneyStage("idle");
+    setFailedStage(undefined);
   }
 
   async function getQuote() {
     setQuoting(true);
+    setJourneyStage("quoting");
     setError(undefined);
     setResult(undefined);
     setAudit(undefined);
+    setFailedStage(undefined);
     try {
-      setQuote(
-        await requestSellQuote({
-          ticker: holding.ticker,
-          tokenIn: holding.tokenAddress,
-          amountIn,
-        }),
-      );
+      const nextQuote = await requestSellQuote({
+        ticker: holding.ticker,
+        tokenIn: holding.tokenAddress,
+        amountIn,
+      });
+      setQuote(nextQuote);
+      setApprovalRequired(Boolean(nextQuote.approval));
+      setPermitRequired(Boolean(nextQuote.permitData));
+      setJourneyStage("quoted");
     } catch (caught) {
       setError(message(caught));
+      setJourneyStage("idle");
     } finally {
       setQuoting(false);
     }
@@ -81,39 +101,53 @@ export function SellPosition({
 
   async function confirmSale() {
     if (!quote) return;
+    let currentStage: SellStage = "idle";
     setError(undefined);
+    setFailedStage(undefined);
     try {
       const completed = await executeWalletSell({
         wallet,
         quote,
-        onStage: setStage,
+        onStage: (nextStage) => {
+          currentStage = nextStage;
+          setStage(nextStage);
+          setJourneyStage(nextStage);
+          if (nextStage === "approving") setApprovalRequired(true);
+          if (nextStage === "signing") setPermitRequired(true);
+        },
       });
       setResult(completed);
       setQuote(undefined);
       onComplete();
       setStage("recording");
+      setJourneyStage("recording");
       try {
-        setAudit(
-          await recordSaleAudit({
-            ticker: completed.ticker,
-            tokenIn: completed.tokenIn,
-            tokenInDecimals: holding.decimals,
-            amountIn: completed.amountIn,
-            quotedAmountOut: completed.amountOut,
-            requestId: completed.requestId,
-            routing: completed.routing,
-            transactionHash: completed.transactionHash,
-            approvalTransactionHash:
-              completed.approvalTransactionHash,
-          }),
-        );
+        const nextAudit = await recordSaleAudit({
+          ticker: completed.ticker,
+          tokenIn: completed.tokenIn,
+          tokenInDecimals: holding.decimals,
+          amountIn: completed.amountIn,
+          quotedAmountOut: completed.amountOut,
+          requestId: completed.requestId,
+          routing: completed.routing,
+          transactionHash: completed.transactionHash,
+          approvalTransactionHash:
+            completed.approvalTransactionHash,
+        });
+        setAudit(nextAudit);
+        setJourneyStage("complete");
       } catch (caught) {
+        setJourneyStage("evidence-error");
         setError(
           `Sale confirmed, but evidence storage needs retry: ${message(caught)}`,
         );
       }
     } catch (caught) {
       setError(message(caught));
+      setFailedStage(currentStage === "idle" ? undefined : currentStage);
+      setJourneyStage(
+        currentStage === "idle" ? "quoted" : currentStage,
+      );
     } finally {
       setStage("idle");
     }
@@ -127,6 +161,10 @@ export function SellPosition({
     setAudit(undefined);
     setError(undefined);
     setPercentage(100);
+    setJourneyStage("idle");
+    setApprovalRequired(false);
+    setPermitRequired(false);
+    setFailedStage(undefined);
   }
 
   return (
@@ -161,6 +199,19 @@ export function SellPosition({
                 ×
               </button>
             </header>
+
+            {journeyStage !== "idle" && (
+              <SellJourney
+                approvalRequired={approvalRequired}
+                audit={audit}
+                failedStage={failedStage}
+                journeyStage={journeyStage}
+                permitRequired={permitRequired}
+                quote={quote}
+                result={result}
+                ticker={holding.ticker}
+              />
+            )}
 
             {!result && (
               <>
@@ -252,13 +303,18 @@ export function SellPosition({
                   >
                     Block
                   </a>
-                  <a
-                    href={graphEvidenceUrl(result.ticker)}
-                    rel="noreferrer"
-                    target="_blank"
-                  >
-                    The Graph
-                  </a>
+                  {audit && (
+                    <GraphEvidenceModal
+                      fallback={{
+                        ticker: result.ticker,
+                        chainId: "eip155:4663",
+                        protocol: "v4",
+                        ...audit.graph.response,
+                      }}
+                      expectedTransaction={result.transactionHash}
+                      ticker={result.ticker}
+                    />
+                  )}
                 </nav>
               </div>
             )}
@@ -271,11 +327,14 @@ export function SellPosition({
                   onClick={quote ? confirmSale : getQuote}
                   type="button"
                 >
-                  {busy
-                    ? stageLabel(stage, quoting)
-                    : quote
-                      ? `Confirm ${holding.ticker} sale`
-                      : "Get live quote"}
+                  <span className="sellActionContent">
+                    {busy && <i aria-hidden="true" />}
+                    {busy
+                      ? stageLabel(stage, quoting)
+                      : quote
+                        ? `Confirm ${holding.ticker} sale`
+                        : "Get live quote"}
+                  </span>
                 </button>
                 <button disabled={busy} onClick={close} type="button">
                   Cancel
@@ -294,6 +353,235 @@ export function SellPosition({
       )}
     </>
   );
+}
+
+function SellJourney({
+  journeyStage,
+  approvalRequired,
+  permitRequired,
+  quote,
+  result,
+  audit,
+  failedStage,
+  ticker,
+}: {
+  journeyStage: JourneyStage;
+  approvalRequired: boolean;
+  permitRequired: boolean;
+  quote?: WalletSellQuote;
+  result?: WalletSellResult;
+  audit?: SaleAuditBundle;
+  failedStage?: SellStage;
+  ticker: string;
+}) {
+  const quoteReady = !["idle", "quoting"].includes(journeyStage);
+  const rank = journeyRank(journeyStage);
+  const steps: Array<{
+    label: string;
+    detail: string;
+    status: JourneyStatus;
+    href?: string;
+  }> = [
+    {
+      label: "Find the Uniswap V4 route",
+      detail: quote
+        ? `${formatUnits(BigInt(quote.amountOut), 6)} USDG expected · ${quote.routing}`
+        : "Comparing live Robinhood Chain liquidity",
+      status: journeyStage === "quoting" ? "active" : "complete",
+    },
+    {
+      label: `Approve ${ticker} for Permit2`,
+      detail: result?.approvalTransactionHash
+        ? "Approval confirmed on Robinhood Chain"
+        : approvalRequired
+          ? "Your wallet grants only the required token allowance"
+          : "Existing allowance is sufficient",
+      status:
+        failedStage === "approving"
+          ? "error"
+          : optionalStatus(
+              journeyStage,
+              approvalRequired,
+              "approving",
+              rank > 1,
+              quoteReady,
+            ),
+      href: result?.approvalTransactionHash
+        ? transactionUrl(result.approvalTransactionHash)
+        : undefined,
+    },
+    {
+      label: "Sign the bounded Permit2 message",
+      detail: permitRequired
+        ? "Authorizes this exact Uniswap swap"
+        : "No additional signature is required",
+      status:
+        failedStage === "signing"
+          ? "error"
+          : optionalStatus(
+              journeyStage,
+              permitRequired,
+              "signing",
+              rank > 3,
+              quoteReady,
+            ),
+    },
+    {
+      label: "Submit the Uniswap V4 sale",
+      detail: result
+        ? "Universal Router accepted the swap"
+        : journeyStage === "refreshing"
+          ? "Refreshing the route after approval"
+          : "Building the protected wallet transaction",
+      status: ["refreshing", "building", "executing"].includes(
+        failedStage ?? "",
+      )
+        ? "error"
+        : journeyStage === "refreshing" ||
+            journeyStage === "building" ||
+            journeyStage === "executing"
+          ? "active"
+          : rank > 4
+            ? "complete"
+            : "pending",
+      href: result
+        ? transactionUrl(result.transactionHash)
+        : undefined,
+    },
+    {
+      label: "Confirm on Robinhood Chain",
+      detail: result
+        ? `Finalized in block ${result.blockNumber}`
+        : "Waiting for the network receipt",
+      status:
+        failedStage === "confirming"
+          ? "error"
+          : journeyStage === "confirming"
+            ? "active"
+            : result
+              ? "complete"
+              : "pending",
+      href: result ? blockUrl(result.blockNumber) : undefined,
+    },
+    {
+      label: "Index and save the evidence",
+      detail: audit
+        ? `The Graph ${audit.graph.response.status} · audit bundle sealed`
+        : journeyStage === "evidence-error"
+          ? "The sale is safe; the audit record needs attention"
+          : "Matching the V4 pool and transaction with The Graph",
+      status: audit
+        ? "complete"
+        : journeyStage === "recording"
+          ? "active"
+          : journeyStage === "evidence-error"
+            ? "error"
+            : "pending",
+    },
+  ];
+  const completed = steps.filter((step) =>
+    ["complete", "skipped"].includes(step.status),
+  ).length;
+
+  return (
+    <section
+      aria-label="Sale progress"
+      aria-live="polite"
+      className="sellJourney"
+    >
+      <header>
+        <div>
+          <span>Live execution</span>
+          <strong>
+            {failedStage
+              ? "Sale needs attention"
+              : journeyLabel(journeyStage)}
+          </strong>
+        </div>
+        <small>
+          {completed}/{steps.length} steps
+        </small>
+      </header>
+      <div className="sellJourneyBar">
+        <i style={{ width: `${(completed / steps.length) * 100}%` }} />
+      </div>
+      <ol>
+        {steps.map((step) => (
+          <li className={step.status} key={step.label}>
+            <span aria-hidden="true">
+              {step.status === "active" ? (
+                <i />
+              ) : step.status === "complete" ? (
+                "✓"
+              ) : step.status === "skipped" ? (
+                "–"
+              ) : step.status === "error" ? (
+                "!"
+              ) : (
+                ""
+              )}
+            </span>
+            <div>
+              <strong>{step.label}</strong>
+              <small>{step.detail}</small>
+            </div>
+            {step.href && (
+              <a href={step.href} rel="noreferrer" target="_blank">
+                View
+              </a>
+            )}
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+function optionalStatus(
+  stage: JourneyStage,
+  required: boolean,
+  activeStage: JourneyStage,
+  completed: boolean,
+  quoteReady: boolean,
+): JourneyStatus {
+  if (stage === activeStage) return "active";
+  if (!required && quoteReady) return "skipped";
+  if (completed) return "complete";
+  return "pending";
+}
+
+function journeyRank(stage: JourneyStage): number {
+  return {
+    idle: 0,
+    quoting: 0,
+    quoted: 0,
+    approving: 1,
+    refreshing: 2,
+    signing: 3,
+    building: 4,
+    executing: 4,
+    confirming: 5,
+    recording: 6,
+    complete: 7,
+    "evidence-error": 7,
+  }[stage];
+}
+
+function journeyLabel(stage: JourneyStage): string {
+  return {
+    idle: "Ready",
+    quoting: "Finding the best route",
+    quoted: "Quote ready for review",
+    approving: "Waiting for token approval",
+    refreshing: "Refreshing the protected route",
+    signing: "Waiting for your signature",
+    building: "Preparing the Uniswap sale",
+    executing: "Waiting for wallet confirmation",
+    confirming: "Confirming on Robinhood Chain",
+    recording: "Saving verifiable evidence",
+    complete: "Sale and evidence complete",
+    "evidence-error": "Sale complete · evidence needs attention",
+  }[stage];
 }
 
 function stageLabel(stage: SellStage, quoting: boolean): string {

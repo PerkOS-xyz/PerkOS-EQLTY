@@ -16,10 +16,10 @@ import type {
 import {
   addressUrl,
   blockUrl,
-  graphEvidenceUrl,
   transactionEventsUrl,
   transactionUrl,
 } from "../../lib/execution-api";
+import { GraphEvidenceModal } from "../graph-evidence-modal";
 
 export default function HistoryPage() {
   const state = useAuditResource(loadPurchaseHistory);
@@ -213,13 +213,16 @@ function SaleCard({ entry }: { entry: SaleAuditBundle }) {
         >
           Block {entry.receipt.blockNumber}
         </a>
-        <a
-          href={graphEvidenceUrl(entry.ticker)}
-          rel="noreferrer"
-          target="_blank"
-        >
-          The Graph
-        </a>
+        <GraphEvidenceModal
+          fallback={{
+            ticker: entry.ticker,
+            chainId: "eip155:4663",
+            protocol: "v4",
+            ...entry.graph.response,
+          }}
+          expectedTransaction={entry.transactionHash}
+          ticker={entry.ticker}
+        />
       </footer>
     </article>
   );

@@ -127,7 +127,7 @@ export function FleetPanel({ goal }: { goal: GoalAnalysisState }) {
 
       <WorkflowBanner workflow={workflow} />
 
-      {state.phase === "ready" && state.activation?.verified && (
+      {state.activation?.verified && (
         <FleetPolicyEditor rootName={state.activation.rootName} />
       )}
 

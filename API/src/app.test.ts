@@ -288,6 +288,115 @@ describe("API foundation", () => {
     });
   });
 
+  it("links the four Hermes agents to 1Claw", async () => {
+    const session = testSession();
+    const agents = [
+      "scout",
+      "risk",
+      "trader",
+      "auditor",
+    ].map((role) => ({
+      role: role as
+        | "scout"
+        | "risk"
+        | "trader"
+        | "auditor",
+      agentId: `agent-${role}`,
+      name: `eqlty-${role}-12345678`,
+      runtime: "Hermes" as const,
+      state: "ready" as const,
+      plugins: [],
+      oneclaw: "pending-agent-credential" as const,
+    }));
+    const activate = vi.fn(async () => ({
+      status: "reactivated" as const,
+      userId: session.fleetUserId,
+      owner: session.walletAddress,
+      rootName: "u-12345678.demo.eth",
+      agents: {
+        scout: "agent-scout",
+        risk: "agent-risk",
+        trader: "agent-trader",
+        auditor: "agent-auditor",
+      },
+      manifestHash: `0x${"aa".repeat(32)}` as `0x${string}`,
+      transactions: [],
+      verified: true as const,
+      runtime: {
+        provider: "perkos" as const,
+        mode: "live" as const,
+        status: "ready" as const,
+        agents,
+      },
+    }));
+    const provision = vi.fn(async () => ({
+      status: "linked" as const,
+      vaultId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      eip712Restrictions: "disabled" as const,
+      agents: agents.map((agent) => ({
+        role: agent.role,
+        perkosAgentId: agent.agentId,
+        oneclawAgentId:
+          "11111111-1111-4111-8111-111111111111",
+        reprovisionJobId: `job-${agent.role}`,
+      })),
+    }));
+    const response = await request(
+      "/api/fleet/security/oneclaw",
+      {
+        ownerAuth: testOwnerAuth(session),
+        fleetActivation: { activate },
+        oneclawFleet: {
+          ready: true,
+          provision,
+        },
+      },
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(202);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(activate).toHaveBeenCalledWith({
+      userId: session.fleetUserId,
+      owner: session.walletAddress,
+      perkosIdToken: "firebase-token",
+    });
+    expect(provision).toHaveBeenCalledWith({
+      userId: session.fleetUserId,
+      perkosIdToken: "firebase-token",
+      agents,
+    });
+    await expect(response.json()).resolves.toMatchObject({
+      status: "linked",
+      eip712Restrictions: "disabled",
+      agents: expect.arrayContaining([
+        expect.objectContaining({ role: "trader" }),
+      ]),
+    });
+  });
+
+  it("fails closed when 1Claw provisioning is unavailable", async () => {
+    const session = testSession();
+    const provision = vi.fn();
+    const response = await request(
+      "/api/fleet/security/oneclaw",
+      {
+        ownerAuth: testOwnerAuth(session),
+        oneclawFleet: {
+          ready: false,
+          provision,
+        },
+      },
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(503);
+    expect(provision).not.toHaveBeenCalled();
+    await expect(response.json()).resolves.toEqual({
+      error: "oneclaw_not_configured",
+    });
+  });
+
   it("serves authenticated Graph evidence", async () => {
     const session = {
       sub: "eip155:4663:0x1234567890abcdef1234567890abcdef12345678",

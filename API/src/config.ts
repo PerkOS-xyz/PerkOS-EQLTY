@@ -1,8 +1,12 @@
 import dotenv from "dotenv";
+import { fileURLToPath } from "node:url";
 import { z } from "zod";
 
 dotenv.config({
-  path: new URL("../../.env", import.meta.url),
+  path: [
+    fileURLToPath(new URL("../../.env.local", import.meta.url)),
+    fileURLToPath(new URL("../../.env", import.meta.url)),
+  ],
   quiet: true,
 });
 
@@ -119,6 +123,13 @@ const schema = z.object({
     .enum(["disabled", "preview", "live"])
     .default("preview"),
   PERKOS_HERMES_IMAGE_TAG: optional(z.string().min(3).max(256)),
+  ONECLAW_API_BASE: z
+    .string()
+    .url()
+    .default("https://api.1claw.xyz"),
+  ONECLAW_PERSONAL_API_KEY: optional(
+    z.string().regex(/^1ck_[A-Za-z0-9._-]{8,}$/),
+  ),
   EQLTY_ONECLAW_MIN_AMOUNT_USDG: z
     .string()
     .max(78)

@@ -2,6 +2,7 @@ import type {
   AgentRole,
   EnsAgentMetadata,
   FleetActivation,
+  OneClawFleetSecurity,
   UserSession,
 } from "./fleet-types";
 
@@ -79,6 +80,13 @@ export async function activateFleet(): Promise<FleetActivation> {
   return request<FleetActivation>("/api/fleet/activate", {
     method: "POST",
   });
+}
+
+export async function activateOneClawRails(): Promise<OneClawFleetSecurity> {
+  return request<OneClawFleetSecurity>(
+    "/api/fleet/security/oneclaw",
+    { method: "POST" },
+  );
 }
 
 export function fleetMetadataUrl(role: AgentRole): string {

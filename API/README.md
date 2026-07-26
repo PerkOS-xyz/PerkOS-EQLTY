@@ -26,6 +26,8 @@ Current endpoints:
 - `POST /api/auth/logout`
 - `GET /api/orchestration`
 - `POST /api/orchestration/prepare`
+- `POST /api/fleet/activate`
+- `POST /api/fleet/security/oneclaw`
 - `GET /api/fleet/metadata/:role`
 - `POST /api/goals`
 - `POST /api/strategies`
@@ -44,5 +46,15 @@ publish changes before wallet and World authorization are complete.
 `EQLTY_ONECLAW_MIN_AMOUNT_USDG` stores the 1Claw purchase threshold in
 six-decimal USDG atomic units. The default `3000000` applies the rail lock to
 amounts of 3 USDG or more.
+
+`ONECLAW_PERSONAL_API_KEY` is used only by the API to batch-provision the four
+EQLTY agent identities. Each one-time `ocv_` credential is sent directly to
+PerkOS for server-side storage and Hermes reprovisioning. It is never returned
+to the app.
+
+EQLTY does not enable EIP-712 domain restrictions for Robinhood Chain. The
+trader still has Robinhood-only, contract, USDG and transaction-count
+guardrails. If the account applies a deny-by-default EIP-712 policy, activation
+stops until that restriction is disabled in 1Claw.
 
 Run `pnpm test`, `pnpm typecheck` and `pnpm build` before publishing changes.

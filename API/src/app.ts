@@ -11,6 +11,10 @@ import { FleetActivationService } from "./fleet-activation.js";
 import { GraphEvidenceService } from "./graph-evidence.js";
 import { OwnerAuth } from "./owner-auth.js";
 import { OpportunityAnalysisService } from "./opportunity-analysis.js";
+import {
+  OneClawFleetProvisioner,
+  type OneClawFleetSecurity,
+} from "./oneclaw-fleet.js";
 import { oneClawGate } from "./oneclaw-policy.js";
 import { PortfolioService } from "./portfolio.js";
 import { ProofRunService } from "./proof-run.js";
@@ -115,6 +119,7 @@ type AppDependencies = {
   ensControlPlane?: Pick<EnsControlPlaneService, "resolve">;
   ensPolicyPreparation?: Pick<EnsPolicyPreparationService, "prepare">;
   fleetActivation?: Pick<FleetActivationService, "activate">;
+  oneclawFleet?: Pick<OneClawFleetProvisioner, "provision" | "ready">;
   graphEvidence?: Pick<GraphEvidenceService, "evidence">;
   goals?: Pick<AutonomousGoalService, "read" | "start" | "tick">;
   strategies?: Pick<StrategyService, "create"> &
@@ -144,6 +149,8 @@ export function createApp(
   const fleetActivation =
     dependencies.fleetActivation ??
     new FleetActivationService(config, { controlPlane: ensControlPlane });
+  const oneclawFleet =
+    dependencies.oneclawFleet ?? new OneClawFleetProvisioner(config);
   const graphEvidence =
     dependencies.graphEvidence ?? new GraphEvidenceService(config);
   const goals =
@@ -364,6 +371,49 @@ export function createApp(
       });
     }
   });
+
+  app.post(
+    "/api/fleet/security/oneclaw",
+    async (request, response) => {
+      const session = ownerAuth.session(request);
+      if (!session) {
+        return response
+          .status(401)
+          .json({ error: "owner_session_required" });
+      }
+      const perkosIdToken = ownerAuth.perkosIdToken?.(request);
+      if (!perkosIdToken) {
+        return response.status(401).json({
+          error: "perkos_session_required",
+        });
+      }
+      if (!oneclawFleet.ready) {
+        return response.status(503).json({
+          error: "oneclaw_not_configured",
+        });
+      }
+      try {
+        const activation = await fleetActivation.activate({
+          userId: session.fleetUserId,
+          owner: session.walletAddress,
+          perkosIdToken,
+        });
+        const security: OneClawFleetSecurity =
+          await oneclawFleet.provision({
+            userId: session.fleetUserId,
+            perkosIdToken,
+            agents: activation.runtime.agents,
+          });
+        response.setHeader("cache-control", "no-store");
+        return response.status(202).json(security);
+      } catch (error) {
+        return response.status(503).json({
+          error: "oneclaw_provisioning_failed",
+          message: safeMessage(error),
+        });
+      }
+    },
+  );
 
   app.get("/api/fleet/metadata/:role", async (request, response) => {
     const session = ownerAuth.session(request);

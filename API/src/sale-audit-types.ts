@@ -9,9 +9,10 @@ export type SaleAuditRecord = {
   approvalTransactionHash?: `0x${string}`;
   trade: {
     chainId: 4663;
-    direction: "sell";
-    tokenIn: EvmAddress;
-    tokenOut: EvmAddress;
+      direction: "sell";
+      tokenIn: EvmAddress;
+      tokenInDecimals: number;
+      tokenOut: EvmAddress;
     amountIn: string;
     quotedAmountOut: string;
     actualAmountOut: string;

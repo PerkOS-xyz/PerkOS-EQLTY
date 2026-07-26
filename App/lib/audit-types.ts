@@ -37,6 +37,7 @@ export type SaleAuditBundle = {
     chainId: 4663;
     direction: "sell";
     tokenIn: `0x${string}`;
+    tokenInDecimals: number;
     tokenOut: `0x${string}`;
     amountIn: string;
     quotedAmountOut: string;

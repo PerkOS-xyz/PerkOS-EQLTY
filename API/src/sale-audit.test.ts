@@ -111,6 +111,7 @@ function captureInput(): CaptureSaleInput {
     idToken: "firebase-id-token",
     ticker: "AMZN",
     tokenIn: stock,
+    tokenInDecimals: 18,
     amountIn: "4299000000000000",
     quotedAmountOut: "990000",
     requestId: "sale-request-1",

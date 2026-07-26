@@ -97,6 +97,7 @@ export function SellPosition({
           await recordSaleAudit({
             ticker: completed.ticker,
             tokenIn: completed.tokenIn,
+            tokenInDecimals: holding.decimals,
             amountIn: completed.amountIn,
             quotedAmountOut: completed.amountOut,
             requestId: completed.requestId,

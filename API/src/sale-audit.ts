@@ -53,6 +53,7 @@ export type CaptureSaleInput = {
   idToken: string;
   ticker: string;
   tokenIn: EvmAddress;
+  tokenInDecimals: number;
   amountIn: string;
   quotedAmountOut: string;
   requestId: string;
@@ -214,6 +215,7 @@ export function buildSaleRecord(
       chainId: 4663,
       direction: "sell",
       tokenIn: input.tokenIn,
+      tokenInDecimals: input.tokenInDecimals,
       tokenOut: usdg,
       amountIn: input.amountIn,
       quotedAmountOut: input.quotedAmountOut,

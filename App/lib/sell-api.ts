@@ -38,6 +38,7 @@ export type PreparedWalletSell = {
 export type RecordSaleInput = {
   ticker: string;
   tokenIn: Address;
+  tokenInDecimals: number;
   amountIn: string;
   quotedAmountOut: string;
   requestId: string;

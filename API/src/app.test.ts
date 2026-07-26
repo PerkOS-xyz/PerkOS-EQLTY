@@ -1064,6 +1064,7 @@ describe("API foundation", () => {
         body: JSON.stringify({
           ticker: "AMZN",
           tokenIn: "0x12f190a9F9d7D37a250758b26824B97CE941bF54",
+          tokenInDecimals: 18,
           amountIn: "8598000000000000",
           quotedAmountOut: "1990000",
           requestId: "sale-quote-1",

@@ -166,6 +166,7 @@ const saleAuditInput = z
   .object({
     ticker: normalizedTicker,
     tokenIn: address,
+    tokenInDecimals: z.number().int().min(0).max(36),
     amountIn: uint256,
     quotedAmountOut: uint256,
     requestId: z.string().min(1).max(256),

@@ -82,11 +82,22 @@ export async function activateFleet(): Promise<FleetActivation> {
   });
 }
 
-export async function activateOneClawRails(): Promise<OneClawFleetSecurity> {
+export async function activateOneClawRails(
+  email: string,
+): Promise<OneClawFleetSecurity> {
   return request<OneClawFleetSecurity>(
     "/api/fleet/security/oneclaw",
-    { method: "POST" },
+    {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    },
   );
+}
+
+export function oneclawAgentSettingsUrl(agentId?: string): string {
+  return agentId
+    ? `https://1claw.xyz/agents/${encodeURIComponent(agentId)}`
+    : "https://1claw.xyz/agents";
 }
 
 export function fleetMetadataUrl(role: AgentRole): string {

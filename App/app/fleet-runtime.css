@@ -139,6 +139,48 @@
   min-width: 0;
 }
 
+.hasOneclaw .agentIdentity {
+  padding-right: 30px;
+}
+
+.oneclawAgentLink {
+  position: absolute;
+  z-index: 1;
+  top: 9px;
+  right: 9px;
+  display: grid;
+  width: 25px;
+  height: 25px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid #594a2e;
+  border-radius: 7px;
+  background: #f8f4f1;
+  opacity: 0.72;
+  transition:
+    border-color 0.2s,
+    opacity 0.2s,
+    transform 0.2s;
+}
+
+.oneclawAgentLink:hover,
+.oneclawAgentLink:focus-visible,
+.oneclawAgentLink.linked {
+  border-color: #72ee9d;
+  opacity: 1;
+}
+
+.oneclawAgentLink:hover,
+.oneclawAgentLink:focus-visible {
+  transform: translateY(-1px);
+}
+
+.oneclawAgentLink img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .agentIdentity strong {
   text-transform: uppercase;
 }
@@ -348,7 +390,30 @@
   font-size: 8px;
 }
 
-.fleetSecurity > button {
+.fleetSecurityActions {
+  display: flex;
+  flex: 0 1 280px;
+  align-items: center;
+  gap: 7px;
+}
+
+.fleetSecurityActions input {
+  min-width: 0;
+  flex: 1 1 auto;
+  padding: 8px 9px;
+  border: 1px solid #3d4c42;
+  border-radius: 6px;
+  outline: none;
+  background: #0d1410;
+  color: #dce8df;
+  font: 8px "DM Mono", monospace;
+}
+
+.fleetSecurityActions input:focus {
+  border-color: #72a67b;
+}
+
+.fleetSecurityActions button {
   flex: 0 0 auto;
   padding: 8px 10px;
   border: 1px solid #58744f;
@@ -359,7 +424,7 @@
   font: 8px "DM Mono", monospace;
 }
 
-.fleetSecurity > button:disabled {
+.fleetSecurityActions button:disabled {
   cursor: wait;
   opacity: 0.5;
 }
@@ -453,7 +518,13 @@
     flex-direction: column;
   }
 
-  .fleetSecurity > button {
+  .fleetSecurityActions {
+    flex: 0 0 auto;
+    flex-direction: column;
+  }
+
+  .fleetSecurityActions input,
+  .fleetSecurityActions button {
     width: 100%;
   }
 }

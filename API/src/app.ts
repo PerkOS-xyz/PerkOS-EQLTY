@@ -108,6 +108,11 @@ const ensPolicyChange = z
     maxOracleAgeSeconds: z.number().int().min(1).max(86_400),
   })
   .strict();
+const oneclawPlatformInput = z
+  .object({
+    email: z.string().trim().email().max(320),
+  })
+  .strict();
 
 type AppDependencies = {
   stockCatalog?: Pick<StockCatalogService, "assessTicker" | "catalog">;
@@ -392,6 +397,13 @@ export function createApp(
           error: "oneclaw_not_configured",
         });
       }
+      const parsed = oneclawPlatformInput.safeParse(request.body);
+      if (!parsed.success) {
+        return response.status(400).json({
+          error: "invalid_oneclaw_account",
+          issues: parsed.error.issues,
+        });
+      }
       try {
         const activation = await fleetActivation.activate({
           userId: session.fleetUserId,
@@ -401,11 +413,15 @@ export function createApp(
         const security: OneClawFleetSecurity =
           await oneclawFleet.provision({
             userId: session.fleetUserId,
+            externalSubject: session.sub,
+            email: parsed.data.email,
             perkosIdToken,
             agents: activation.runtime.agents,
           });
         response.setHeader("cache-control", "no-store");
-        return response.status(202).json(security);
+        return response
+          .status(security.status === "linked" ? 200 : 202)
+          .json(security);
       } catch (error) {
         return response.status(503).json({
           error: "oneclaw_provisioning_failed",
@@ -671,12 +687,7 @@ export function createApp(
         activation.runtime?.agents
           .filter((agent) => agent.oneclaw === "linked")
           .map((agent) => agent.role) ?? [];
-      const requiredRoles = [
-        "scout",
-        "risk",
-        "trader",
-        "auditor",
-      ] as const;
+      const requiredRoles = ["trader"] as const;
       const oneclaw = oneClawGate({
         amountIn: parsed.data.amountIn,
         linkedRoles,

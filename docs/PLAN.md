@@ -37,7 +37,7 @@ can be executed with a clear evidence trail.
 
 - [x] Provision or wake one Hermes fleet per authenticated user.
 - [x] Give each role only the capabilities it needs.
-- [x] Apply independent 1Claw controls to agent activity.
+- [x] Route spending through the user-owned 1Claw Trader rail.
 - [x] Display creation, provisioning and wake progress.
 
 ### 5. Policy control

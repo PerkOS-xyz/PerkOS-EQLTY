@@ -288,7 +288,7 @@ describe("API foundation", () => {
     });
   });
 
-  it("links the four Hermes agents to 1Claw", async () => {
+  it("returns the user claim URL for the trader rail", async () => {
     const session = testSession();
     const agents = [
       "scout",
@@ -330,16 +330,19 @@ describe("API foundation", () => {
       },
     }));
     const provision = vi.fn(async () => ({
-      status: "linked" as const,
+      status: "claim_required" as const,
+      connectionId: "22222222-2222-4222-8222-222222222222",
+      claimUrl: "https://1claw.xyz/connect/eqlty/claim/ct_test",
+      expiresIn: 600,
       vaultId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
       eip712Restrictions: "disabled" as const,
-      agents: agents.map((agent) => ({
-        role: agent.role,
-        perkosAgentId: agent.agentId,
+      executionAgent: {
+        role: "trader" as const,
+        perkosAgentId: "agent-trader",
         oneclawAgentId:
           "11111111-1111-4111-8111-111111111111",
-        reprovisionJobId: `job-${agent.role}`,
-      })),
+        reprovisionJobId: "job-trader",
+      },
     }));
     const response = await request(
       "/api/fleet/security/oneclaw",
@@ -351,7 +354,11 @@ describe("API foundation", () => {
           provision,
         },
       },
-      { method: "POST" },
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: "julio@example.com" }),
+      },
     );
 
     expect(response.status).toBe(202);
@@ -363,15 +370,16 @@ describe("API foundation", () => {
     });
     expect(provision).toHaveBeenCalledWith({
       userId: session.fleetUserId,
+      externalSubject: session.sub,
+      email: "julio@example.com",
       perkosIdToken: "firebase-token",
       agents,
     });
     await expect(response.json()).resolves.toMatchObject({
-      status: "linked",
+      status: "claim_required",
+      claimUrl: "https://1claw.xyz/connect/eqlty/claim/ct_test",
       eip712Restrictions: "disabled",
-      agents: expect.arrayContaining([
-        expect.objectContaining({ role: "trader" }),
-      ]),
+      executionAgent: expect.objectContaining({ role: "trader" }),
     });
   });
 

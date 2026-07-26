@@ -38,18 +38,38 @@ export type FleetActivation = {
   runtime?: FleetRuntime;
 };
 
-export type OneClawFleetSecurity = {
-  status: "linked";
-  vaultId: string;
-  eip712Restrictions: "disabled";
-  agents: Array<{
-    role: AgentRole;
-    perkosAgentId: string;
-    oneclawAgentId: string;
-    walletAddress?: string;
-    reprovisionJobId: string;
-  }>;
-};
+export type OneClawFleetSecurity =
+  | {
+      status: "link_required";
+      authorizeUrl: string;
+    }
+  | {
+      status: "claim_required";
+      connectionId: string;
+      claimUrl: string;
+      expiresIn: number;
+      vaultId: string;
+      executionAgent: {
+        role: "trader";
+        perkosAgentId: string;
+        oneclawAgentId: string;
+        walletAddress?: string;
+        reprovisionJobId: string;
+      };
+      eip712Restrictions: "disabled";
+    }
+  | {
+      status: "linked";
+      connectionId: string;
+      vaultId?: string;
+      executionAgent: {
+        role: "trader";
+        perkosAgentId: string;
+        oneclawAgentId: string;
+        walletAddress?: string;
+      };
+      eip712Restrictions: "disabled";
+    };
 
 export type UserSession = {
   sub: string;

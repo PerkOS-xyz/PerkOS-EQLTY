@@ -1,12 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { oneClawGate } from "./oneclaw-policy.js";
 
-const requiredRoles = [
-  "scout",
-  "risk",
-  "trader",
-  "auditor",
-] as const;
+const requiredRoles = ["trader"] as const;
 
 describe("1Claw purchase policy", () => {
   it("allows amounts below 3 USDG without linked rails", () => {
@@ -23,11 +18,11 @@ describe("1Claw purchase policy", () => {
     });
   });
 
-  it("locks exactly 3 USDG until every rail is linked", () => {
+  it("locks exactly 3 USDG until the trader rail is linked", () => {
     expect(
       oneClawGate({
         amountIn: "3000000",
-        linkedRoles: ["scout", "risk", "auditor"],
+        linkedRoles: [],
         requiredRoles,
       }),
     ).toMatchObject({
@@ -37,7 +32,7 @@ describe("1Claw purchase policy", () => {
     });
   });
 
-  it("allows purchases from 3 USDG when every rail is linked", () => {
+  it("allows purchases from 3 USDG when the trader rail is linked", () => {
     expect(
       oneClawGate({
         amountIn: "5000000",

@@ -259,8 +259,11 @@ function PurchaseReviewScreen({
   state: ProofRunState;
 }) {
   const readiness = state.readiness;
+  const funded = Boolean(state.strategy?.onchain);
   const fundsAfter =
-    readiness &&
+    funded
+      ? readiness?.usdGBalance ?? "0"
+      : readiness &&
     BigInt(readiness.usdGBalance) >= BigInt(readiness.amountIn)
       ? (BigInt(readiness.usdGBalance) - BigInt(readiness.amountIn)).toString()
       : "0";
@@ -316,7 +319,7 @@ function PurchaseReviewScreen({
                     <dd>{formatUnits(readiness.usdGBalance, 6)} USDG</dd>
                   </div>
                   <div>
-                    <dt>After funding</dt>
+                    <dt>{funded ? "Wallet remains" : "After funding"}</dt>
                     <dd>{formatUnits(fundsAfter, 6)} USDG</dd>
                   </div>
                   <div>
@@ -355,11 +358,11 @@ function PurchaseReviewScreen({
           <strong>Preflight checks</strong>
           <span className={readiness?.checks.funds ? "passed" : ""}>
             <i>{readiness?.checks.funds ? "✓" : "·"}</i>
-            Enough USDG
+            {funded ? "Strategy already funded" : "Enough USDG"}
           </span>
           <span className={readiness?.checks.gas ? "passed" : ""}>
             <i>{readiness?.checks.gas ? "✓" : "·"}</i>
-            Gas available
+            {funded ? "Owner signatures complete" : "Gas available"}
           </span>
           <span className={readiness?.checks.vault ? "passed" : ""}>
             <i>{readiness?.checks.vault ? "✓" : "·"}</i>
@@ -368,8 +371,23 @@ function PurchaseReviewScreen({
         </div>
 
         <div className="purchaseReviewSteps">
-          <strong>What your wallet will sign</strong>
-          {[
+          <strong>
+            {funded ? "Recovered wallet authorization" : "What your wallet will sign"}
+          </strong>
+          {(funded
+            ? [
+                [
+                  "✓",
+                  `Strategy #${state.strategy?.onchain?.strategyId}`,
+                  "Existing owner-funded strategy recovered from Robinhood Chain",
+                ],
+                [
+                  "1",
+                  "Agent execution",
+                  "Hermes submits the guarded Uniswap swap",
+                ],
+              ]
+            : [
             [
               "1",
               "Create strategy",
@@ -386,7 +404,7 @@ function PurchaseReviewScreen({
               `Move ${formatUnits(run.amountIn, 6)} USDG into your strategy`,
             ],
             ["4", "Agent execution", "Hermes submits the guarded Uniswap swap"],
-          ].map(([number, title, detail]) => (
+          ]).map(([number, title, detail]) => (
             <span key={number}>
               <i>{number}</i>
               <b>{title}</b>
@@ -433,7 +451,9 @@ function PurchaseReviewScreen({
             >
               {state.purchaseBusy
                 ? purchaseLabel(state.purchaseStage)
-                : "Authorize with wallet"}
+                : funded
+                  ? "Execute funded strategy"
+                  : "Authorize with wallet"}
             </button>
           </div>
         </footer>

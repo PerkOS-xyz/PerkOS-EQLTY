@@ -3,6 +3,11 @@ import { loadConfig } from "./config.js";
 import type { FleetAgent, FleetRole } from "./fleet-types.js";
 import { OneClawFleetProvisioner } from "./oneclaw-fleet.js";
 
+const appId = "b79615cd-e233-46da-9ccc-ffb031bbfc49";
+const connectionId = "22222222-2222-4222-8222-222222222222";
+const templateId = "33333333-3333-4333-8333-333333333333";
+const vaultId = "44444444-4444-4444-8444-444444444444";
+const agentId = "55555555-5555-4555-8555-555555555555";
 const roles: FleetRole[] = [
   "scout",
   "risk",
@@ -10,19 +15,13 @@ const roles: FleetRole[] = [
   "auditor",
 ];
 
-describe("1Claw fleet provisioning", () => {
-  it("creates four isolated rails without exposing credentials", async () => {
+describe("1Claw Platform API provisioning", () => {
+  it("bootstraps a user-owned execution agent and hides its credential", async () => {
     const requests: Array<{
-      url: string;
-      method: string;
       body?: Record<string, unknown>;
+      method: string;
+      url: string;
     }> = [];
-    const ids = new Map(
-      roles.map((role, index) => [
-        `EQLTY-${role}-1c762eaa`,
-        `${index + 1}1111111-1111-4111-8111-111111111111`,
-      ]),
-    );
     const fetchFn = vi.fn(
       async (
         input: string | URL | Request,
@@ -34,233 +33,265 @@ describe("1Claw fleet provisioning", () => {
           typeof init?.body === "string"
             ? (JSON.parse(init.body) as Record<string, unknown>)
             : undefined;
-        requests.push({ url, method, body });
+        requests.push({ body, method, url });
 
-        if (url.endsWith("/v1/auth/api-key-token")) {
-          return json({ access_token: "jwt-user" });
+        if (url.endsWith(`/v1/platform/apps/${appId}/users`)) {
+          return json([]);
         }
-        if (url.endsWith("/v1/vaults") && method === "GET") {
-          return json({ vaults: [] });
-        }
-        if (url.endsWith("/v1/vaults") && method === "POST") {
+        if (url.endsWith("/v1/platform/users/upsert")) {
           return json(
             {
-              id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-              name: body?.name,
+              connection_id: connectionId,
+              email: "julio@example.com",
+              is_new: true,
+              user_handle: "66666666-6666-4666-8666-666666666666",
             },
             201,
           );
         }
-        if (url.endsWith("/v1/agents") && method === "GET") {
-          return json({ agents: [] });
-        }
-        if (url.endsWith("/v1/agents") && method === "POST") {
-          const name = String(body?.name);
+        if (url.endsWith(`/v1/platform/apps/${appId}/templates`)) {
+          if (method === "GET") return json([]);
           return json(
             {
-              agent: {
-                id: ids.get(name),
-                name,
-                is_active: true,
-                eip712_default_policy: "allow",
-              },
-              api_key: `ocv_${name}-credential`,
-            },
-            201,
-          );
-        }
-        if (
-          url.endsWith("/signing-keys") &&
-          method === "GET"
-        ) {
-          return json({ keys: [] });
-        }
-        if (
-          url.endsWith("/signing-keys") &&
-          method === "POST"
-        ) {
-          return json(
-            {
-              chain: "ethereum",
+              id: templateId,
+              name: "EQLTY execution rail",
               is_active: true,
-              address:
-                "0x1111111111111111111111111111111111111111",
+            },
+            201,
+          );
+        }
+        if (
+          url.endsWith(
+            `/v1/platform/connections/${connectionId}/bootstrap`,
+          )
+        ) {
+          return json(
+            {
+              claim_url:
+                "https://1claw.xyz/connect/eqlty/claim/ct_test",
+              claim_token: "ct_test",
+              connection_id: connectionId,
+              expires_in: 600,
+              summary: {
+                agent_id: agentId,
+                agent_api_key: "ocv_one-time-secret",
+                vault_id: vaultId,
+                signing_keys: [
+                  {
+                    chain: "ethereum",
+                    address:
+                      "0x1111111111111111111111111111111111111111",
+                  },
+                ],
+              },
             },
             201,
           );
         }
         if (url.includes("/integrations/oneclaw")) {
-          return json(
-            { reprovisionJobId: `job-${requests.length}` },
-            202,
-          );
+          return json({ reprovisionJobId: "job-trader" }, 202);
         }
-        return json({ message: "unexpected request" }, 500);
+        return json({ detail: "unexpected request" }, 500);
       },
     );
-    const config = loadConfig({
-      ONECLAW_PERSONAL_API_KEY: "1ck_eqlty-test-key",
-      ONECLAW_API_BASE: "https://api.1claw.xyz",
-      PERKOS_API_URL: "https://api.perkos.xyz",
-      INPUT_TOKEN_ADDRESS:
-        "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
-      EQLTY_VAULT_ADDRESS:
-        "0x033f13BC2CCB53dbfBEef7594668F9cfa4A70833",
-    });
 
-    const result = await new OneClawFleetProvisioner(config, {
-      fetchFn,
-    }).provision({
+    const result = await provisioner(fetchFn).provision({
       userId: "u-1c762eaa00000000",
+      externalSubject:
+        "eip155:4663:0x1234567890abcdef1234567890abcdef12345678",
+      email: "julio@example.com",
       perkosIdToken: "firebase-id-token",
       agents: testAgents(),
     });
 
     expect(result).toMatchObject({
-      status: "linked",
+      status: "claim_required",
+      connectionId,
+      vaultId,
       eip712Restrictions: "disabled",
+      executionAgent: {
+        role: "trader",
+        perkosAgentId: "perkos-trader",
+        oneclawAgentId: agentId,
+        walletAddress:
+          "0x1111111111111111111111111111111111111111",
+      },
     });
-    expect(result.agents).toHaveLength(4);
     expect(JSON.stringify(result)).not.toContain("ocv_");
-    expect(
-      result.agents.find((agent) => agent.role === "trader")
-        ?.walletAddress,
-    ).toBe("0x1111111111111111111111111111111111111111");
 
-    const createBodies = requests
-      .filter(
-        (request) =>
-          request.url.endsWith("/v1/agents") &&
-          request.method === "POST",
-      )
-      .map((request) => request.body);
-    expect(createBodies).toHaveLength(4);
-    expect(
-      createBodies.find(
-        (body) => body?.name === "EQLTY-trader-1c762eaa",
-      ),
-    ).toMatchObject({
-      intents_api_enabled: true,
-      tx_allowed_chains: ["robinhood-chain"],
-      tx_max_per_day: 6,
-      tx_to_allowlist: [
-        "0x8876789976decbfcbbbe364623c63652db8c0904",
-        "0x000000000022D473030F116dDEE9F6B43aC78BA3",
-        "0x033f13BC2CCB53dbfBEef7594668F9cfa4A70833",
-      ],
-      tx_token_allowlist: [
-        "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
-      ],
+    const upsert = requests.find((request) =>
+      request.url.endsWith("/v1/platform/users/upsert"),
+    );
+    expect(upsert?.body).toMatchObject({
+      email: "julio@example.com",
+      external_subject:
+        "eip155:4663:0x1234567890abcdef1234567890abcdef12345678",
     });
-    expect(
-      createBodies.find(
-        (body) => body?.name === "EQLTY-scout-1c762eaa",
-      ),
-    ).toMatchObject({
-      intents_api_enabled: false,
-      tx_allowed_chains: [],
-      tx_max_per_day: 0,
+    const template = requests.find(
+      (request) =>
+        request.url.endsWith(`/v1/platform/apps/${appId}/templates`) &&
+        request.method === "POST",
+    );
+    expect(template?.body).toMatchObject({
+      name: "EQLTY execution rail",
+      spec: {
+        agents: [
+          {
+            name: "EQLTY Trader",
+            intents: { enabled: true },
+          },
+        ],
+        signing_keys: [{ chain: "ethereum" }],
+      },
     });
-    for (const body of createBodies) {
-      expect(body).not.toHaveProperty("eip712_default_policy");
-      expect(body).not.toHaveProperty("eip712_domain_allowlist");
-    }
-
-    const integrationRequests = requests.filter((request) =>
+    const perkos = requests.find((request) =>
       request.url.includes("/integrations/oneclaw"),
     );
-    expect(integrationRequests).toHaveLength(4);
-    expect(
-      integrationRequests.find((request) =>
-        request.url.includes("perkos-trader"),
-      )?.body,
-    ).toMatchObject({
+    expect(perkos?.url).toContain("/agents/perkos-trader/");
+    expect(perkos?.body).toMatchObject({
+      apiKey: "ocv_one-time-secret",
+      oneclawAgentId: agentId,
       skillIds: ["eqlty-uniswap", "eqlty-ens"],
     });
     expect(
-      integrationRequests.find((request) =>
-        request.url.includes("perkos-auditor"),
-      )?.body,
-    ).toMatchObject({
-      skillIds: [
-        "eqlty-graph",
-        "eqlty-uniswap",
-        "eqlty-ens",
-      ],
-    });
+      requests.some((request) =>
+        request.url.endsWith("/v1/auth/api-key-token"),
+      ),
+    ).toBe(false);
   });
 
-  it("stops when EIP-712 restrictions are enabled", async () => {
+  it("returns the official link URL for an existing 1Claw user", async () => {
     const fetchFn = vi.fn(
       async (
         input: string | URL | Request,
         init?: RequestInit,
       ) => {
         const url = String(input);
-        const method = init?.method ?? "GET";
-        if (url.endsWith("/v1/auth/api-key-token")) {
-          return json({ access_token: "jwt-user" });
+        if (url.endsWith(`/v1/platform/apps/${appId}/users`)) {
+          return json([]);
         }
-        if (url.endsWith("/v1/vaults")) {
-          return json({
-            vaults: [
-              {
-                id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-                name: "EQLTY Agent Fleet 1c762eaa",
+        if (url.endsWith("/v1/platform/users/upsert")) {
+          return json(
+            {
+              is_new: false,
+              email: "julio@example.com",
+              link_required: {
+                status: "link_required",
+                reason: "user_exists_in_other_org",
+                authorize_url:
+                  "https://1claw.xyz/connect/eqlty/link",
+                app_slug: "eqlty",
               },
-            ],
-          });
+            },
+            409,
+          );
         }
-        if (url.endsWith("/v1/agents") && method === "GET") {
-          return json({
-            agents: roles.map((role, index) => ({
-              id:
-                `${index + 1}1111111-1111-4111-8111-111111111111`,
-              name: `EQLTY-${role}-1c762eaa`,
-              is_active: true,
-            })),
-          });
-        }
-        if (method === "PATCH") {
-          const id = url.split("/").at(-1);
-          const role = roles[Number(id?.at(0)) - 1];
-          return json({
-            id,
-            name: `EQLTY-${role}-1c762eaa`,
-            is_active: true,
-            eip712_default_policy:
-              role === "trader" ? "deny" : "allow",
-          });
-        }
-        if (url.endsWith("/rotate-key")) {
-          return json({ api_key: "ocv_rotated-credential" });
-        }
-        return json({ message: "unexpected request" }, 500);
+        return json({ detail: String(init?.method) }, 500);
       },
-    );
-    const provisioner = new OneClawFleetProvisioner(
-      loadConfig({
-        ONECLAW_PERSONAL_API_KEY: "1ck_eqlty-test-key",
-      }),
-      { fetchFn },
     );
 
     await expect(
-      provisioner.provision({
+      provisioner(fetchFn).provision({
         userId: "u-1c762eaa00000000",
+        externalSubject: "wallet:julio",
+        email: "julio@example.com",
         perkosIdToken: "firebase-id-token",
-        agents: testAgents().map((agent) => ({
-          ...agent,
-          oneclaw: "linked" as const,
-        })),
+        agents: testAgents(),
       }),
-    ).rejects.toThrow(
-      "Disable EIP-712 restrictions for the EQLTY trader",
+    ).resolves.toEqual({
+      status: "link_required",
+      authorizeUrl: "https://1claw.xyz/connect/eqlty/link",
+    });
+  });
+
+  it("reuses a claimed connection without creating resources again", async () => {
+    const fetchFn = vi.fn(
+      async (input: string | URL | Request) => {
+        const url = String(input);
+        if (url.endsWith(`/v1/platform/apps/${appId}/users`)) {
+          return json([
+            {
+              connection_id: connectionId,
+              external_subject: "wallet:julio",
+              status: "claimed",
+              claimed_at: "2026-07-25T12:00:00Z",
+              agent_ids: [agentId],
+              vault_ids: [vaultId],
+            },
+          ]);
+        }
+        return json({ detail: "unexpected request" }, 500);
+      },
     );
+
+    const result = await provisioner(fetchFn).provision({
+      userId: "u-1c762eaa00000000",
+      externalSubject: "wallet:julio",
+      email: "julio@example.com",
+      perkosIdToken: "firebase-id-token",
+      agents: testAgents("linked"),
+    });
+
+    expect(result).toMatchObject({
+      status: "linked",
+      connectionId,
+      vaultId,
+      executionAgent: {
+        perkosAgentId: "perkos-trader",
+        oneclawAgentId: agentId,
+      },
+    });
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails closed when a bootstrapped credential was not linked", async () => {
+    const fetchFn = vi.fn(async () =>
+      json([
+        {
+          connection_id: connectionId,
+          external_subject: "wallet:julio",
+          status: "pending_claim",
+          claimed_at: null,
+          agent_ids: [agentId],
+          vault_ids: [vaultId],
+        },
+      ]),
+    );
+
+    await expect(
+      provisioner(fetchFn).provision({
+        userId: "u-1c762eaa00000000",
+        externalSubject: "wallet:julio",
+        email: "julio@example.com",
+        perkosIdToken: "firebase-id-token",
+        agents: testAgents(),
+      }),
+    ).rejects.toThrow("PerkOS credential is unavailable");
+  });
+
+  it("requires Platform API configuration", () => {
+    expect(
+      new OneClawFleetProvisioner(loadConfig()).ready,
+    ).toBe(false);
   });
 });
 
-function testAgents(): FleetAgent[] {
+function provisioner(fetchFn: typeof fetch) {
+  return new OneClawFleetProvisioner(
+    loadConfig({
+      APP_ORIGIN: "https://eqlty.perkos.xyz",
+      ONECLAW_PLATFORM_APP_ID: appId,
+      ONECLAW_PLATFORM_API_KEY: "plt_eqlty-test-key",
+      ONECLAW_API_BASE: "https://api.1claw.xyz",
+      PERKOS_API_URL: "https://api.perkos.xyz",
+    }),
+    { fetchFn },
+  );
+}
+
+function testAgents(
+  traderState: FleetAgent["oneclaw"] = "pending-agent-credential",
+): FleetAgent[] {
   return roles.map((role) => ({
     role,
     agentId: `perkos-${role}`,
@@ -268,7 +299,7 @@ function testAgents(): FleetAgent[] {
     runtime: "Hermes",
     state: "ready",
     plugins: [],
-    oneclaw: "pending-agent-credential",
+    oneclaw: role === "trader" ? traderState : "pending-agent-credential",
   }));
 }
 

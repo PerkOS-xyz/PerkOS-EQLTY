@@ -54,6 +54,53 @@ export type GraphEvidence = Omit<GraphProviderEvidence, "health"> & {
   health: GraphProviderEvidence["health"];
 };
 
+const graphSeriesSchema = z
+  .object({
+    source: z.literal("the-graph-substreams"),
+    chainId: z.literal("eip155:4663"),
+    observedAt: z.string().datetime(),
+    stream: z
+      .object({
+        mode: z.literal("live"),
+        provider: z.string().min(1).max(256),
+        package: z.string().min(1).max(256),
+        module: z.literal("map_pool_events"),
+        processedBlock: z.string().regex(/^\d+$/),
+        providerHeadBlock: z.string().regex(/^\d+$/),
+        lagBlocks: z.number().int().nonnegative(),
+      })
+      .strict(),
+    series: z
+      .array(
+        z
+          .object({
+            ticker: z.string().regex(/^[A-Z][A-Z0-9.-]{0,11}$/),
+            points: z
+              .array(
+                z
+                  .object({
+                    at: z.string().datetime(),
+                    price: z.number().finite().positive(),
+                    blockNumber: z.string().regex(/^\d+$/),
+                    transactionHash: hex32,
+                    poolIdentifier: z
+                      .string()
+                      .regex(
+                        /^0x(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})$/,
+                      ),
+                  })
+                  .strict(),
+              )
+              .max(64),
+          })
+          .strict(),
+      )
+      .max(96),
+  })
+  .strict();
+
+export type GraphPriceSeries = z.infer<typeof graphSeriesSchema>;
+
 type Dependencies = {
   fetchFn?: typeof fetch;
   now?: () => number;
@@ -156,6 +203,59 @@ export class GraphEvidenceService {
         reasons: [...reasons],
       },
     };
+  }
+
+  async series(tickers: string[]): Promise<GraphPriceSeries> {
+    const normalized = [
+      ...new Set(tickers.map((ticker) => ticker.trim().toUpperCase())),
+    ];
+    if (
+      normalized.length === 0 ||
+      normalized.length > 96 ||
+      normalized.some(
+        (ticker) => !/^[A-Z][A-Z0-9.-]{0,11}$/.test(ticker),
+      )
+    ) {
+      throw new Error("Ticker list is invalid");
+    }
+    const configuredUrl =
+      this.config.EQLTY_GRAPH_ADAPTER_URL ?? this.config.GRAPH_RISK_URL;
+    if (!configuredUrl) {
+      throw new Error("The Graph evidence provider is not configured");
+    }
+    const seriesUrl = configuredUrl.replace(
+      /\/api\/graph-risk\/?$/,
+      "/api/graph-series",
+    );
+    if (seriesUrl === configuredUrl) {
+      throw new Error("The Graph series endpoint is not configured");
+    }
+    const accessToken =
+      this.config.EQLTY_GRAPH_ACCESS_TOKEN ??
+      this.config.GRAPH_API_TOKEN;
+    const response = await this.fetchFn(seriesUrl, {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json",
+        ...(accessToken
+          ? { authorization: `Bearer ${accessToken}` }
+          : {}),
+      },
+      body: JSON.stringify({ tickers: normalized }),
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!response.ok) {
+      throw new Error(
+        `The Graph series provider failed with status ${response.status}`,
+      );
+    }
+    const result = graphSeriesSchema.parse(await limitedJson(response));
+    const requested = new Set(normalized);
+    if (result.series.some((entry) => !requested.has(entry.ticker))) {
+      throw new Error("The Graph series returned an unexpected ticker");
+    }
+    return result;
   }
 }
 

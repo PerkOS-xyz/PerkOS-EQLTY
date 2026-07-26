@@ -187,7 +187,8 @@ type AppDependencies = {
   ensPolicyPreparation?: Pick<EnsPolicyPreparationService, "prepare">;
   fleetActivation?: Pick<FleetActivationService, "activate">;
   oneclawFleet?: Pick<OneClawFleetProvisioner, "provision" | "ready">;
-  graphEvidence?: Pick<GraphEvidenceService, "evidence">;
+  graphEvidence?: Pick<GraphEvidenceService, "evidence"> &
+    Partial<Pick<GraphEvidenceService, "series">>;
   goals?: Pick<AutonomousGoalService, "read" | "start" | "tick">;
   strategies?: Pick<StrategyService, "create"> &
     Partial<Pick<StrategyService, "bindOnchain">>;
@@ -1001,6 +1002,35 @@ export function createApp(
     } catch (error) {
       return response.status(409).json({
         error: "wallet_sale_build_failed",
+        message: safeMessage(error),
+      });
+    }
+  });
+
+  app.get("/api/assets/series", async (request, response) => {
+    const parsed = z
+      .array(normalizedTicker)
+      .min(1)
+      .max(24)
+      .safeParse(
+        String(request.query.tickers ?? "")
+          .split(",")
+          .filter(Boolean),
+      );
+    if (!parsed.success) {
+      return response.status(400).json({ error: "invalid_tickers" });
+    }
+    try {
+      if (!graphEvidence.series) {
+        throw new Error("The Graph series provider is not configured");
+      }
+      response.setHeader("cache-control", "no-store");
+      return response.json(
+        await graphEvidence.series([...new Set(parsed.data)]),
+      );
+    } catch (error) {
+      return response.status(503).json({
+        error: "graph_series_unavailable",
         message: safeMessage(error),
       });
     }

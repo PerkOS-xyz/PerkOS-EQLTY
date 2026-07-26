@@ -5,6 +5,7 @@ import { createApp } from "./app.js";
 import { loadConfig } from "./config.js";
 import type { EnsPolicyPreparationService } from "./ens-policy-preparation.js";
 import type { ExecutionStrategy } from "./execution-types.js";
+import type { PurchaseAuditBundle } from "./purchase-audit-types.js";
 
 const servers: ReturnType<typeof createServer>[] = [];
 
@@ -757,6 +758,39 @@ describe("API foundation", () => {
     });
   });
 
+  it("serves a wallet scoped purchase audit bundle", async () => {
+    const session = testSession();
+    const hash = `0x${"ab".repeat(32)}` as const;
+    const bundle = {
+      schema: "urn:eqlty:purchase-audit:v1",
+      bundleHash: `0x${"cd".repeat(32)}`,
+      owner: session.walletAddress,
+      transactionHash: hash,
+      ticker: "AMZN",
+    } as unknown as PurchaseAuditBundle;
+    const read = vi.fn(async () => bundle);
+    const response = await request(`/api/audits/${hash}`, {
+      ownerAuth: testOwnerAuth(session),
+      purchaseAudit: {
+        capture: async () => bundle,
+        read,
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(read).toHaveBeenCalledWith(
+      session.walletAddress,
+      "firebase-token",
+      hash,
+    );
+    await expect(response.json()).resolves.toMatchObject({
+      schema: "urn:eqlty:purchase-audit:v1",
+      transactionHash: hash,
+      ticker: "AMZN",
+    });
+  });
+
   it("serves the authenticated wallet portfolio", async () => {
     const session = testSession();
     const read = vi.fn(async () => ({
@@ -791,11 +825,14 @@ describe("API foundation", () => {
     });
   });
 
-  it("protects purchase history and portfolio without a session", async () => {
+  it("protects purchase history, audits and portfolio without a session", async () => {
+    const hash = `0x${"ab".repeat(32)}`;
     const history = await request("/api/history");
+    const audit = await request(`/api/audits/${hash}`);
     const portfolio = await request("/api/portfolio");
 
     expect(history.status).toBe(401);
+    expect(audit.status).toBe(401);
     expect(portfolio.status).toBe(401);
   });
 });

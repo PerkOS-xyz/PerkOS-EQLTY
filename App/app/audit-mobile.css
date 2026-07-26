@@ -12,6 +12,19 @@
   .holdingGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .auditChecks,
+  .auditTrail {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .auditOverview {
+    grid-template-columns: 1fr auto 1fr;
+  }
+
+  .auditOverview > div:nth-last-child(-n + 2) {
+    grid-column: span 1;
+  }
 }
 
 @media (max-width: 760px) {
@@ -38,6 +51,26 @@
 
   .holdingGrid {
     grid-template-columns: 1fr;
+  }
+
+  .auditDetailHero,
+  .auditEvidenceColumns {
+    grid-template-columns: 1fr;
+  }
+
+  .transferTable > header {
+    display: none;
+  }
+
+  .transferTable > div {
+    grid-template-columns: 55px 1fr 1fr;
+    gap: 7px;
+    padding-block: 9px;
+  }
+
+  .transferTable > div span,
+  .transferTable > div a {
+    grid-column: span 1;
   }
 }
 
@@ -127,6 +160,40 @@
   .auditState {
     min-height: 240px;
     padding: 22px;
+  }
+
+  .auditChecks,
+  .auditTrail,
+  .proofCommitments {
+    grid-template-columns: 1fr;
+  }
+
+  .auditOverview {
+    grid-template-columns: 1fr;
+  }
+
+  .auditOverview i {
+    transform: rotate(90deg);
+  }
+
+  .auditSectionHeading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .evidenceRow {
+    grid-template-columns: 90px minmax(0, 1fr);
+  }
+
+  .auditPrimaryLinks {
+    display: grid;
+  }
+
+  .auditPrimaryLinks a {
+    min-height: 38px;
+    padding: 11px;
+    text-align: center;
   }
 }
 

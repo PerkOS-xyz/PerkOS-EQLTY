@@ -111,6 +111,10 @@ const schema = z.object({
     .default(3_600),
   PERKOS_API_URL: z.string().url().default("https://api.perkos.xyz"),
   PERKOS_FIREBASE_API_KEY: optional(z.string().min(20)),
+  PERKOS_FIREBASE_PROJECT_ID: z
+    .string()
+    .regex(/^[a-z0-9-]{4,64}$/)
+    .default("perkos-app"),
   PERKOS_FLEET_MODE: z
     .enum(["disabled", "preview", "live"])
     .default("preview"),

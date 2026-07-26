@@ -91,6 +91,13 @@ export type TradeRun = {
     blockNumber: string;
     graphProvider?: string;
     graphLagBlocks?: number;
+    graphPackage?: string;
+    graphModule?: "map_pool_events";
+    graphCheckpointBlock?: string;
+    graphProcessedBlock?: string;
+    graphHeadBlock?: string;
+    graphStartedAt?: string;
+    graphUpdatedAt?: string;
     poolAddress: `0x${string}`;
     poolIdentifier: string;
     transactionHash?: `0x${string}`;
@@ -102,6 +109,12 @@ export type TradeRun = {
     quotedAmountOut: string;
     requestId: string;
     mode: ProofMode;
+  };
+  audit?: {
+    status: "stored" | "failed";
+    documentId?: string;
+    bundleHash?: `0x${string}`;
+    error?: string;
   };
 };
 

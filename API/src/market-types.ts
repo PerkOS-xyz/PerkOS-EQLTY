@@ -44,6 +44,12 @@ export type GraphEvidenceSummary = {
   processedBlock: string;
   providerHeadBlock: string;
   lagBlocks: number;
+  provider?: string;
+  package?: string;
+  module?: "map_pool_events";
+  startedAt?: string;
+  updatedAt?: string;
+  checkpointBlock?: string;
   reasons: string[];
 };
 

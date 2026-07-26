@@ -336,6 +336,12 @@ function summarizeGraph(
     processedBlock: evidence.stream.processedBlock,
     providerHeadBlock: evidence.stream.providerHeadBlock,
     lagBlocks: evidence.stream.lagBlocks,
+    provider: evidence.stream.provider,
+    package: evidence.stream.package,
+    module: evidence.stream.module,
+    startedAt: evidence.stream.startedAt,
+    updatedAt: evidence.stream.updatedAt,
+    checkpointBlock: evidence.stream.checkpointBlock,
     reasons: evidence.health.reasons,
   };
 }

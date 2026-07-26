@@ -62,10 +62,10 @@ Click **Run four agent proof**. Walk through the visible order:
 5. Uniswap V4 quote;
 6. Auditor proof bundle.
 
-For the current safe demo, stop at `approved` and say that no funds moved. Use
-the verification logs to open the indexed Swap event, source block,
-PoolManager and Substreams JSON. Keep the Uniswap request ID and proof root
-labeled as offchain artifacts.
+Review the 1 USDG purchase, sign the three wallet-owned setup operations and
+let Hermes submit the guarded swap. Open **Full audit** after execution. Show
+the Uniswap router, PoolManager and poolId, then the exact Substreams request,
+package, module, checkpoint and response used by Risk.
 
 ### 2:35 — Close
 
@@ -75,14 +75,15 @@ Say:
 > agents whose identity, market evidence, spending authority and final decision
 > can each be verified.
 
-Open `docs/INTEGRATIONS.md` if a sponsor asks where its technology is used.
+Open the stored audit bundle from History. The judges can follow every setup
+transaction, the final swap, token transfers, Graph evidence and proof hashes
+without relying on narration.
 
 ## Live-purchase rule
 
-For purchases of 3 USDG or more, only click **Execute purchase** when all four
-1Claw rails are linked. Every amount still requires live x401 and x402 plus a
-configured vault executor. Only call it a purchase when the UI returns
-`executed` with a Robinhood Chain transaction link.
+For purchases of 3 USDG or more, only execute when all four 1Claw rails are
+linked. Only call it a purchase when the UI returns `executed`, the audit
+bundle says `stored`, and the wallet receives the stock token.
 
 ## Fail-closed moments worth showing
 
@@ -106,6 +107,9 @@ weaken the user's limits.
 - ENS resolves an active, unexpired manifest for the wallet.
 - Robinhood returns multiple Stock Tokens.
 - At least two candidates have fresh Uniswap and Graph evidence.
-- The dry proof ends as `approved`.
+- The proof ends as `executed`.
+- History opens the stored purchase audit.
+- PoolManager, poolId and token transfers match the receipt.
+- The Graph request shows `map_pool_events`, its package and checkpoint.
 - Browser zoom and mobile layout have been checked.
 - No secret or private key appears in the browser, terminal or repository.

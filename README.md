@@ -109,7 +109,7 @@ flowchart LR
     ENS["ENS, Durin L2 records<br/>policy control plane"]
     UNI["Uniswap Trading API<br/>quotes, calldata, RWA series"]
     GRAPH["The Graph Substreams<br/>swap evidence, price series"]
-    CLAW["1Claw<br/>security rails, trader wallet"]
+    CLAW["1Claw<br/>HSM trader wallet, execution rail"]
   end
 
   subgraph CHAIN["Robinhood Chain"]
@@ -135,7 +135,7 @@ flowchart LR
 | ENS (Durin L2) | Behavior source of truth: owner, manifest and per role policy records |
 | Uniswap | Stock token discovery, V4 quotes, swap calldata and RWA market series |
 | The Graph | Substreams evidence gating every decision and feeding price history |
-| 1Claw | Per agent security rails and the user claimed trader wallet |
+| 1Claw | User claimed HSM trader wallet; only Trader has spending authority |
 | Robinhood Chain | Stock token assets, receipts and the execution network |
 | EQLTY Vault | Holds funds per strategy and only executes risk signed trades |
 
@@ -199,7 +199,7 @@ flowchart TD
   S5 -- yes --> S6{Execution requested?}
   S6 -- no --> APPROVED([Approved, dry proof bundle])
   S6 -- yes --> S7{Three USDG or more?}
-  S7 -- yes --> S8{All four 1Claw rails linked?}
+  S7 -- yes --> S8{Trader 1Claw rail linked?}
   S8 -- no --> REJECT
   S7 -- no --> S9
   S8 -- yes --> S9{Strategy allows full execution?}

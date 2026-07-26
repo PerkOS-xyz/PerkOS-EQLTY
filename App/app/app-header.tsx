@@ -4,18 +4,27 @@ import { AccessButton } from "./access-button";
 export function AppHeader({
   active,
 }: {
-  active: "home" | "portfolio" | "history";
+  active: "home" | "markets" | "portfolio" | "history";
 }) {
   return (
     <header className="topbar">
       <Link aria-label="EQLTY home" className="brand" href="/">
-        <span className="brandMark">E</span>
+        <span className="brandMark">
+          <img alt="" src="/eqlty-logo-mark.png" />
+        </span>
         <span className="brandCopy">
           <strong>EQLTY</strong>
           <span>Agent powered investing</span>
         </span>
       </Link>
       <nav aria-label="Primary navigation" className="primaryNav">
+        <Link
+          aria-current={active === "markets" ? "page" : undefined}
+          className={active === "markets" ? "active" : ""}
+          href="/markets"
+        >
+          Markets
+        </Link>
         <Link
           aria-current={active === "portfolio" ? "page" : undefined}
           className={active === "portfolio" ? "active" : ""}

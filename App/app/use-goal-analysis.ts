@@ -46,6 +46,7 @@ export function useGoalAnalysis(): GoalAnalysisState {
   const [policy, setPolicy] = useState<FleetPolicy>();
   const [policyLoading, setPolicyLoading] = useState(false);
   const [policyError, setPolicyError] = useState<string>();
+  const [policyRevision, setPolicyRevision] = useState(0);
   const [session, setSession] = useState<AutonomousGoal>();
   const [runKey, setRunKey] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -113,6 +114,13 @@ export function useGoalAnalysis(): GoalAnalysisState {
   ]);
 
   useEffect(() => {
+    const refresh = () => setPolicyRevision((current) => current + 1);
+    window.addEventListener("eqlty:policy-published", refresh);
+    return () =>
+      window.removeEventListener("eqlty:policy-published", refresh);
+  }, []);
+
+  useEffect(() => {
     if (!wallet.connected) {
       setPolicy(undefined);
       setPolicyLoading(false);
@@ -158,7 +166,7 @@ export function useGoalAnalysis(): GoalAnalysisState {
       cancelled = true;
       if (timer !== undefined) window.clearTimeout(timer);
     };
-  }, [wallet.connected]);
+  }, [policyRevision, wallet.connected]);
 
   useEffect(() => {
     if (!session || session.status !== "active") {

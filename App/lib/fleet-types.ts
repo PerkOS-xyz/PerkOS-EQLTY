@@ -38,6 +38,19 @@ export type FleetActivation = {
   runtime?: FleetRuntime;
 };
 
+export type OneClawFleetSecurity = {
+  status: "linked";
+  vaultId: string;
+  eip712Restrictions: "disabled";
+  agents: Array<{
+    role: AgentRole;
+    perkosAgentId: string;
+    oneclawAgentId: string;
+    walletAddress?: string;
+    reprovisionJobId: string;
+  }>;
+};
+
 export type UserSession = {
   sub: string;
   provider: "wallet";

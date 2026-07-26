@@ -298,6 +298,72 @@
   animation: fleetPulse 1.2s infinite;
 }
 
+.fleetSecurity {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 12px;
+  padding: 11px 12px;
+  border: 1px solid #594a2e;
+  border-radius: 8px;
+  background:
+    linear-gradient(105deg, rgb(82 65 31 / 18%), transparent),
+    #111713;
+}
+
+.fleetSecurity.linked {
+  border-color: #315c3e;
+  background:
+    linear-gradient(105deg, rgb(38 93 54 / 18%), transparent),
+    #111713;
+}
+
+.fleetSecurityCopy {
+  min-width: 0;
+}
+
+.fleetSecurityCopy span,
+.fleetSecurityCopy strong {
+  font: 8px "DM Mono", monospace;
+  text-transform: uppercase;
+}
+
+.fleetSecurityCopy span {
+  color: #8f9d94;
+}
+
+.fleetSecurityCopy strong {
+  margin-left: 8px;
+  color: #e4bd68;
+}
+
+.fleetSecurity.linked strong {
+  color: #83e9a4;
+}
+
+.fleetSecurityCopy p {
+  margin: 5px 0 0;
+  color: #77857c;
+  font-size: 8px;
+}
+
+.fleetSecurity > button {
+  flex: 0 0 auto;
+  padding: 8px 10px;
+  border: 1px solid #58744f;
+  border-radius: 6px;
+  background: #1c2b20;
+  color: #93e9ab;
+  cursor: pointer;
+  font: 8px "DM Mono", monospace;
+}
+
+.fleetSecurity > button:disabled {
+  cursor: wait;
+  opacity: 0.5;
+}
+
 .fleetNote {
   margin: 11px 0 0;
   color: #998f67;
@@ -380,6 +446,15 @@
   .fleetError {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .fleetSecurity {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .fleetSecurity > button {
+    width: 100%;
   }
 }
 

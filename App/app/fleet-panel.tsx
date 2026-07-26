@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import {
+  activateOneClawRails,
   ensManagerUrl,
   fleetMetadataUrl,
   loadFleetMetadata,
@@ -45,6 +46,19 @@ export function FleetPanel() {
     );
   });
   const readyCount = agents.filter((agent) => agent.state === "ready").length;
+  const linkedCount = agents.filter(
+    (agent) => agent.oneclaw === "linked",
+  ).length;
+  const [securityBusy, setSecurityBusy] = useState(false);
+  const [securityError, setSecurityError] = useState<string>();
+  const [securityStarted, setSecurityStarted] = useState(false);
+  const canActivateSecurity = Boolean(
+    runtime?.mode === "live" &&
+      runtime.agents.length === fleetRoles.length &&
+      runtime.agents.every(
+        (agent) => agent.agentId && agent.state === "ready",
+      ),
+  );
   const displayState =
     state.phase === "ready"
       ? "ready"
@@ -96,6 +110,60 @@ export function FleetPanel() {
         ))}
       </div>
 
+      {runtime?.mode === "live" && (
+        <div
+          aria-busy={securityBusy}
+          className={`fleetSecurity ${
+            linkedCount === fleetRoles.length ? "linked" : ""
+          }`}
+        >
+          <div className="fleetSecurityCopy">
+            <span>1Claw security rails</span>
+            <strong>{linkedCount}/4 linked</strong>
+            <p>
+              {linkedCount === fleetRoles.length
+                ? "Each Hermes runtime has its own isolated credential."
+                : securityStarted
+                  ? "Rails created. Restarting Hermes with scoped credentials."
+                  : "Add isolated identities, Robinhood controls and HSM signing."}
+            </p>
+          </div>
+          {linkedCount < fleetRoles.length && (
+            <button
+              disabled={
+                securityBusy || state.busy || !canActivateSecurity
+              }
+              onClick={async () => {
+                setSecurityBusy(true);
+                setSecurityError(undefined);
+                try {
+                  await activateOneClawRails();
+                  setSecurityStarted(true);
+                  state.retry();
+                } catch (cause) {
+                  setSecurityError(
+                    cause instanceof Error
+                      ? cause.message
+                      : "1Claw activation failed",
+                  );
+                } finally {
+                  setSecurityBusy(false);
+                }
+              }}
+              type="button"
+            >
+              {securityBusy
+                ? "Activating rails"
+                : "Activate 1Claw rails"}
+            </button>
+          )}
+        </div>
+      )}
+      {securityError && (
+        <div className="fleetError">
+          <span>{securityError}</span>
+        </div>
+      )}
       {!wallet.connected && (
         <p className="fleetNote">
           Connect your wallet to locate or create its agent fleet.

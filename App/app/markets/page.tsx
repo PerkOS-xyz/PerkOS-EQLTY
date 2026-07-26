@@ -18,7 +18,14 @@ const filters: Array<{ value: Filter; label: string }> = [
 ];
 
 export default function MarketsPage() {
-  const { catalog, history, loading, error, refresh } = useMarketCatalog();
+  const {
+    catalog,
+    history,
+    loading,
+    error,
+    refresh,
+    seriesState,
+  } = useMarketCatalog();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
 
@@ -82,12 +89,19 @@ export default function MarketsPage() {
           </span>
           <span>
             <i />
-            Execution evidence
-            <b>The Graph Substreams</b>
+            Swap history
+            <b>
+              The Graph{" "}
+              {seriesState === "ready"
+                ? "live"
+                : seriesState === "loading"
+                  ? "connecting"
+                  : "unavailable"}
+            </b>
           </span>
           <p>
-            Charts contain only quotes observed by this browser. No synthetic
-            price history is displayed.
+            Every chart point is a real Robinhood quote or an indexed Uniswap
+            swap. No synthetic price history is displayed.
           </p>
         </section>
 

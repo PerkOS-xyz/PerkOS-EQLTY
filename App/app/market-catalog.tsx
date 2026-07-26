@@ -10,7 +10,14 @@ const featuredLimit = 18;
 const autoplayMs = 5_000;
 
 export function MarketCatalog() {
-  const { catalog, history, loading, error, refresh } = useMarketCatalog();
+  const {
+    catalog,
+    history,
+    loading,
+    error,
+    refresh,
+    seriesState,
+  } = useMarketCatalog();
   const track = useRef<HTMLDivElement>(null);
   const [paused, setPaused] = useState(false);
 
@@ -45,7 +52,10 @@ export function MarketCatalog() {
           <span className="eyebrow">Live market universe</span>
           <h2>Stock Tokens</h2>
           <p>
-            Real Robinhood quotes with observed Uniswap V4 route availability.
+            Robinhood prices, Uniswap V4 routes and{" "}
+            {seriesState === "ready"
+              ? "live Substreams curves"
+              : "verifiable Substreams evidence"}.
           </p>
         </div>
         <div className="marketHeadingActions">

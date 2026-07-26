@@ -1,12 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { loadStockCatalog } from "../lib/market-api";
+import {
+  loadStockCatalog,
+  loadStockSeries,
+  type MarketSeriesResponse,
+} from "../lib/market-api";
 import type { StockCatalog } from "../lib/market-types";
 
 export type ObservedPrice = {
   at: string;
   value: number;
+  source?: "robinhood-price-api" | "the-graph-substreams";
+  blockNumber?: string;
+  transactionHash?: `0x${string}`;
+  poolIdentifier?: string;
 };
 
 export type MarketPriceHistory = Record<string, ObservedPrice[]>;
@@ -20,6 +28,9 @@ export function useMarketCatalog() {
   const [history, setHistory] = useState<MarketPriceHistory>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
+  const [seriesState, setSeriesState] = useState<
+    "loading" | "ready" | "unavailable"
+  >("loading");
   const [request, setRequest] = useState(0);
 
   useEffect(() => {
@@ -31,27 +42,53 @@ export function useMarketCatalog() {
     setLoading((current) => current || !catalog);
     setError(undefined);
 
-    loadStockCatalog(request > 0, controller.signal)
-      .then((nextCatalog) => {
+    const load = async () => {
+      try {
+        const nextCatalog = await loadStockCatalog(
+          request > 0,
+          controller.signal,
+        );
         setCatalog(nextCatalog);
         setHistory((current) => {
           const next = recordPrices(current, nextCatalog);
           writeHistory(next);
           return next;
         });
-      })
-      .catch((cause: unknown) => {
+        const tickers = nextCatalog.assets
+          .filter((asset) => asset.uniswapRoutable)
+          .map((asset) => asset.ticker);
+        if (tickers.length > 0) {
+          setSeriesState("loading");
+          try {
+            const series = await loadStockSeries(
+              tickers,
+              controller.signal,
+            );
+            setHistory((current) => {
+              const next = mergeGraphSeries(current, series);
+              writeHistory(next);
+              return next;
+            });
+            setSeriesState("ready");
+          } catch {
+            if (!controller.signal.aborted) {
+              setSeriesState("unavailable");
+            }
+          }
+        }
+      } catch (cause: unknown) {
         if (!controller.signal.aborted) {
           setError(
             cause instanceof Error ? cause.message : "Market data unavailable",
           );
         }
-      })
-      .finally(() => {
+      } finally {
         if (!controller.signal.aborted) {
           setLoading(false);
         }
-      });
+      }
+    };
+    void load();
 
     return () => controller.abort();
   }, [request]);
@@ -69,7 +106,7 @@ export function useMarketCatalog() {
     setRequest((current) => current + 1);
   }, []);
 
-  return { catalog, history, loading, error, refresh };
+  return { catalog, history, loading, error, refresh, seriesState };
 }
 
 function recordPrices(
@@ -93,7 +130,7 @@ function recordPrices(
       Number.isFinite(Date.parse(at)) &&
       !existing.some((point) => point.at === at)
     ) {
-      existing.push({ at, value });
+      existing.push({ at, value, source: "robinhood-price-api" });
     }
     if (existing.length > 0) {
       next[asset.ticker] = existing
@@ -102,6 +139,36 @@ function recordPrices(
     }
   }
 
+  return next;
+}
+
+function mergeGraphSeries(
+  current: MarketPriceHistory,
+  response: MarketSeriesResponse,
+): MarketPriceHistory {
+  const next = { ...current };
+  for (const entry of response.series) {
+    const observed = [
+      ...(next[entry.ticker] ?? []),
+      ...entry.points.map((point) => ({
+        at: point.at,
+        value: point.price,
+        source: "the-graph-substreams" as const,
+        blockNumber: point.blockNumber,
+        transactionHash: point.transactionHash,
+        poolIdentifier: point.poolIdentifier,
+      })),
+    ];
+    const unique = new Map(
+      observed.map((point) => [
+        `${point.at}:${point.transactionHash ?? point.source ?? "quote"}`,
+        point,
+      ]),
+    );
+    next[entry.ticker] = [...unique.values()]
+      .sort((left, right) => Date.parse(left.at) - Date.parse(right.at))
+      .slice(-maxPoints);
+  }
   return next;
 }
 

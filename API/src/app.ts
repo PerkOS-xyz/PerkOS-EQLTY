@@ -15,6 +15,7 @@ import { oneClawGate } from "./oneclaw-policy.js";
 import { PortfolioService } from "./portfolio.js";
 import { ProofRunService } from "./proof-run.js";
 import { publicConfig } from "./public-config.js";
+import { PurchaseAuditService } from "./purchase-audit.js";
 import { PurchaseHistoryService } from "./purchase-history.js";
 import { StockCatalogService } from "./stock-catalog.js";
 import { StrategyService } from "./strategy-service.js";
@@ -119,6 +120,7 @@ type AppDependencies = {
   strategies?: Pick<StrategyService, "create"> &
     Partial<Pick<StrategyService, "bindOnchain">>;
   proofRuns?: Pick<ProofRunService, "run">;
+  purchaseAudit?: Pick<PurchaseAuditService, "capture" | "read">;
   purchaseHistory?: Pick<PurchaseHistoryService, "list">;
   portfolio?: Pick<PortfolioService, "read">;
   walletReadiness?: Pick<WalletReadinessService, "read">;
@@ -169,6 +171,8 @@ export function createApp(
       controlPlane: ensControlPlane,
       executor: new EqltyVaultExecutor(config),
     });
+  const purchaseAudit =
+    dependencies.purchaseAudit ?? new PurchaseAuditService(config);
   const purchaseHistory =
     dependencies.purchaseHistory ??
     new PurchaseHistoryService(config, { catalog: stockCatalog });
@@ -439,10 +443,11 @@ export function createApp(
       });
     }
     try {
+      const perkosIdToken = ownerAuth.perkosIdToken?.(request);
       const activation = await fleetActivation.activate({
         userId: session.fleetUserId,
         owner: session.walletAddress,
-        perkosIdToken: ownerAuth.perkosIdToken?.(request),
+        perkosIdToken,
       });
       if (activation.status === "provisioning") {
         throw new Error("The Hermes fleet is still provisioning");
@@ -603,10 +608,11 @@ export function createApp(
       });
     }
     try {
+      const perkosIdToken = ownerAuth.perkosIdToken?.(request);
       const activation = await fleetActivation.activate({
         userId: session.fleetUserId,
         owner: session.walletAddress,
-        perkosIdToken: ownerAuth.perkosIdToken?.(request),
+        perkosIdToken,
       });
       if (activation.status === "provisioning") {
         throw new Error("The Hermes fleet is still provisioning");
@@ -628,16 +634,46 @@ export function createApp(
         minimumAmount: config.EQLTY_ONECLAW_MIN_AMOUNT_USDG,
       });
       response.setHeader("cache-control", "no-store");
-      return response.status(201).json(
-        await proofRuns.run({
-          strategyId: parsed.data.strategyId,
-          amountIn: parsed.data.amountIn,
-          execute: parsed.data.execute,
-          userId: session.fleetUserId,
-          owner: session.walletAddress,
-          oneclaw,
-        }),
-      );
+      const run = await proofRuns.run({
+        strategyId: parsed.data.strategyId,
+        amountIn: parsed.data.amountIn,
+        execute: parsed.data.execute,
+        userId: session.fleetUserId,
+        owner: session.walletAddress,
+        oneclaw,
+      });
+      if (run.status === "executed" && run.transactionHash) {
+        const strategy = strategyStore.strategy(
+          parsed.data.strategyId,
+          session.walletAddress,
+        );
+        if (!perkosIdToken || !strategy) {
+          run.audit = {
+            status: "failed",
+            error: "PerkOS audit session is unavailable",
+          };
+        } else {
+          try {
+            const bundle = await purchaseAudit.capture({
+              owner: session.walletAddress,
+              idToken: perkosIdToken,
+              run,
+              strategy,
+            });
+            run.audit = {
+              status: "stored",
+              documentId: bundle.transactionHash.toLowerCase().slice(2),
+              bundleHash: bundle.bundleHash,
+            };
+          } catch (error) {
+            run.audit = {
+              status: "failed",
+              error: safeMessage(error),
+            };
+          }
+        }
+      }
+      return response.status(201).json(run);
     } catch (error) {
       return response.status(503).json({
         error: "proof_run_failed",
@@ -661,6 +697,45 @@ export function createApp(
     } catch (error) {
       return response.status(503).json({
         error: "purchase_history_unavailable",
+        message: safeMessage(error),
+      });
+    }
+  });
+
+  app.get("/api/audits/:transactionHash", async (request, response) => {
+    const session = ownerAuth.session(request);
+    if (!session) {
+      return response
+        .status(401)
+        .json({ error: "owner_session_required" });
+    }
+    const parsedHash = transactionHash.safeParse(
+      request.params.transactionHash,
+    );
+    const perkosIdToken = ownerAuth.perkosIdToken?.(request);
+    if (!parsedHash.success) {
+      return response.status(400).json({
+        error: "invalid_transaction_hash",
+      });
+    }
+    if (!perkosIdToken) {
+      return response.status(503).json({
+        error: "audit_session_unavailable",
+      });
+    }
+    try {
+      response.setHeader("cache-control", "no-store");
+      const bundle = await purchaseAudit.read(
+        session.walletAddress,
+        perkosIdToken,
+        parsedHash.data,
+      );
+      return bundle
+        ? response.json(bundle)
+        : response.status(404).json({ error: "audit_bundle_not_found" });
+    } catch (error) {
+      return response.status(503).json({
+        error: "audit_bundle_unavailable",
         message: safeMessage(error),
       });
     }

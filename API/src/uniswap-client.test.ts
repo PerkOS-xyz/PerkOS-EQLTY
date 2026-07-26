@@ -112,6 +112,104 @@ describe("Uniswap execution preparation", () => {
   });
 });
 
+describe("Uniswap wallet sales", () => {
+  const owner = "0x1234567890abcdef1234567890abcdef12345678";
+
+  it("prepares approval, quote and wallet swap calldata", async () => {
+    const approval = {
+      to: permit2,
+      from: owner,
+      data: "0x1234",
+      value: "0",
+      chainId: 4663,
+    };
+    const saleQuote = quoteBody({
+      swapper: owner,
+      tokenIn: nvda,
+      tokenOut: usdg,
+      amountIn: "5000000000000000",
+      amountOut: "1040000",
+    });
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse({ approval, cancel: null }))
+      .mockResolvedValueOnce(
+        jsonResponse(saleQuote, { "x-request-id": "sale-quote-1" }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          swap: {
+            to: router,
+            from: owner,
+            data: "0xabcd",
+            value: "0",
+            chainId: 4663,
+          },
+        }),
+      );
+    const client = new UniswapClient(config(), fetchFn);
+    const sell = await client.prepareWalletSell({
+      ticker: "NVDA",
+      tokenIn: nvda,
+      amount: "5000000000000000",
+      swapper: owner,
+      maxSlippageBps: 100,
+    });
+
+    expect(sell).toMatchObject({
+      direction: "sell",
+      ticker: "NVDA",
+      amountOut: "1040000",
+      approval,
+      requestId: "sale-quote-1",
+    });
+    const prepared = await client.buildWalletSell({
+      sell,
+      swapper: owner,
+      signature: `0x${"12".repeat(65)}`,
+    });
+    expect(prepared.transaction).toEqual({
+      to: router,
+      from: owner,
+      data: "0xabcd",
+      value: "0",
+      chainId: 4663,
+    });
+    expect(fetchFn).toHaveBeenCalledTimes(3);
+  });
+
+  it("rejects a sale quote that returns USDG elsewhere", async () => {
+    const invalid = quoteBody({
+      swapper: owner,
+      tokenIn: nvda,
+      tokenOut: usdg,
+      amountIn: "5000000000000000",
+      amountOut: "1040000",
+    });
+    (
+      invalid.quote.output as Record<string, unknown>
+    ).recipient = vault;
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({ approval: null, cancel: null }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse(invalid, { "x-request-id": "sale-quote-2" }),
+      );
+
+    await expect(
+      new UniswapClient(config(), fetchFn).prepareWalletSell({
+        ticker: "NVDA",
+        tokenIn: nvda,
+        amount: "5000000000000000",
+        swapper: owner,
+        maxSlippageBps: 100,
+      }),
+    ).rejects.toThrow("does not return to the wallet");
+  });
+});
+
 function config() {
   return loadConfig({
     UNISWAP_API_KEY: "test-key",
@@ -124,22 +222,35 @@ function config() {
   });
 }
 
-function quoteBody() {
+function quoteBody(
+  overrides: {
+    swapper?: string;
+    tokenIn?: string;
+    tokenOut?: string;
+    amountIn?: string;
+    amountOut?: string;
+  } = {},
+) {
+  const swapper = overrides.swapper ?? vault;
+  const tokenIn = overrides.tokenIn ?? usdg;
+  const tokenOut = overrides.tokenOut ?? nvda;
+  const amountIn = overrides.amountIn ?? "1000000";
+  const amountOut = overrides.amountOut ?? "4800000000000000";
   return {
     routing: "CLASSIC",
     quote: {
-      swapper: vault,
+      swapper,
       chainId: 4663,
       tokenInChainId: 4663,
       tokenOutChainId: 4663,
       input: {
-        token: usdg,
-        amount: "1000000",
+        token: tokenIn,
+        amount: amountIn,
       },
       output: {
-        token: nvda,
-        amount: "4800000000000000",
-        recipient: vault,
+        token: tokenOut,
+        amount: amountOut,
+        recipient: swapper,
       },
     },
     permitData: {
@@ -163,8 +274,8 @@ function quoteBody() {
       },
       values: {
         details: {
-          token: usdg,
-          amount: "1000000",
+          token: tokenIn,
+          amount: amountIn,
           expiration: "1780000000",
           nonce: "0",
         },

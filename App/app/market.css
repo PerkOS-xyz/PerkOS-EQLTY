@@ -25,7 +25,7 @@
 .marketHeading p {
   margin: 0;
   color: #7b857f;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .marketHeadingActions {
@@ -43,7 +43,7 @@
   display: flex;
   flex-direction: column;
   color: #6f7973;
-  font: 11px "DM Mono", monospace;
+  font: 13px "DM Mono", monospace;
   text-align: right;
   text-transform: uppercase;
 }
@@ -63,7 +63,7 @@
   border: 1px solid #344037;
   border-radius: 9px;
   color: #b9c4bd;
-  font-size: 11px;
+  font-size: 13px;
   text-decoration: none;
 }
 
@@ -74,7 +74,7 @@
 
 .marketLoading {
   color: #768079;
-  font: 11px "DM Mono", monospace;
+  font: 13px "DM Mono", monospace;
 }
 
 .marketCarousel {
@@ -234,7 +234,7 @@
 .marketCardIdentity strong {
   overflow: hidden;
   color: #f0f3f1;
-  font-size: 12px;
+  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -243,7 +243,7 @@
   display: flex;
   gap: 6px;
   color: #89938d;
-  font: 11px "DM Mono", monospace;
+  font: 13px "DM Mono", monospace;
 }
 
 .marketCardIdentity i {
@@ -258,7 +258,7 @@
   border-radius: 6px;
   background: #1d1111;
   color: #d87872;
-  font: 500 11px "DM Mono", monospace;
+  font: 500 13px "DM Mono", monospace;
   text-transform: uppercase;
 }
 
@@ -321,7 +321,7 @@
   bottom: 0;
   left: 3px;
   color: #59635d;
-  font: 11px "DM Mono", monospace;
+  font: 13px "DM Mono", monospace;
   letter-spacing: 0.03em;
 }
 
@@ -368,7 +368,7 @@
   border-radius: 5px;
   background: rgb(202 255 20 / 9%);
   color: currentcolor;
-  font: 500 11px "DM Mono", monospace;
+  font: 500 13px "DM Mono", monospace;
   text-transform: uppercase;
 }
 
@@ -385,7 +385,7 @@
 .marketCardQuote small {
   overflow: hidden;
   color: #626c66;
-  font-size: 11px;
+  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -409,7 +409,7 @@
   gap: 5px;
   overflow: hidden;
   color: #68716c;
-  font: 11px "DM Mono", monospace;
+  font: 13px "DM Mono", monospace;
   text-decoration: none;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -483,7 +483,7 @@
   padding: 8px 25px;
   border-top: 1px solid #1f2622;
   color: #626d66;
-  font: 11px "DM Mono", monospace;
+  font: 13px "DM Mono", monospace;
 }
 
 .marketCatalogFooter span {
@@ -524,12 +524,12 @@
 }
 
 .marketError strong {
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .marketError span {
   color: #c98b87;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .marketError button {
@@ -539,7 +539,7 @@
   background: #241514;
   color: #ef9a94;
   cursor: pointer;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .marketCardSkeleton {
@@ -560,7 +560,7 @@
   width: 100%;
   padding: 50px 24px;
   color: #69736d;
-  font-size: 11px;
+  font-size: 13px;
   text-align: center;
 }
 
@@ -619,7 +619,7 @@
 
 .marketPageMetrics small {
   color: #6d7771;
-  font-size: 11px;
+  font-size: 13px;
   text-transform: uppercase;
 }
 
@@ -644,7 +644,7 @@
   align-items: center;
   gap: 6px;
   color: #65716a;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .marketSourceNotice i {
@@ -662,7 +662,7 @@
 .marketSourceNotice p {
   margin: 0 0 0 auto;
   color: #66716b;
-  font: 11px "DM Mono", monospace;
+  font: 13px "DM Mono", monospace;
 }
 
 .marketDirectory {
@@ -687,7 +687,7 @@
 
 .marketDirectoryHeader small {
   color: #69746d;
-  font: 11px "DM Mono", monospace;
+  font: 13px "DM Mono", monospace;
 }
 
 .marketDirectoryHeader > button {
@@ -697,7 +697,7 @@
   background: #101612;
   color: #aab5ae;
   cursor: pointer;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .marketDirectoryHeader > button:hover {
@@ -721,7 +721,7 @@
 
 .marketControls label > span {
   color: #626e67;
-  font: 11px "DM Mono", monospace;
+  font: 13px "DM Mono", monospace;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -735,7 +735,7 @@
   outline: none;
   background: #080b09;
   color: #eef2ee;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .marketControls input:focus {
@@ -755,7 +755,7 @@
   background: none;
   color: #727c76;
   cursor: pointer;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .marketControls button.selected {

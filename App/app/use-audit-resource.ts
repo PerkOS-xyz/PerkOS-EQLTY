@@ -1,6 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import {
+  loadFleetSession,
+  requestFleetChallenge,
+  verifyFleetOwner,
+} from "../lib/fleet-api";
 import { useWalletAccess } from "./wallet-access-context";
 
 export type AuditResource<T> = {
@@ -35,7 +40,25 @@ export function useAuditResource<T>(
     const controller = new AbortController();
     setError(undefined);
     setPhase("loading");
-    loader(controller.signal)
+    const loadAuthenticated = async () => {
+      const session = await loadFleetSession();
+      if (
+        !session ||
+        session.walletAddress.toLowerCase() !==
+          wallet.address!.toLowerCase()
+      ) {
+        const challenge = await requestFleetChallenge(wallet.address!);
+        const signature = await wallet.signMessage(challenge.message);
+        await verifyFleetOwner(
+          wallet.address!,
+          challenge.nonce,
+          signature,
+        );
+      }
+      return loader(controller.signal);
+    };
+
+    loadAuthenticated()
       .then((value) => {
         if (!controller.signal.aborted) {
           setData(value);
@@ -57,6 +80,7 @@ export function useAuditResource<T>(
     wallet.address,
     wallet.connected,
     wallet.loaded,
+    wallet.signMessage,
   ]);
 
   const refresh = useCallback(() => {

@@ -6,6 +6,10 @@ export type EnsFleetNames = {
   agents: Record<FleetRole, string>;
 };
 
+export type EnsAgentRecordKey =
+  | "agent-context"
+  | `agent-context-v${number}-${string}`;
+
 export type EnsAgentSettings = {
   schema: "urn:eqlty:agent-settings:v1";
   version: number;
@@ -45,7 +49,7 @@ export type EnsOrchestrationManifest = {
     FleetRole,
     {
       name: string;
-      recordKey: "agent-context";
+      recordKey: EnsAgentRecordKey;
       hash: `0x${string}`;
     }
   >;

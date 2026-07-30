@@ -88,10 +88,11 @@ export class EnsControlPlaneService {
       const settings = {} as Record<FleetRole, EnsAgentSettings>;
       for (const { role } of fleetRoles) {
         const name = names.agents[role];
+        const reference = manifest.agentSettings[role];
         const [agentOwner, agentAddress, rawSettings] = await Promise.all([
           this.reader.owner(name),
           this.reader.address(name),
-          this.reader.text(name, "agent-context"),
+          this.reader.text(name, reference.recordKey),
         ]);
         if (!sameAddress(agentOwner, input.owner)) {
           throw new Error(`The ${role} name has an unexpected owner`);
@@ -106,7 +107,6 @@ export class EnsControlPlaneService {
         if (!rawSettings) {
           throw new Error(`The ${role} settings record is empty`);
         }
-        const reference = manifest.agentSettings[role];
         if (
           hashEnsRecord(rawSettings).toLowerCase() !==
           reference.hash.toLowerCase()

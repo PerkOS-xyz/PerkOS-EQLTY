@@ -161,6 +161,25 @@ describe("ENS policy preparation", () => {
           return `0x${writes.length.toString(16).padStart(64, "0")}`;
         },
       },
+      reader: {
+        ready: () => true,
+        text: async (name, key) => {
+          const written = [...writes]
+            .reverse()
+            .find(
+              (record) =>
+                record.name === name && record.key === key,
+            );
+          if (written) return written.value;
+          if (
+            name === bundle.names.user &&
+            key === "agent-context"
+          ) {
+            return bundle.manifestJson;
+          }
+          return "";
+        },
+      },
       now: () => preparedTime,
     });
 
@@ -180,6 +199,11 @@ describe("ENS policy preparation", () => {
       bundle.names.agents.trader,
       bundle.names.agents.auditor,
     ]);
+    expect(writes.slice(0, 4).map(({ key }) => key)).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/^agent-context-v2-[0-9a-f]{8}$/),
+      ]),
+    );
     expect(writes[4]).toMatchObject({
       name: bundle.names.user,
       key: "agent-context",
@@ -187,6 +211,136 @@ describe("ENS policy preparation", () => {
     });
     expect(published.transactions).toHaveLength(5);
     expect(published.verified).toBe(true);
+  });
+
+  it("leaves the active manifest untouched when staging fails", async () => {
+    const { config, bundle } = fixture();
+    const writes: Array<{ name: string; key: string }> = [];
+    const service = new EnsPolicyPreparationService(config, {
+      controlPlane: {
+        resolve: async () => ({
+          source: "durin",
+          mode: "live",
+          status: "active",
+          rootName: bundle.names.user,
+          manifestHash: bundle.manifestHash,
+          resolvedAt: currentTime.toISOString(),
+          owner,
+          manifest: bundle.manifest,
+          agentSettings: settingsFor(bundle),
+        }),
+      },
+      writer: {
+        ready: () => true,
+        setText: async (name, key) => {
+          writes.push({ name, key });
+          if (writes.length === 3) {
+            throw new Error("simulated transaction failure");
+          }
+          return `0x${writes.length.toString(16).padStart(64, "0")}`;
+        },
+      },
+      reader: {
+        ready: () => true,
+        text: async () => "",
+      },
+      now: () => preparedTime,
+    });
+
+    await expect(
+      service.publish({
+        userId: "u-12345678",
+        owner,
+        change: {
+          paused: true,
+          ...bundle.manifest.policy,
+        },
+      }),
+    ).rejects.toThrow("simulated transaction failure");
+
+    expect(
+      writes.some(
+        ({ name, key }) =>
+          name === bundle.names.user && key === "agent-context",
+      ),
+    ).toBe(false);
+    expect(
+      writes.every(({ key }) =>
+        key.startsWith("agent-context-v2-"),
+      ),
+    ).toBe(true);
+  });
+
+  it("does not commit over a concurrently changed manifest", async () => {
+    const { config, bundle } = fixture();
+    const writes: Array<{
+      name: string;
+      key: string;
+      value: string;
+    }> = [];
+    const service = new EnsPolicyPreparationService(config, {
+      controlPlane: {
+        resolve: async () => ({
+          source: "durin",
+          mode: "live",
+          status: "active",
+          rootName: bundle.names.user,
+          manifestHash: bundle.manifestHash,
+          resolvedAt: currentTime.toISOString(),
+          owner,
+          manifest: bundle.manifest,
+          agentSettings: settingsFor(bundle),
+        }),
+      },
+      writer: {
+        ready: () => true,
+        setText: async (name, key, value) => {
+          writes.push({ name, key, value });
+          return `0x${writes.length.toString(16).padStart(64, "0")}`;
+        },
+      },
+      reader: {
+        ready: () => true,
+        text: async (name, key) => {
+          const written = [...writes]
+            .reverse()
+            .find(
+              (record) =>
+                record.name === name && record.key === key,
+            );
+          if (written) return written.value;
+          if (
+            name === bundle.names.user &&
+            key === "agent-context"
+          ) {
+            return `${bundle.manifestJson} `;
+          }
+          return "";
+        },
+      },
+      now: () => preparedTime,
+    });
+
+    await expect(
+      service.publish({
+        userId: "u-12345678",
+        owner,
+        change: {
+          paused: true,
+          ...bundle.manifest.policy,
+        },
+      }),
+    ).rejects.toThrow(
+      "ENS policy changed while this update was being staged",
+    );
+
+    expect(writes).toHaveLength(4);
+    expect(
+      writes.some(
+        ({ name, key }) =>
+          name === bundle.names.user && key === "agent-context",
+      ),
+    ).toBe(false);
   });
 
   it("rejects inactive control planes and no-op changes", async () => {

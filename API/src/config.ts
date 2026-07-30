@@ -149,6 +149,37 @@ const schema = z.object({
     .regex(/^[1-9]\d*$/)
     .refine((value) => BigInt(value) < 2n ** 256n)
     .default("3000000"),
+  EQLTY_ONECLAW_LIVE_AUTHORIZATION: booleanValue("false"),
+  EQLTY_DECISION_FEE_MODE: z
+    .enum(["preview", "live"])
+    .default("preview"),
+  EQLTY_DECISION_FEE_RECIPIENT: optional(address),
+  EQLTY_DECISION_FEE_MAX_AMOUNT: z
+    .string()
+    .max(78)
+    .regex(/^[1-9]\d*$/)
+    .refine((value) => BigInt(value) < 2n ** 256n)
+    .default("250000"),
+  EQLTY_DECISION_FEE_COMPLETE_AMOUNT: z
+    .string()
+    .max(78)
+    .regex(/^[1-9]\d*$/)
+    .refine((value) => BigInt(value) < 2n ** 256n)
+    .default("200000"),
+  EQLTY_DECISION_FEE_NO_CANDIDATE_AMOUNT: z
+    .string()
+    .max(78)
+    .regex(/^[1-9]\d*$/)
+    .refine((value) => BigInt(value) < 2n ** 256n)
+    .default("50000"),
+  EQLTY_X402_FACILITATOR_URL: z
+    .string()
+    .url()
+    .default("https://stack.perkos.xyz"),
+  EQLTY_PUBLIC_API_URL: z
+    .string()
+    .url()
+    .default("http://localhost:4021"),
   ENS_ROOT_NAME: optional(z.string().min(3).max(255)),
   EQLTY_ENS_RECORDS_CHAIN_ID: z.coerce
     .number()
@@ -207,6 +238,24 @@ export function loadConfig(
       .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
       .join("; ");
     throw new Error(`Invalid API configuration: ${problems}`);
+  }
+  if (
+    result.data.EQLTY_DECISION_FEE_MODE === "live" &&
+    !result.data.EQLTY_DECISION_FEE_RECIPIENT
+  ) {
+    throw new Error(
+      "Invalid API configuration: EQLTY_DECISION_FEE_RECIPIENT is required in live decision-fee mode",
+    );
+  }
+  if (
+    BigInt(result.data.EQLTY_DECISION_FEE_COMPLETE_AMOUNT) >
+      BigInt(result.data.EQLTY_DECISION_FEE_MAX_AMOUNT) ||
+    BigInt(result.data.EQLTY_DECISION_FEE_NO_CANDIDATE_AMOUNT) >
+      BigInt(result.data.EQLTY_DECISION_FEE_MAX_AMOUNT)
+  ) {
+    throw new Error(
+      "Invalid API configuration: decision fees cannot exceed EQLTY_DECISION_FEE_MAX_AMOUNT",
+    );
   }
   return result.data;
 }

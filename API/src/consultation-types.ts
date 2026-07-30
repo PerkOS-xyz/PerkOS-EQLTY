@@ -5,7 +5,7 @@ export type ConsultationFact = {
 };
 
 export type ConsultationStep = {
-  role: "scout" | "risk";
+  role: FleetRole;
   agentId?: string;
   agentName?: string;
   status: "verified" | "invalid" | "unavailable" | "skipped";
@@ -22,4 +22,7 @@ export type AgentConsultation = {
   selectedTicker?: string;
   scout: ConsultationStep;
   risk: ConsultationStep;
+  trader: ConsultationStep;
+  auditor: ConsultationStep;
 };
+import type { FleetRole } from "./fleet-types.js";

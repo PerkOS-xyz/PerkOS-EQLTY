@@ -1,9 +1,27 @@
-import type { AutonomousGoal, StartGoalInput } from "./goal-types";
+import type {
+  AutonomousGoal,
+  DecisionFeePaymentPayload,
+  StartGoalInput,
+} from "./goal-types";
 
 const fallbackUrl = "http://localhost:4021";
 
+export type DecisionFeeConfig = {
+  mode: "preview" | "live";
+  scheme: "exact";
+  maximumAmount: string;
+  completeAmount: string;
+  noCandidateAmount: string;
+  decimals: 6;
+  symbol: "USDG";
+};
+
 function apiUrl(): string {
   return process.env.NEXT_PUBLIC_AGENT_API_URL?.trim() || fallbackUrl;
+}
+
+export function goalDecisionFeeResource(goalId: string): string {
+  return `${apiUrl()}/api/goals/${encodeURIComponent(goalId)}/decision-fee`;
 }
 
 async function request<T>(
@@ -40,6 +58,16 @@ export function startGoal(input: StartGoalInput): Promise<AutonomousGoal> {
   });
 }
 
+export async function readDecisionFeeConfig(): Promise<DecisionFeeConfig> {
+  const config = await request<{ decisionFee?: DecisionFeeConfig }>(
+    "/api/config",
+  );
+  if (!config.decisionFee) {
+    throw new Error("Decision fee configuration is unavailable");
+  }
+  return config.decisionFee;
+}
+
 export function readGoal(
   goalId: string,
   signal?: AbortSignal,
@@ -55,5 +83,18 @@ export function evaluateGoal(goalId: string): Promise<AutonomousGoal> {
   return request<AutonomousGoal>(
     `/api/goals/${encodeURIComponent(goalId)}/tick`,
     { method: "POST" },
+  );
+}
+
+export function settleGoalDecisionFee(
+  goalId: string,
+  payment: DecisionFeePaymentPayload,
+): Promise<AutonomousGoal> {
+  return request<AutonomousGoal>(
+    `/api/goals/${encodeURIComponent(goalId)}/decision-fee`,
+    {
+      method: "POST",
+      body: JSON.stringify(payment),
+    },
   );
 }

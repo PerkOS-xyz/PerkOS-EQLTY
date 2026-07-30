@@ -26,6 +26,9 @@ out/
 cache/
 target/
 *.tsbuildinfo
+playwright-report/
+test-results/
+blob-report/
 
 # Local services
 .vercel/

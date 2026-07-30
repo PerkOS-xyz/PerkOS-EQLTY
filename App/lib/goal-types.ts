@@ -42,7 +42,7 @@ export type ConsultationFact = {
 };
 
 export type ConsultationStep = {
-  role: "scout" | "risk";
+  role: AgentRole;
   agentId?: string;
   agentName?: string;
   status: "verified" | "invalid" | "unavailable" | "skipped";
@@ -59,6 +59,8 @@ export type AgentConsultation = {
   selectedTicker?: string;
   scout: ConsultationStep;
   risk: ConsultationStep;
+  trader: ConsultationStep;
+  auditor: ConsultationStep;
 };
 
 export type OpportunityAnalysis = {
@@ -94,11 +96,75 @@ export type GoalHistoryItem = {
   policyManifestHash?: `0x${string}`;
 };
 
+export type DecisionFeeRequirements = {
+  scheme: "exact";
+  network: "eip155:4663";
+  amount: string;
+  asset: `0x${string}`;
+  payTo: `0x${string}`;
+  maxTimeoutSeconds: number;
+  extra: {
+    name: "Global Dollar";
+    version: "1";
+  };
+};
+
+export type DecisionFeePaymentPayload = {
+  x402Version: 2;
+  resource: {
+    url: string;
+    description: string;
+    mimeType: "application/json";
+  };
+  accepted: DecisionFeeRequirements;
+  payload: {
+    signature: `0x${string}`;
+    authorization: {
+      from: `0x${string}`;
+      to: `0x${string}`;
+      value: string;
+      validAfter: string;
+      validBefore: string;
+      nonce: `0x${string}`;
+    };
+  };
+  extensions: Record<string, unknown>;
+};
+
+export type DecisionFee = {
+  mode: "preview" | "live";
+  status:
+    | "preview"
+    | "payment-required"
+    | "settled"
+    | "waived"
+    | "failed";
+  scheme: "exact";
+  amount: string;
+  maximumAmount: string;
+  decimals: 6;
+  symbol: "USDG";
+  reason: string;
+  requirements?: DecisionFeeRequirements;
+  receipt?: {
+    payer: `0x${string}`;
+    amount: string;
+    asset: `0x${string}`;
+    network: "eip155:4663";
+    authorizationNonce: `0x${string}`;
+    transaction?: `0x${string}`;
+    explorerUrl?: string;
+    requestId?: string;
+    settledAt: string;
+  };
+  error?: string;
+};
+
 export type AutonomousGoal = {
   id: string;
   goal: string;
   amountIn: string;
-  status: "active" | "completed" | "blocked";
+  status: "active" | "payment-required" | "completed" | "blocked";
   startedAt: string;
   endsAt: string;
   nextEvaluationAt?: string;
@@ -107,6 +173,7 @@ export type AutonomousGoal = {
   gates: GoalGates;
   latest?: OpportunityAnalysis;
   history: GoalHistoryItem[];
+  decisionFee?: DecisionFee;
   error?: string;
 };
 

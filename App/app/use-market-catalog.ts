@@ -2,11 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
+  loadIntegrationHealth,
   loadStockHistory,
   loadStockCatalog,
   loadStockSeries,
   type MarketDaySeriesEntry,
   type MarketSeriesResponse,
+  type GraphIntegrationHealth,
 } from "../lib/market-api";
 import type { StockCatalog } from "../lib/market-types";
 
@@ -28,6 +30,8 @@ export function useMarketCatalog() {
   const [catalog, setCatalog] = useState<StockCatalog>();
   const [history, setHistory] = useState<MarketDayHistory>({});
   const [graphHistory, setGraphHistory] = useState<MarketPriceHistory>({});
+  const [graphIntegration, setGraphIntegration] =
+    useState<GraphIntegrationHealth>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
   const [historyState, setHistoryState] = useState<
@@ -45,11 +49,12 @@ export function useMarketCatalog() {
 
     const load = async () => {
       try {
-        const nextCatalog = await loadStockCatalog(
-          request > 0,
-          controller.signal,
-        );
+        const [nextCatalog, nextHealth] = await Promise.all([
+          loadStockCatalog(request > 0, controller.signal),
+          loadIntegrationHealth(controller.signal).catch(() => undefined),
+        ]);
         setCatalog(nextCatalog);
+        setGraphIntegration(nextHealth);
         setLoading(false);
         const tickers = nextCatalog.assets
           .filter((asset) => asset.uniswapRoutable)
@@ -58,7 +63,7 @@ export function useMarketCatalog() {
           setHistoryState("loading");
           setSeriesState("loading");
           const [dayResult, graphResult] = await Promise.allSettled([
-            loadStockHistory(tickers, controller.signal),
+            retryUniswapHistory(tickers, controller.signal),
             loadStockSeries(tickers, controller.signal),
           ]);
           if (dayResult.status === "fulfilled") {
@@ -112,12 +117,49 @@ export function useMarketCatalog() {
     catalog,
     history,
     graphHistory,
+    graphIntegration,
     loading,
     error,
     refresh,
     historyState,
     seriesState,
   };
+}
+
+async function retryUniswapHistory(
+  tickers: string[],
+  signal: AbortSignal,
+): Promise<Awaited<ReturnType<typeof loadStockHistory>>> {
+  let lastError: unknown;
+  for (const delay of [0, 1_500, 3_500]) {
+    if (delay > 0) {
+      await abortableDelay(delay, signal);
+    }
+    try {
+      return await loadStockHistory(tickers, signal);
+    } catch (error) {
+      if (signal.aborted) throw error;
+      lastError = error;
+    }
+  }
+  throw lastError;
+}
+
+function abortableDelay(
+  milliseconds: number,
+  signal: AbortSignal,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(resolve, milliseconds);
+    signal.addEventListener(
+      "abort",
+      () => {
+        window.clearTimeout(timeout);
+        reject(new DOMException("Aborted", "AbortError"));
+      },
+      { once: true },
+    );
+  });
 }
 
 function mergeGraphSeries(

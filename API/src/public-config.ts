@@ -1,5 +1,6 @@
 import type { ApiConfig } from "./config.js";
 import { executionTraderAddress } from "./execution-addresses.js";
+import type { GraphIntegrationStatus } from "./graph-evidence.js";
 
 export type PublicApiConfig = {
   demoMode: boolean;
@@ -27,16 +28,47 @@ export type PublicApiConfig = {
     ens: "ready" | "pending";
     oneclaw: "pending";
     perkos: "disabled" | "live" | "preview";
-    theGraph: "ready" | "pending";
+    theGraph: "ready" | "degraded" | "pending";
     uniswap: "ready" | "pending";
+  };
+  integrationHealth: {
+    theGraph: GraphIntegrationStatus;
+  };
+  decisionFee: {
+    mode: "preview" | "live";
+    scheme: "exact";
+    maximumAmount: string;
+    completeAmount: string;
+    noCandidateAmount: string;
+    decimals: 6;
+    symbol: "USDG";
   };
 };
 
-export function publicConfig(config: ApiConfig): PublicApiConfig {
+export function publicConfig(
+  config: ApiConfig,
+  graphStatus?: GraphIntegrationStatus,
+): PublicApiConfig {
   const executionName =
     config.ROBINHOOD_CHAIN_ID === 46630
       ? "Robinhood Testnet"
       : "Robinhood";
+  const theGraph =
+    graphStatus ??
+    ({
+      configured: Boolean(
+        config.EQLTY_GRAPH_ADAPTER_URL ?? config.GRAPH_RISK_URL,
+      ),
+      status:
+        config.EQLTY_GRAPH_ADAPTER_URL || config.GRAPH_RISK_URL
+          ? "degraded"
+          : "pending",
+      checkedAt: new Date().toISOString(),
+      reason:
+        config.EQLTY_GRAPH_ADAPTER_URL || config.GRAPH_RISK_URL
+          ? "unreachable"
+          : "not-configured",
+    } satisfies GraphIntegrationStatus);
 
   return {
     demoMode: config.DEMO_MODE,
@@ -71,14 +103,24 @@ export function publicConfig(config: ApiConfig): PublicApiConfig {
           : "pending",
       oneclaw: "pending",
       perkos: config.PERKOS_FLEET_MODE,
-      theGraph:
-        config.EQLTY_GRAPH_ADAPTER_URL || config.GRAPH_RISK_URL
-          ? "ready"
-          : "pending",
+      theGraph: theGraph.status,
       uniswap:
         config.UNISWAP_API_KEY && config.SWAPPER_ADDRESS
           ? "ready"
           : "pending",
+    },
+    integrationHealth: {
+      theGraph,
+    },
+    decisionFee: {
+      mode: config.EQLTY_DECISION_FEE_MODE,
+      scheme: "exact",
+      maximumAmount: config.EQLTY_DECISION_FEE_MAX_AMOUNT,
+      completeAmount: config.EQLTY_DECISION_FEE_COMPLETE_AMOUNT,
+      noCandidateAmount:
+        config.EQLTY_DECISION_FEE_NO_CANDIDATE_AMOUNT,
+      decimals: 6,
+      symbol: "USDG",
     },
   };
 }

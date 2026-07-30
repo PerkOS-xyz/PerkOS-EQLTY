@@ -117,6 +117,20 @@ describe("opportunity analysis", () => {
             facts: [],
             detail: "approved",
           },
+          trader: {
+            role: "trader",
+            status: "verified",
+            ticker: "NVDA",
+            facts: [],
+            detail: "prepared",
+          },
+          auditor: {
+            role: "auditor",
+            status: "verified",
+            ticker: "NVDA",
+            facts: [],
+            detail: "sealed",
+          },
         }),
       },
     });

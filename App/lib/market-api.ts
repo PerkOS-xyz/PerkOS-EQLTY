@@ -47,6 +47,24 @@ export type MarketDaySeriesResponse = {
   series: MarketDaySeriesEntry[];
 };
 
+export type GraphIntegrationHealth = {
+  configured: boolean;
+  status: "ready" | "degraded" | "pending";
+  checkedAt: string;
+  running?: boolean;
+  processedBlock?: string;
+  providerHeadBlock?: string;
+  lagBlocks?: number;
+  observedTickers?: number;
+  reason?:
+    | "not-configured"
+    | "unreachable"
+    | "not-running"
+    | "quota-exhausted"
+    | "provider-error"
+    | "lagging";
+};
+
 const fallbackUrl = "http://localhost:4021";
 
 function apiUrl(): string {
@@ -95,6 +113,37 @@ export async function loadStockCatalog(
     throw new Error("The market response is incomplete");
   }
   return body;
+}
+
+export async function loadIntegrationHealth(
+  signal?: AbortSignal,
+): Promise<GraphIntegrationHealth> {
+  const response = await fetch(`${apiUrl()}/api/config`, {
+    credentials: "include",
+    headers: { accept: "application/json" },
+    signal,
+  });
+  const body: unknown = await response.json().catch(() => undefined);
+  if (
+    !response.ok ||
+    !body ||
+    typeof body !== "object" ||
+    !("integrationHealth" in body)
+  ) {
+    throw new Error("Integration health is unavailable");
+  }
+  const health = (
+    body as {
+      integrationHealth?: { theGraph?: GraphIntegrationHealth };
+    }
+  ).integrationHealth?.theGraph;
+  if (
+    !health ||
+    !["ready", "degraded", "pending"].includes(health.status)
+  ) {
+    throw new Error("The Graph health response is incomplete");
+  }
+  return health;
 }
 
 export async function loadStockSeries(

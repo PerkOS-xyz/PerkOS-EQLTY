@@ -13,7 +13,7 @@
 .fleetCopy {
   margin: 5px 0 0;
   color: #7d8a82;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .fleetCount {
@@ -22,7 +22,7 @@
   border: 1px solid #445248;
   border-radius: 999px;
   color: #a3afa7;
-  font: 11px "DM Mono", monospace;
+  font: 13px "DM Mono", monospace;
   text-transform: uppercase;
 }
 
@@ -160,7 +160,7 @@
   background: #f07971;
   color: #210909;
   content: "×";
-  font: 700 11px "DM Mono", monospace;
+  font: 700 13px "DM Mono", monospace;
 }
 
 .agentConnector.blocked b {
@@ -331,8 +331,8 @@
   display: block;
   overflow: hidden;
   margin-top: 3px;
-  color: #6f8175;
-  font: 11px "DM Mono", monospace;
+  color: #a6b3ab;
+  font: 13px "DM Mono", monospace;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -341,7 +341,7 @@
   min-height: 29px;
   margin: 7px 0 0;
   color: #819087;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.45;
 }
 
@@ -356,7 +356,7 @@
 
 .agentState b {
   color: #e4bd68;
-  font: 11px "DM Mono", monospace;
+  font: 13px "DM Mono", monospace;
   text-transform: uppercase;
 }
 
@@ -385,8 +385,8 @@
 }
 
 .agentState small {
-  color: #6f8175;
-  font: 11px "DM Mono", monospace;
+  color: #a6b3ab;
+  font: 13px "DM Mono", monospace;
 }
 
 .agentMetadata {
@@ -407,7 +407,7 @@
 .agentMetadataActions button,
 .agentMetadataActions a {
   color: #8be8a8;
-  font: 11px "DM Mono", monospace;
+  font: 13px "DM Mono", monospace;
   text-decoration: none;
   text-transform: uppercase;
 }
@@ -421,7 +421,7 @@
 
 .agentMetadata > small {
   color: #9a916d;
-  font: 11px "DM Mono", monospace;
+  font: 13px "DM Mono", monospace;
 }
 
 .agentMetadata dl {
@@ -439,12 +439,12 @@
 .agentMetadata dt,
 .agentMetadata dd {
   margin: 0;
-  font: 11px "DM Mono", monospace;
+  font: 13px "DM Mono", monospace;
   line-height: 1.45;
 }
 
 .agentMetadata dt {
-  color: #6f8175;
+  color: #a6b3ab;
   text-transform: uppercase;
 }
 
@@ -476,14 +476,14 @@
 .fleetPolicyEditor span,
 .fleetPolicyEditor small {
   color: #819087;
-  font: 11px "DM Mono", monospace;
+  font: 13px "DM Mono", monospace;
   text-transform: uppercase;
 }
 
 .fleetPolicyEditor strong {
   overflow: hidden;
   color: #d7e2da;
-  font: 11px "DM Mono", monospace;
+  font: 13px "DM Mono", monospace;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -500,7 +500,7 @@
   border-radius: 7px;
   background: #132019;
   color: #9ce7b2;
-  font: 11px "DM Mono", monospace;
+  font: 13px "DM Mono", monospace;
   cursor: pointer;
   text-transform: uppercase;
 }
@@ -532,7 +532,7 @@
 .fleetPolicyError {
   padding-top: 7px;
   border-top: 1px solid #203027;
-  font: 11px "DM Mono", monospace;
+  font: 13px "DM Mono", monospace;
 }
 
 .fleetPolicyStatus {
@@ -551,7 +551,7 @@
 
 .fleetPolicyTransactions a {
   color: #8be8a8;
-  font: 11px "DM Mono", monospace;
+  font: 13px "DM Mono", monospace;
   text-decoration: none;
 }
 
@@ -574,7 +574,7 @@
   align-items: center;
   gap: 7px;
   color: #d5eb75;
-  font: 11px "DM Mono", monospace;
+  font: 13px "DM Mono", monospace;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -590,12 +590,12 @@
 
 .fleetWorkflowBanner strong {
   color: #dbe4de;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .fleetWorkflowBanner > small {
   color: #7e8b83;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.45;
 }
 
@@ -663,7 +663,7 @@
 .workflowTechRail li b,
 .workflowTechRail li small {
   overflow: hidden;
-  font: 11px "DM Mono", monospace;
+  font: 13px "DM Mono", monospace;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -747,7 +747,7 @@
 
 .agentPolicyChecks > header span,
 .agentPolicyChecks > header b {
-  font: 11px "DM Mono", monospace;
+  font: 13px "DM Mono", monospace;
   text-transform: uppercase;
 }
 
@@ -801,7 +801,7 @@
 
 .agentPolicyChecks li > span {
   color: #86928a;
-  font: 11px "DM Mono", monospace;
+  font: 13px "DM Mono", monospace;
   text-transform: uppercase;
 }
 
@@ -809,7 +809,7 @@
   min-width: 0;
   overflow: hidden;
   color: #9ba69f;
-  font: 11px "DM Mono", monospace;
+  font: 13px "DM Mono", monospace;
   text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -876,7 +876,7 @@
   align-items: center;
   gap: 3px;
   color: #4f5d54;
-  font: 11px "DM Mono", monospace;
+  font: 13px "DM Mono", monospace;
   text-transform: uppercase;
 }
 
@@ -932,7 +932,7 @@
 
 .fleetSecurityCopy span,
 .fleetSecurityCopy strong {
-  font: 11px "DM Mono", monospace;
+  font: 13px "DM Mono", monospace;
   text-transform: uppercase;
 }
 
@@ -952,7 +952,7 @@
 .fleetSecurityCopy p {
   margin: 5px 0 0;
   color: #77857c;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .fleetSecurityActions {
@@ -971,7 +971,7 @@
   outline: none;
   background: #0d1410;
   color: #dce8df;
-  font: 11px "DM Mono", monospace;
+  font: 13px "DM Mono", monospace;
 }
 
 .fleetSecurityActions input:focus {
@@ -986,7 +986,7 @@
   background: #1c2b20;
   color: #93e9ab;
   cursor: pointer;
-  font: 11px "DM Mono", monospace;
+  font: 13px "DM Mono", monospace;
 }
 
 .fleetSecurityActions button:disabled {
@@ -997,7 +997,7 @@
 .fleetNote {
   margin: 11px 0 0;
   color: #998f67;
-  font: 11px "DM Mono", monospace;
+  font: 13px "DM Mono", monospace;
 }
 
 .fleetError {
@@ -1014,7 +1014,7 @@
 
 .fleetError span {
   color: #f08780;
-  font: 11px "DM Mono", monospace;
+  font: 13px "DM Mono", monospace;
 }
 
 .fleetError button {
@@ -1025,7 +1025,7 @@
   background: #241514;
   color: #ef9a94;
   cursor: pointer;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 @keyframes fleetProgress {

@@ -30,13 +30,20 @@
   line-height: 1.6;
 }
 
+.goalPricingHint {
+  display: block;
+  margin-top: 8px;
+  color: #6e9e7d;
+  font-size: 13px;
+}
+
 .goalWindow {
   padding: 8px 11px;
   border: 1px solid #315b3e;
   border-radius: 999px;
   background: #112018;
   color: #7ce9a1;
-  font: 500 11px "DM Mono", monospace;
+  font: 500 13px "DM Mono", monospace;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   white-space: nowrap;
@@ -71,7 +78,7 @@
   display: block;
   margin-bottom: 8px;
   color: #707a75;
-  font: 500 11px "DM Mono", monospace;
+  font: 500 13px "DM Mono", monospace;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -85,7 +92,7 @@
   outline: none;
   background: #101512;
   color: #e8efea;
-  font: 500 12px "Manrope", sans-serif;
+  font: 500 13px "Manrope", sans-serif;
 }
 
 .goalForm textarea:focus,
@@ -127,7 +134,7 @@
   min-height: 30px;
   margin-top: 7px;
   color: #77817c;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.5;
 }
 
@@ -144,7 +151,7 @@
   top: 50%;
   right: 12px;
   color: #75df98;
-  font: 500 11px "DM Mono", monospace;
+  font: 500 13px "DM Mono", monospace;
   transform: translateY(-50%);
 }
 
@@ -157,7 +164,7 @@
   background: #75efa0;
   color: #07110b;
   cursor: pointer;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 800;
 }
 
@@ -173,7 +180,7 @@
 .goalError {
   margin: 12px 0 0;
   color: #f1978d;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .goalBoundaries ul {
@@ -206,7 +213,7 @@
   border: 1px solid #1f2823;
   border-radius: 9px;
   color: #909a95;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .goalBoundaries li i {
@@ -218,7 +225,7 @@
   border-radius: 7px;
   background: #15231a;
   color: #79e39c;
-  font: normal 500 11px "DM Mono", monospace;
+  font: normal 500 13px "DM Mono", monospace;
 }
 
 .goalProgress {
@@ -249,13 +256,13 @@
 .goalProgress > header strong,
 .candidateResult > header strong,
 .candidateDecision strong {
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .goalProgress > header small,
 .candidateDecision small {
   color: #7d8882;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .goalStatus {
@@ -263,7 +270,7 @@
   align-items: center;
   gap: 7px;
   color: #7ee8a1;
-  font: 500 11px "DM Mono", monospace;
+  font: 500 13px "DM Mono", monospace;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -284,6 +291,114 @@
   color: #f09b8f;
 }
 
+.goalStatus.payment-required {
+  color: #f0c879;
+}
+
+.decisionFee {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid #30443a;
+  border-radius: 10px;
+  background: #0d1510;
+}
+
+.decisionFee > div:first-child {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.decisionFee span {
+  color: #75df98;
+  font: 500 13px "DM Mono", monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.decisionFee strong {
+  font-size: 15px;
+}
+
+.decisionFee small {
+  color: #7f8b84;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.decisionFee button {
+  min-height: 40px;
+  padding: 0 15px;
+  border: 0;
+  border-radius: 8px;
+  background: #75efa0;
+  color: #07110b;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.decisionFee button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.decisionFee > b {
+  color: #83bc95;
+  font: 500 13px "DM Mono", monospace;
+}
+
+.decisionFee.payment-required {
+  border-color: #6a5934;
+  background: #17140c;
+}
+
+.decisionFee.payment-required span {
+  color: #f0c879;
+}
+
+.decisionFeeReceipt {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+}
+
+.decisionFeeReceipt a {
+  color: #82e7a3;
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.decisionFeeReceipt code {
+  color: #69766e;
+  font-size: 13px;
+}
+
+.decisionFee > p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #f1978d;
+  font-size: 13px;
+}
+
+@media (max-width: 700px) {
+  .decisionFee {
+    grid-template-columns: 1fr;
+  }
+
+  .decisionFee button {
+    width: 100%;
+  }
+
+  .decisionFeeReceipt {
+    align-items: flex-start;
+  }
+}
+
 .goalRolePath {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -302,7 +417,7 @@
   gap: 7px;
   border-right: 1px solid #253029;
   color: #9ca69f;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .goalRolePath span:last-child {
@@ -317,7 +432,7 @@
   border-radius: 50%;
   background: #17271d;
   color: #7ae49d;
-  font: normal 500 11px "DM Mono", monospace;
+  font: normal 500 13px "DM Mono", monospace;
 }
 
 .goalGateRow {
@@ -334,12 +449,12 @@
   border: 1px solid #202a24;
   border-radius: 8px;
   color: #79837d;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .goalGateRow b {
   color: #c5cec8;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .candidateResult {
@@ -375,7 +490,7 @@
 
 .decisionRoom > header span {
   color: #79e39c;
-  font: 500 11px "DM Mono", monospace;
+  font: 500 13px "DM Mono", monospace;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -386,7 +501,7 @@
 
 .decisionRoom > header small {
   color: #747f79;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .decisionRoom > header button {
@@ -397,7 +512,7 @@
   background: #111713;
   color: #9ca9a1;
   cursor: pointer;
-  font: 500 11px "DM Mono", monospace;
+  font: 500 13px "DM Mono", monospace;
   text-transform: uppercase;
 }
 
@@ -483,7 +598,7 @@
   border-radius: 50%;
   background: #132219;
   color: #79e19a;
-  font: normal 500 11px "DM Mono", monospace;
+  font: normal 500 13px "DM Mono", monospace;
 }
 
 .stopped .decisionActor > i {
@@ -500,13 +615,13 @@
 }
 
 .decisionActor b {
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .decisionActor small {
   overflow: hidden;
   color: #66716a;
-  font-size: 11px;
+  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -521,27 +636,27 @@
 
 .decisionMessage > span {
   color: #70d991;
-  font: 500 11px "DM Mono", monospace;
+  font: 500 13px "DM Mono", monospace;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .decisionMessage strong {
   margin-top: 3px;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .decisionMessage p {
   margin: 3px 0 5px;
   color: #818c85;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.45;
 }
 
 .decisionMessage code {
   overflow: hidden;
   color: #65716a;
-  font-size: 11px;
+  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -558,7 +673,7 @@
   border: 1px solid #2b3931;
   border-radius: 5px;
   color: #a8c9b2;
-  font: 500 11px "DM Mono", monospace;
+  font: 500 13px "DM Mono", monospace;
   text-decoration: none;
 }
 
@@ -587,13 +702,13 @@
   padding: 10px 11px;
   border-bottom: 1px solid #202722;
   color: #78827c;
-  font: 500 11px "DM Mono", monospace;
+  font: 500 13px "DM Mono", monospace;
   text-transform: uppercase;
 }
 
 .decisionConsole > header b {
   color: #72dd94;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .decisionConsole > div {
@@ -609,7 +724,7 @@
   padding: 8px 0;
   border-bottom: 1px solid #151b17;
   color: #829087;
-  font: 11px/1.45 "DM Mono", monospace;
+  font: 13px/1.45 "DM Mono", monospace;
 }
 
 .decisionConsole time {
@@ -646,7 +761,7 @@
 .decisionConsole > footer code {
   overflow: hidden;
   color: #87938b;
-  font-size: 11px;
+  font-size: 13px;
   text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -654,14 +769,14 @@
 
 .candidateResult > header span {
   color: #72e69a;
-  font: 500 11px "DM Mono", monospace;
+  font: 500 13px "DM Mono", monospace;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .candidateResult code {
   color: #77817b;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .candidateGrid {
@@ -697,7 +812,7 @@
   border-radius: 6px;
   background: #1a211d;
   color: #88928c;
-  font: normal 500 11px "DM Mono", monospace;
+  font: normal 500 13px "DM Mono", monospace;
 }
 
 .candidateCard > header div {
@@ -708,20 +823,20 @@
 }
 
 .candidateCard > header strong {
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .candidateCard > header small {
   overflow: hidden;
   color: #6f7973;
-  font-size: 11px;
+  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .candidateCard > header b {
   color: #758079;
-  font: 500 11px "DM Mono", monospace;
+  font: 500 13px "DM Mono", monospace;
   text-transform: uppercase;
 }
 
@@ -733,7 +848,7 @@
   min-height: 46px;
   margin: 12px 0;
   color: #8a958e;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.55;
 }
 
@@ -755,7 +870,7 @@
   justify-content: space-between;
   margin-top: 9px;
   color: #6e7872;
-  font: 500 11px "DM Mono", monospace;
+  font: 500 13px "DM Mono", monospace;
 }
 
 .candidateDecision {
@@ -771,7 +886,7 @@
   border: 1px solid #333d37;
   border-radius: 999px;
   color: #818b85;
-  font: 500 11px "DM Mono", monospace;
+  font: 500 13px "DM Mono", monospace;
   text-transform: uppercase;
 }
 

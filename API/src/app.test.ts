@@ -5,6 +5,7 @@ import { createApp } from "./app.js";
 import { loadConfig } from "./config.js";
 import type { EnsPolicyPreparationService } from "./ens-policy-preparation.js";
 import type { ExecutionStrategy } from "./execution-types.js";
+import type { AutonomousGoal } from "./goal-types.js";
 import type { PurchaseAuditBundle } from "./purchase-audit-types.js";
 import type { SaleAuditBundle } from "./sale-audit-types.js";
 
@@ -36,6 +37,12 @@ describe("API foundation", () => {
     );
   });
 
+  it("fails closed when live decision fees have no recipient", () => {
+    expect(() =>
+      loadConfig({ EQLTY_DECISION_FEE_MODE: "live" }),
+    ).toThrow("EQLTY_DECISION_FEE_RECIPIENT");
+  });
+
   it("reports health without caching", async () => {
     const response = await request("/health");
     const body = (await response.json()) as {
@@ -59,8 +66,47 @@ describe("API foundation", () => {
     const serialized = JSON.stringify(body);
 
     expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
     expect(body.projectName).toBe("EQLTY");
     expect(serialized).not.toMatch(/key|secret|token|rpcUrl/i);
+  });
+
+  it("does not report The Graph ready when its adapter is degraded", async () => {
+    const response = await request(
+      "/api/config",
+      {
+        graphEvidence: {
+          evidence: async () => {
+            throw new Error("not called");
+          },
+          status: async () => ({
+            configured: true,
+            status: "degraded",
+            checkedAt: "2026-07-25T12:00:00.000Z",
+            running: false,
+            processedBlock: "1000",
+            providerHeadBlock: "2000",
+            lagBlocks: 1000,
+            observedTickers: 0,
+            reason: "quota-exhausted",
+          }),
+        },
+      },
+      undefined,
+      { GRAPH_RISK_URL: "https://graph.example/api/graph-risk" },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      integrations: { theGraph: "degraded" },
+      integrationHealth: {
+        theGraph: {
+          configured: true,
+          status: "degraded",
+          reason: "quota-exhausted",
+        },
+      },
+    });
   });
 
   it("reports purchase readiness for the authenticated wallet", async () => {
@@ -663,6 +709,102 @@ describe("API foundation", () => {
     await expect(response.json()).resolves.toMatchObject({
       id: "goal-1",
       status: "active",
+    });
+  });
+
+  it("settles an authenticated decision fee through the goal service", async () => {
+    const session = testSession();
+    const settled = {
+      id: "goal-1",
+      goal: "Find the strongest stock token opportunity",
+      amountIn: "1000000",
+      status: "completed",
+      startedAt: "2026-07-30T14:00:00.000Z",
+      endsAt: "2026-07-30T14:02:00.000Z",
+      cadenceSeconds: 30,
+      cyclesCompleted: 1,
+      gates: {
+        ens: "resolve-every-cycle",
+        oneclaw: "enforced",
+        linkedRoles: ["trader"],
+        requiredRoles: ["trader"],
+        oneclawRequired: false,
+        oneclawLinked: true,
+        oneclawMinimumAmount: "3000000",
+        executionAuthorized: true,
+        detail: "ready",
+      },
+      history: [],
+      decisionFee: {
+        mode: "live",
+        status: "settled",
+        scheme: "exact",
+        amount: "200000",
+        maximumAmount: "250000",
+        decimals: 6,
+        symbol: "USDG",
+        reason: "Verified decision",
+      },
+    } satisfies AutonomousGoal;
+    const settleFee = vi.fn(async () => settled);
+    const requirements = {
+      scheme: "exact",
+      network: "eip155:4663",
+      amount: "200000",
+      asset: "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+      payTo: "0x2222222222222222222222222222222222222222",
+      maxTimeoutSeconds: 600,
+      extra: { name: "Global Dollar", version: "1" },
+    };
+    const response = await request(
+      "/api/goals/goal-1/decision-fee",
+      {
+        ownerAuth: testOwnerAuth(session),
+        goals: {
+          start: async () => settled,
+          read: async () => settled,
+          tick: async () => settled,
+          settleFee,
+        },
+      },
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          x402Version: 2,
+          resource: {
+            url: "https://eqlty-api.perkos.xyz/api/goals/goal-1/decision-fee",
+            description: "EQLTY verified agent decision",
+            mimeType: "application/json",
+          },
+          accepted: requirements,
+          payload: {
+            signature: `0x${"11".repeat(65)}`,
+            authorization: {
+              from: session.walletAddress,
+              to: requirements.payTo,
+              value: requirements.amount,
+              validAfter: "0",
+              validBefore: "1999999999",
+              nonce: `0x${"22".repeat(32)}`,
+            },
+          },
+          extensions: {},
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(settleFee).toHaveBeenCalledWith(
+      "goal-1",
+      expect.objectContaining({
+        userId: session.fleetUserId,
+        owner: session.walletAddress,
+      }),
+    );
+    await expect(response.json()).resolves.toMatchObject({
+      status: "completed",
+      decisionFee: { status: "settled", amount: "200000" },
     });
   });
 

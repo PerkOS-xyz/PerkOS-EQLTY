@@ -85,8 +85,8 @@ button {
 }
 
 .brandCopy span {
-  color: #78817d;
-  font-size: 11px;
+  color: #a5afa9;
+  font-size: 13px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -100,7 +100,7 @@ button {
   border-radius: 999px;
   background: #111613;
   color: #9aa39e;
-  font: 500 11px "DM Mono", monospace;
+  font: 500 13px "DM Mono", monospace;
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
@@ -128,7 +128,7 @@ button {
   background: #141916;
   color: #a7b0ab;
   cursor: pointer;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
 }
 
@@ -155,7 +155,7 @@ button {
   gap: 7px;
   border-color: #315c3e;
   color: #83e9a4;
-  font: 500 11px "DM Mono", monospace;
+  font: 500 13px "DM Mono", monospace;
 }
 
 .accessButton.connected i {
@@ -181,7 +181,7 @@ button {
 
 .eyebrow {
   color: #72ee9d;
-  font: 500 11px "DM Mono", monospace;
+  font: 500 13px "DM Mono", monospace;
   letter-spacing: 0.18em;
   text-transform: uppercase;
 }
@@ -195,14 +195,14 @@ button {
 }
 
 .hero h1 em {
-  color: #829089;
+  color: #a7b1ab;
   font-style: normal;
 }
 
 .hero p {
   max-width: 660px;
   margin: 0;
-  color: #8a948f;
+  color: #aab4ae;
   font-size: 15px;
   line-height: 1.65;
 }
@@ -216,8 +216,8 @@ button {
 }
 
 .statusCard span {
-  color: #858e89;
-  font-size: 11px;
+  color: #aab4ae;
+  font-size: 13px;
 }
 
 .statusCard strong {
@@ -228,8 +228,8 @@ button {
 }
 
 .statusCard p {
-  color: #76827b;
-  font: 11px "DM Mono", monospace;
+  color: #a5afa9;
+  font: 13px "DM Mono", monospace;
   line-height: 1.5;
 }
 
@@ -273,18 +273,18 @@ button {
   border: 1px solid #31543c;
   border-radius: 50%;
   color: #78ed9f;
-  font: 11px "DM Mono", monospace;
+  font: 13px "DM Mono", monospace;
 }
 
 .journey strong {
   display: block;
   margin-bottom: 6px;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .journey p {
-  color: #737e78;
-  font-size: 11px;
+  color: #a5afa9;
+  font-size: 13px;
   line-height: 1.55;
 }
 
@@ -319,7 +319,7 @@ button {
   }
 
   .network {
-    font-size: 11px;
+    font-size: 13px;
   }
 
   .topbarActions {

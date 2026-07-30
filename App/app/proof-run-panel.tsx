@@ -22,9 +22,10 @@ export function ProofRunPanel({
     return (
       <div className="proofStart">
         <div>
-          <strong>Send the winner through all four agents</strong>
+          <strong>Recheck the recommendation for execution</strong>
           <small>
-            Get a fresh quote and sealed proof bundle without moving funds.
+            Resolve ENS again, refresh Graph evidence and seal a fresh
+            Uniswap quote without moving funds.
           </small>
         </div>
         <button
@@ -32,7 +33,7 @@ export function ProofRunPanel({
           onClick={state.runProof}
           type="button"
         >
-          {state.proofBusy ? "Running proof..." : "Run four agent proof"}
+          {state.proofBusy ? "Running proof..." : "Run execution proof"}
         </button>
         {state.error && <p>{state.error}</p>}
       </div>

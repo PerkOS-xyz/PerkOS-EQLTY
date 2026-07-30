@@ -129,6 +129,7 @@ export class OpportunityAnalysisService {
       goal: input.goal,
       candidates,
       manifest,
+      manifestHash: controlPlane.manifestHash,
       agents: input.fleetAgents,
       idToken: input.perkosIdToken,
     });
@@ -175,6 +176,8 @@ export class OpportunityAnalysisService {
         selectedTicker: consultation.selectedTicker,
         scoutResponseHash: consultation.scout.responseHash,
         riskResponseHash: consultation.risk.responseHash,
+        traderResponseHash: consultation.trader.responseHash,
+        auditorResponseHash: consultation.auditor.responseHash,
       },
     };
 

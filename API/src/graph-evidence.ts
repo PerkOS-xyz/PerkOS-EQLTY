@@ -101,6 +101,34 @@ const graphSeriesSchema = z
 
 export type GraphPriceSeries = z.infer<typeof graphSeriesSchema>;
 
+const graphAdapterHealthSchema = z
+  .object({
+    running: z.boolean(),
+    processedBlock: z.string().regex(/^\d+$/),
+    providerHeadBlock: z.string().regex(/^\d+$/),
+    tickers: z.number().int().nonnegative(),
+    lastError: z.string().max(512).optional(),
+  })
+  .passthrough();
+
+export type GraphIntegrationStatus = {
+  configured: boolean;
+  status: "ready" | "degraded" | "pending";
+  checkedAt: string;
+  running?: boolean;
+  processedBlock?: string;
+  providerHeadBlock?: string;
+  lagBlocks?: number;
+  observedTickers?: number;
+  reason?:
+    | "not-configured"
+    | "unreachable"
+    | "not-running"
+    | "quota-exhausted"
+    | "provider-error"
+    | "lagging";
+};
+
 type Dependencies = {
   fetchFn?: typeof fetch;
   now?: () => number;
@@ -122,6 +150,72 @@ export class GraphEvidenceService {
     return Boolean(
       this.config.EQLTY_GRAPH_ADAPTER_URL ?? this.config.GRAPH_RISK_URL,
     );
+  }
+
+  async status(): Promise<GraphIntegrationStatus> {
+    const checkedAt = new Date(this.now()).toISOString();
+    const configuredUrl =
+      this.config.EQLTY_GRAPH_ADAPTER_URL ?? this.config.GRAPH_RISK_URL;
+    if (!configuredUrl) {
+      return {
+        configured: false,
+        status: "pending",
+        checkedAt,
+        reason: "not-configured",
+      };
+    }
+
+    try {
+      const healthUrl = new URL(configuredUrl);
+      healthUrl.pathname = "/health";
+      healthUrl.search = "";
+      const accessToken =
+        this.config.EQLTY_GRAPH_ACCESS_TOKEN ??
+        this.config.GRAPH_API_TOKEN;
+      const response = await this.fetchFn(healthUrl, {
+        method: "GET",
+        headers: {
+          accept: "application/json",
+          ...(accessToken
+            ? { authorization: `Bearer ${accessToken}` }
+            : {}),
+        },
+        signal: AbortSignal.timeout(5_000),
+      });
+      const health = graphAdapterHealthSchema.parse(
+        await limitedJson(response),
+      );
+      const lagBlocks = blockLag(
+        health.providerHeadBlock,
+        health.processedBlock,
+      );
+      const reason = graphHealthReason(
+        response.ok,
+        health.running,
+        lagBlocks,
+        this.config.GRAPH_MAX_LAG_BLOCKS,
+        health.lastError,
+      );
+      return {
+        configured: true,
+        status: reason ? "degraded" : "ready",
+        checkedAt,
+        running: health.running,
+        processedBlock: health.processedBlock,
+        providerHeadBlock: health.providerHeadBlock,
+        lagBlocks,
+        observedTickers: health.tickers,
+        ...(reason ? { reason } : {}),
+      };
+    } catch {
+      return {
+        configured: true,
+        status: "degraded",
+        checkedAt,
+        running: false,
+        reason: "unreachable",
+      };
+    }
   }
 
   async evidence(ticker: string): Promise<GraphEvidence> {
@@ -277,4 +371,26 @@ async function limitedJson(response: Response): Promise<unknown> {
 
 function ageSeconds(now: number, timestamp: string): number {
   return Math.max(0, (now - Date.parse(timestamp)) / 1_000);
+}
+
+function blockLag(head: string, processed: string): number {
+  const lag = BigInt(head) - BigInt(processed);
+  return Number(lag > 0n ? lag : 0n);
+}
+
+function graphHealthReason(
+  responseOk: boolean,
+  running: boolean,
+  lagBlocks: number,
+  maxLagBlocks: number,
+  lastError?: string,
+): GraphIntegrationStatus["reason"] | undefined {
+  if (lastError && /quota.+exceed/i.test(lastError)) {
+    return "quota-exhausted";
+  }
+  if (!running) return "not-running";
+  if (lastError) return "provider-error";
+  if (!responseOk) return "provider-error";
+  if (lagBlocks > maxLagBlocks) return "lagging";
+  return undefined;
 }

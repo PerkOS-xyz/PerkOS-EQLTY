@@ -5,6 +5,7 @@ import type {
   PersistedGoal,
 } from "./firestore-goal.js";
 import type { OpportunityAnalysis } from "./goal-types.js";
+import type { DecisionFee } from "./decision-fee-types.js";
 
 const owner =
   "0x1111111111111111111111111111111111111111" as const;
@@ -147,7 +148,107 @@ describe("autonomous goals", () => {
       "firebase-token",
     );
   });
+
+  it("seals a paid decision until its x402 receipt is stored", async () => {
+    const now = Date.parse("2026-07-25T12:00:00.000Z");
+    const quote = vi.fn(() => payableFee());
+    const settle = vi.fn(async ({ fee }: { fee: DecisionFee }) => ({
+      ...fee,
+      status: "settled" as const,
+      receipt: {
+        payer: owner,
+        amount: fee.amount,
+        asset:
+          "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168" as const,
+        network: "eip155:4663" as const,
+        authorizationNonce:
+          `0x${"22".repeat(32)}` as `0x${string}`,
+        transaction: `0x${"dd".repeat(32)}` as `0x${string}`,
+        explorerUrl:
+          `https://robinhoodchain.blockscout.com/tx/0x${"dd".repeat(32)}`,
+        settledAt: "2026-07-25T12:00:01.000Z",
+      },
+    }));
+    const service = new AutonomousGoalService(
+      { analyze: async () => analysis(now) },
+      {
+        now: () => now,
+        id: () => "goal-paid",
+        decisionFees: {
+          quote,
+          settle,
+          failed: (fee, error) => ({
+            ...fee,
+            error: error instanceof Error ? error.message : "failed",
+          }),
+        },
+      },
+    );
+
+    const sealed = await service.start(goalInput());
+    expect(sealed.status).toBe("payment-required");
+    expect(sealed.latest).toBeUndefined();
+    expect(sealed.history).toEqual([]);
+
+    const completed = await service.settleFee("goal-paid", {
+      ...identity(),
+      payment: paymentPayload(),
+    });
+    expect(completed?.status).toBe("completed");
+    expect(completed?.latest?.recommendedTicker).toBe("AMZN");
+    expect(completed?.history).toHaveLength(1);
+    expect(completed?.decisionFee?.receipt?.transaction).toBe(
+      `0x${"dd".repeat(32)}`,
+    );
+  });
 });
+
+function payableFee(): DecisionFee {
+  return {
+    mode: "live",
+    status: "payment-required",
+    scheme: "exact",
+    amount: "200000",
+    maximumAmount: "250000",
+    decimals: 6,
+    symbol: "USDG",
+    reason: "Verified decision",
+    requirements: {
+      scheme: "exact",
+      network: "eip155:4663",
+      amount: "200000",
+      asset: "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+      payTo: "0x2222222222222222222222222222222222222222",
+      maxTimeoutSeconds: 600,
+      extra: { name: "Global Dollar", version: "1" },
+    },
+  };
+}
+
+function paymentPayload() {
+  const requirements = payableFee().requirements!;
+  return {
+    x402Version: 2 as const,
+    resource: {
+      url: "https://eqlty-api.perkos.xyz/api/goals/goal-paid/decision-fee",
+      description: "EQLTY verified agent decision",
+      mimeType: "application/json" as const,
+    },
+    accepted: requirements,
+    payload: {
+      signature: `0x${"11".repeat(65)}` as `0x${string}`,
+      authorization: {
+        from: owner,
+        to: requirements.payTo,
+        value: requirements.amount,
+        validAfter: "0",
+        validBefore: "1999999999",
+        nonce: `0x${"22".repeat(32)}` as `0x${string}`,
+      },
+    },
+    extensions: {},
+  };
+}
 
 function goalInput() {
   return {
@@ -193,6 +294,16 @@ function analysis(timestamp: number): OpportunityAnalysis {
       },
       risk: {
         role: "risk",
+        status: "unavailable",
+        facts: [],
+      },
+      trader: {
+        role: "trader",
+        status: "unavailable",
+        facts: [],
+      },
+      auditor: {
+        role: "auditor",
         status: "unavailable",
         facts: [],
       },

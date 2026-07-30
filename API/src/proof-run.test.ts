@@ -10,7 +10,7 @@ const owner =
 const now = new Date("2026-07-25T12:00:00.000Z");
 
 describe("proof runs", () => {
-  it("seals the four-agent proof without moving funds", async () => {
+  it("seals the guarded execution proof without moving funds", async () => {
     const { service, strategyId } = setup();
 
     const run = await service.run(runInput(strategyId));
@@ -46,6 +46,12 @@ describe("proof runs", () => {
       requestId: "quote-NVDA",
       mode: "live",
     });
+    expect(run.signal?.rationale).toContain(
+      "Substreams block 1000 reports $250000 liquidity",
+    );
+    expect(run.signal?.rationale).toContain(
+      "Uniswap V4 deviates 20 bps",
+    );
     expect(run.proofBundleRoot).toMatch(/^0x[0-9a-f]{64}$/);
     expect(run.transactionHash).toBeUndefined();
   });

@@ -159,7 +159,9 @@ export class ProofRunService {
         Math.min(1, 1 - (asset.deviationBps ?? 10_000) / 10_000),
       ),
       rationale:
-        "ENS-approved candidate with a fresh Robinhood reference, Substreams evidence and an executable Uniswap route.",
+        `${strategy.ticker} is allowed by ENS policy v${manifest.version}; ` +
+        `Substreams block ${graph.blockNumber} reports $${graph.liquidityUsd} liquidity with ${graph.lagBlocks} blocks of lag, ` +
+        `and Uniswap ${asset.uniswapRouting} deviates ${asset.deviationBps} bps from the Robinhood reference.`,
       payment: { mode: "preview" },
     };
     run.handoffs.push(

@@ -5,6 +5,81 @@ import { GraphEvidenceService } from "./graph-evidence.js";
 const now = Date.parse("2026-07-25T12:00:00.000Z");
 
 describe("The Graph evidence", () => {
+  it("reports live adapter readiness from its health endpoint", async () => {
+    const fetchFn = vi.fn(async () =>
+      Response.json({
+        running: true,
+        processedBlock: "1000",
+        providerHeadBlock: "1002",
+        tickers: 24,
+      }),
+    );
+    const service = new GraphEvidenceService(config(), {
+      fetchFn,
+      now: () => now,
+    });
+
+    const status = await service.status();
+
+    expect(fetchFn).toHaveBeenCalledWith(
+      new URL("https://graph.example/health"),
+      expect.objectContaining({ method: "GET" }),
+    );
+    expect(status).toEqual({
+      configured: true,
+      status: "ready",
+      checkedAt: "2026-07-25T12:00:00.000Z",
+      running: true,
+      processedBlock: "1000",
+      providerHeadBlock: "1002",
+      lagBlocks: 2,
+      observedTickers: 24,
+    });
+  });
+
+  it("reports an exhausted Graph quota as degraded", async () => {
+    const service = new GraphEvidenceService(config(), {
+      fetchFn: async () =>
+        Response.json(
+          {
+            running: false,
+            processedBlock: "1000",
+            providerHeadBlock: "2000",
+            tickers: 0,
+            lastError:
+              "billable processed blocks quota exceeded",
+          },
+          { status: 503 },
+        ),
+      now: () => now,
+    });
+
+    await expect(service.status()).resolves.toMatchObject({
+      configured: true,
+      status: "degraded",
+      running: false,
+      lagBlocks: 1000,
+      reason: "quota-exhausted",
+    });
+  });
+
+  it("reports an unreachable configured adapter as degraded", async () => {
+    const service = new GraphEvidenceService(config(), {
+      fetchFn: async () => {
+        throw new Error("offline");
+      },
+      now: () => now,
+    });
+
+    await expect(service.status()).resolves.toEqual({
+      configured: true,
+      status: "degraded",
+      checkedAt: "2026-07-25T12:00:00.000Z",
+      running: false,
+      reason: "unreachable",
+    });
+  });
+
   it("authenticates the request and reevaluates stream health", async () => {
     const fetchFn = vi.fn(async () =>
       Response.json(providerEvidence()),

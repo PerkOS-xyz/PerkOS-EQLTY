@@ -248,17 +248,26 @@ function decisionEvents(analysis: OpportunityAnalysis): DecisionEvent[] {
       actor: "Trader",
       target: winner ? "Auditor" : "User",
       provider: "Uniswap",
-      title: winner
-        ? `${winner.ticker} route prepared`
-        : "Execution path remains closed",
-      detail: winner
-        ? "The trader requested an executable Uniswap route for the recommendation. This is still a quote artifact, not a transaction."
-        : "No quote can advance when the recommendation is rejected.",
-      fact: winner
-        ? `${winner.uniswapRouting ?? "V4"} · request ${short(
-            winner.uniswapRequestId ?? "pending",
-          )}`
-        : "no funds moved",
+      title:
+        consultation.trader.status === "verified"
+          ? `${consultation.trader.agentName ?? "Trader Hermes"} prepared ${consultation.trader.ticker}`
+          : winner
+            ? `${winner.ticker} route prepared by policy engine`
+            : "Execution path remains closed",
+      detail:
+        consultation.trader.summary ??
+        (winner
+          ? "The deterministic policy engine preserved the executable Uniswap quote. No Hermes Trader handoff was verified."
+          : "No quote can advance when the recommendation is rejected."
+        ),
+      fact: consultationFact(
+        consultation.trader,
+        winner
+          ? `${winner.uniswapRouting ?? "V4"} · request ${short(
+              winner.uniswapRequestId ?? "pending",
+            )}`
+          : "no funds moved",
+      ),
       links: evidence
         ? [
             {
@@ -273,13 +282,22 @@ function decisionEvents(analysis: OpportunityAnalysis): DecisionEvent[] {
       actor: "Auditor",
       target: "User",
       provider: "EQLTY",
-      title: winner
-        ? `${winner.ticker} recommendation sealed`
-        : "Rejected cycle sealed",
-      detail: winner
-        ? "The auditor bound the policy, market evidence, risk result and Uniswap request into one reproducible proof root."
-        : "The auditor sealed the rejection reason so the stopped workflow remains auditable.",
-      fact: `proof ${short(analysis.proofRoot)}`,
+      title:
+        consultation.auditor.status === "verified"
+          ? `${consultation.auditor.agentName ?? "Auditor Hermes"} sealed ${consultation.auditor.ticker}`
+          : winner
+            ? `${winner.ticker} proof sealed by policy engine`
+            : "Rejected cycle sealed",
+      detail:
+        consultation.auditor.summary ??
+        (winner
+          ? "The deterministic policy engine sealed the evidence because no Hermes Auditor handoff was verified."
+          : "The auditor sealed the rejection reason so the stopped workflow remains auditable."
+        ),
+      fact: consultationFact(
+        consultation.auditor,
+        `proof ${short(analysis.proofRoot)}`,
+      ),
       links: [],
       graphEvidence:
         winner && evidence

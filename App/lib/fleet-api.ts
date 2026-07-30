@@ -10,7 +10,7 @@ import type {
 } from "./fleet-types";
 
 const fallbackUrl = "http://localhost:4021";
-const fallbackEnsAppUrl = "https://sepolia.app.ens.domains";
+const fallbackEnsAppUrl = "https://app.ens.dev";
 
 class FleetRequestError extends Error {
   constructor(

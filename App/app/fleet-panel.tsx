@@ -175,11 +175,11 @@ export function FleetPanel({ goal }: { goal: GoalAnalysisState }) {
           <div className="fleetSecurityCopy">
             <span>1Claw execution rail</span>
             <strong>
-              {executionLinked ? "Trader protected" : "Setup required"}
+              {executionLinked ? "Trader linked" : "Setup required"}
             </strong>
             <p>
               {executionLinked
-                ? "The signing wallet and spending controls belong to your 1Claw account."
+                ? "The user-owned 1Claw vault is linked. Purchases of 3 USDG or more remain locked until live x401 and x402 authorization is enabled."
                 : securityStarted
                   ? "Complete the 1Claw claim, then check the connection."
                   : "Create a user-owned wallet for the only agent allowed to spend."}
@@ -527,7 +527,7 @@ function AgentCard({
           {agent.role !== "trader"
             ? "No spending authority"
             : agent.oneclaw === "linked"
-              ? "1Claw protected"
+              ? "1Claw linked"
               : "1Claw pending"}
         </small>
       </div>

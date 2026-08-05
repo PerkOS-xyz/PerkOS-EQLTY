@@ -6,6 +6,7 @@ import { MarketCard } from "../market-card";
 import { relativeTime } from "../../lib/market-format";
 import type { StockAvailability } from "../../lib/market-types";
 import { useMarketCatalog } from "../use-market-catalog";
+import { GraphHealthPanel } from "../graph-health-panel";
 
 type Filter = "all" | "routed" | "decision" | StockAvailability;
 
@@ -124,6 +125,11 @@ export default function MarketsPage() {
             synthetic history is displayed.
           </p>
         </section>
+
+        <GraphHealthPanel
+          health={graphIntegration}
+          onRefresh={refresh}
+        />
 
         <section className="marketDirectory">
           <header className="marketDirectoryHeader">

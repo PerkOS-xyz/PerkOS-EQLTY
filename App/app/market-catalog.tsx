@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { relativeTime } from "../lib/market-format";
+import { GraphHealthPanel } from "./graph-health-panel";
 import { MarketCard } from "./market-card";
 import { useMarketCatalog } from "./use-market-catalog";
 
@@ -102,6 +103,12 @@ export function MarketCatalog() {
           </button>
         </div>
       )}
+
+      <GraphHealthPanel
+        compact
+        health={graphIntegration}
+        onRefresh={refresh}
+      />
 
       <div
         className="marketCarousel"

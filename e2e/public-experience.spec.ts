@@ -32,6 +32,9 @@ test("discovers real stock-token markets", async ({ page }) => {
   ).toBeVisible();
   await expect(page.getByText("Uniswap V4", { exact: true }).first()).toBeVisible();
   await expect(page.getByText(/The Graph/).first()).toBeVisible();
+  await expect(
+    page.getByLabel("The Graph evidence status"),
+  ).toBeVisible();
 
   await expect
     .poll(() => page.locator(".marketCard").count(), { timeout: 45_000 })

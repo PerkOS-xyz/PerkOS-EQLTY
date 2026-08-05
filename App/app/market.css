@@ -542,6 +542,181 @@
   font-size: 13px;
 }
 
+.graphHealthPanel {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.3fr) minmax(300px, 1fr);
+  gap: 16px 24px;
+  margin: 20px 0 34px;
+  padding: 18px;
+  border: 1px solid #38452f;
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 0% 0%, rgb(202 255 20 / 7%), transparent 42%),
+    #0b100d;
+}
+
+.marketCatalog > .graphHealthPanel {
+  margin: 0 24px 10px;
+}
+
+.graphHealthPanel.action-required {
+  border-color: #67443b;
+  background:
+    radial-gradient(circle at 0% 0%, rgb(255 118 80 / 8%), transparent 42%),
+    #130e0c;
+}
+
+.graphHealthPanel.recovering {
+  border-color: #61582f;
+  background:
+    radial-gradient(circle at 0% 0%, rgb(255 215 92 / 8%), transparent 42%),
+    #12110c;
+}
+
+.graphHealthLead {
+  display: flex;
+  min-width: 0;
+  gap: 11px;
+}
+
+.graphHealthSignal {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: #caff14;
+  box-shadow: 0 0 12px rgb(202 255 20 / 55%);
+}
+
+.action-required .graphHealthSignal {
+  background: #ff7650;
+  box-shadow: 0 0 12px rgb(255 118 80 / 45%);
+}
+
+.recovering .graphHealthSignal {
+  background: #ffd75c;
+  box-shadow: 0 0 12px rgb(255 215 92 / 45%);
+  animation: carouselActivity 1.6s infinite;
+}
+
+.graphHealthLead small,
+.graphHealthDetails small,
+.graphSyncProgress small {
+  color: #737f78;
+  font: 13px "DM Mono", monospace;
+  text-transform: uppercase;
+}
+
+.graphHealthLead strong {
+  display: block;
+  margin: 3px 0 5px;
+  color: #dce5df;
+  font-size: 15px;
+}
+
+.graphHealthLead p {
+  max-width: 620px;
+  margin: 0;
+  color: #849088;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.graphHealthDetails {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid #29342d;
+  border-radius: 10px;
+}
+
+.graphHealthDetails span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-right: 1px solid #29342d;
+}
+
+.graphHealthDetails span:last-child {
+  border-right: 0;
+}
+
+.graphHealthDetails b,
+.graphSyncProgress b {
+  overflow: hidden;
+  color: #c9d2cc;
+  font: 14px "DM Mono", monospace;
+  text-overflow: ellipsis;
+}
+
+.graphSyncProgress {
+  grid-column: 1 / -1;
+}
+
+.graphSyncProgress > span {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 7px;
+}
+
+.graphSyncProgress > div {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #232b26;
+}
+
+.graphSyncProgress i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #819f28, #caff14);
+  transition: width 300ms ease;
+}
+
+.graphHealthActions {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding-top: 11px;
+  border-top: 1px solid #252e29;
+}
+
+.graphHealthActions span {
+  color: #69756e;
+  font: 13px "DM Mono", monospace;
+}
+
+.graphHealthActions button {
+  min-height: 34px;
+  padding: 7px 11px;
+  border: 1px solid #3e4b43;
+  border-radius: 8px;
+  background: #111713;
+  color: #bfc9c3;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.graphHealthActions button:hover {
+  border-color: #78922f;
+  color: #d9ff58;
+}
+
+.graphHealthPanel.compact {
+  grid-template-columns: minmax(240px, 1fr) minmax(280px, 0.8fr);
+  padding: 14px;
+}
+
+.graphHealthPanel.compact .graphSyncProgress {
+  display: none;
+}
+
 .marketCardSkeleton {
   min-height: 298px;
   border: 1px solid #212823;

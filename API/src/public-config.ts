@@ -1,6 +1,7 @@
 import type { ApiConfig } from "./config.js";
 import { executionTraderAddress } from "./execution-addresses.js";
 import type { GraphIntegrationStatus } from "./graph-evidence.js";
+import type { OneClawIntegrationStatus } from "./oneclaw-fleet.js";
 
 export type PublicApiConfig = {
   demoMode: boolean;
@@ -26,12 +27,13 @@ export type PublicApiConfig = {
   };
   integrations: {
     ens: "ready" | "pending";
-    oneclaw: "pending";
+    oneclaw: "ready" | "degraded" | "pending";
     perkos: "disabled" | "live" | "preview";
     theGraph: "ready" | "degraded" | "pending";
     uniswap: "ready" | "pending";
   };
   integrationHealth: {
+    oneclaw: OneClawIntegrationStatus;
     theGraph: GraphIntegrationStatus;
   };
   decisionFee: {
@@ -48,6 +50,7 @@ export type PublicApiConfig = {
 export function publicConfig(
   config: ApiConfig,
   graphStatus?: GraphIntegrationStatus,
+  oneclawStatus?: OneClawIntegrationStatus,
 ): PublicApiConfig {
   const executionName =
     config.ROBINHOOD_CHAIN_ID === 46630
@@ -81,6 +84,26 @@ export function publicConfig(
             : "Configure a live Substreams provider before enabling decisions.",
       },
     } satisfies GraphIntegrationStatus);
+  const oneclaw =
+    oneclawStatus ??
+    ({
+      configured: Boolean(
+        config.ONECLAW_PLATFORM_APP_ID &&
+          config.ONECLAW_PLATFORM_API_KEY,
+      ),
+      status:
+        config.ONECLAW_PLATFORM_APP_ID &&
+        config.ONECLAW_PLATFORM_API_KEY
+          ? "degraded"
+          : "pending",
+      checkedAt: new Date().toISOString(),
+      platformApi: false,
+      reason:
+        config.ONECLAW_PLATFORM_APP_ID &&
+        config.ONECLAW_PLATFORM_API_KEY
+          ? "unreachable"
+          : "not-configured",
+    } satisfies OneClawIntegrationStatus);
 
   return {
     demoMode: config.DEMO_MODE,
@@ -113,7 +136,7 @@ export function publicConfig(
         config.EQLTY_ENS_L2_REGISTRY_ADDRESS
           ? "ready"
           : "pending",
-      oneclaw: "pending",
+      oneclaw: oneclaw.status,
       perkos: config.PERKOS_FLEET_MODE,
       theGraph: theGraph.status,
       uniswap:
@@ -122,6 +145,7 @@ export function publicConfig(
           : "pending",
     },
     integrationHealth: {
+      oneclaw,
       theGraph,
     },
     decisionFee: {

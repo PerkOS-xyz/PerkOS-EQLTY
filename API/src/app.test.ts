@@ -118,6 +118,33 @@ describe("API foundation", () => {
     });
   });
 
+  it("reports verified 1Claw Platform API readiness", async () => {
+    const response = await request("/api/config", {
+      oneclawFleet: {
+        ready: true,
+        provision: vi.fn(),
+        status: async () => ({
+          configured: true,
+          status: "ready",
+          checkedAt: "2026-08-05T12:00:00.000Z",
+          platformApi: true,
+        }),
+      },
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      integrations: { oneclaw: "ready" },
+      integrationHealth: {
+        oneclaw: {
+          configured: true,
+          status: "ready",
+          platformApi: true,
+        },
+      },
+    });
+  });
+
   it("reports purchase readiness for the authenticated wallet", async () => {
     const session = testSession();
     const read = vi.fn(async (owner, amountIn) => ({

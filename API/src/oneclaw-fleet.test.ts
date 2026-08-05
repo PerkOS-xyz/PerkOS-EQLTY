@@ -16,6 +16,41 @@ const roles: FleetRole[] = [
 ];
 
 describe("1Claw Platform API provisioning", () => {
+  it("reports Platform API readiness without provisioning resources", async () => {
+    const fetchFn = vi.fn(
+      async (_input: string | URL | Request, _init?: RequestInit) =>
+        json({ users: [] }),
+    );
+
+    await expect(provisioner(fetchFn).status()).resolves.toMatchObject({
+      configured: true,
+      status: "ready",
+      platformApi: true,
+    });
+    expect(fetchFn).toHaveBeenCalledOnce();
+    expect(String(fetchFn.mock.calls[0]?.[0])).toContain(
+      `/v1/platform/apps/${appId}/users`,
+    );
+    expect(fetchFn.mock.calls[0]?.[1]?.method).toBeUndefined();
+  });
+
+  it("reports an invalid Platform API credential without exposing it", async () => {
+    const fetchFn = vi.fn(
+      async (_input: string | URL | Request, _init?: RequestInit) =>
+        json({ detail: "denied" }, 401),
+    );
+
+    const status = await provisioner(fetchFn).status();
+
+    expect(status).toMatchObject({
+      configured: true,
+      status: "degraded",
+      platformApi: false,
+      reason: "unauthorized",
+    });
+    expect(JSON.stringify(status)).not.toContain("plt_");
+  });
+
   it("bootstraps a user-owned execution agent and hides its credential", async () => {
     const requests: Array<{
       body?: Record<string, unknown>;
@@ -273,6 +308,17 @@ describe("1Claw Platform API provisioning", () => {
     expect(
       new OneClawFleetProvisioner(loadConfig()).ready,
     ).toBe(false);
+  });
+
+  it("keeps unconfigured Platform API health pending", async () => {
+    await expect(
+      new OneClawFleetProvisioner(loadConfig()).status(),
+    ).resolves.toMatchObject({
+      configured: false,
+      status: "pending",
+      platformApi: false,
+      reason: "not-configured",
+    });
   });
 });
 

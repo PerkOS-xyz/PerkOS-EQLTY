@@ -6,6 +6,7 @@ import {
   ensManagerUrl,
   fleetMetadataUrl,
   loadFleetMetadata,
+  loadOneClawIntegrationHealth,
   loadFleetPolicy,
   oneclawAgentSettingsUrl,
   publishDemoFleetPolicy,
@@ -16,6 +17,7 @@ import type {
   EnsAgentMetadata,
   FleetAgent,
   FleetPhase,
+  OneClawIntegrationHealth,
 } from "../lib/fleet-types";
 import { fleetRoles } from "../lib/fleet-types";
 import {
@@ -71,6 +73,8 @@ export function FleetPanel({ goal }: { goal: GoalAnalysisState }) {
   const [securityEmail, setSecurityEmail] = useState("");
   const [securityStarted, setSecurityStarted] = useState(false);
   const [oneclawAgentId, setOneclawAgentId] = useState<string>();
+  const [oneclawHealth, setOneclawHealth] =
+    useState<OneClawIntegrationHealth>();
   useEffect(() => {
     setSecurityEmail(
       window.localStorage.getItem("eqlty_oneclaw_email") ?? "",
@@ -80,7 +84,23 @@ export function FleetPanel({ goal }: { goal: GoalAnalysisState }) {
         undefined,
     );
   }, []);
+  useEffect(() => {
+    const controller = new AbortController();
+    loadOneClawIntegrationHealth(controller.signal)
+      .then(setOneclawHealth)
+      .catch(() =>
+        setOneclawHealth({
+          configured: false,
+          status: "degraded",
+          checkedAt: new Date().toISOString(),
+          platformApi: false,
+          reason: "unreachable",
+        }),
+      );
+    return () => controller.abort();
+  }, []);
   const canActivateSecurity = Boolean(
+    oneclawHealth?.status === "ready" &&
     runtime?.mode === "live" &&
       runtime.agents.length === fleetRoles.length &&
       runtime.agents.every(
@@ -174,6 +194,12 @@ export function FleetPanel({ goal }: { goal: GoalAnalysisState }) {
         >
           <div className="fleetSecurityCopy">
             <span>1Claw execution rail</span>
+            <i
+              aria-label="1Claw platform status"
+              className={`oneclawHealth ${oneclawHealth?.status ?? "checking"}`}
+            >
+              {oneclawHealthLabel(oneclawHealth)}
+            </i>
             <strong>
               {executionLinked ? "Trader linked" : "Setup required"}
             </strong>
@@ -182,7 +208,9 @@ export function FleetPanel({ goal }: { goal: GoalAnalysisState }) {
                 ? "The user-owned 1Claw vault is linked. Purchases of 3 USDG or more remain locked until live x401 and x402 authorization is enabled."
                 : securityStarted
                   ? "Complete the 1Claw claim, then check the connection."
-                  : "Create a user-owned wallet for the only agent allowed to spend."}
+                  : oneclawHealth?.status === "ready"
+                    ? "Continue to create a user-owned vault and Trader agent. Usage belongs to the user's 1Claw account."
+                    : oneclawHealthMessage(oneclawHealth)}
             </p>
           </div>
           {!executionLinked && (
@@ -261,7 +289,7 @@ export function FleetPanel({ goal }: { goal: GoalAnalysisState }) {
                   ? "Connecting"
                   : securityStarted
                     ? "Check connection"
-                    : "Connect 1Claw"}
+                    : "Continue in 1Claw"}
               </button>
             </form>
           )}
@@ -297,6 +325,28 @@ export function FleetPanel({ goal }: { goal: GoalAnalysisState }) {
       )}
     </section>
   );
+}
+
+function oneclawHealthLabel(
+  health?: OneClawIntegrationHealth,
+): string {
+  if (!health) return "Checking";
+  if (health.status === "ready") return "Platform ready";
+  if (health.status === "pending") return "Not configured";
+  return "Platform unavailable";
+}
+
+function oneclawHealthMessage(
+  health?: OneClawIntegrationHealth,
+): string {
+  if (!health) return "Checking the 1Claw Platform API before setup.";
+  if (health.reason === "unauthorized") {
+    return "The 1Claw Platform API credential needs attention.";
+  }
+  if (health.reason === "not-configured") {
+    return "The 1Claw Platform API is not configured for this environment.";
+  }
+  return "The 1Claw Platform API is temporarily unavailable.";
 }
 
 type PolicyPreset = "protect" | "opportunity" | "stop";

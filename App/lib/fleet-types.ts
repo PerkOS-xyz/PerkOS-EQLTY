@@ -71,6 +71,18 @@ export type OneClawFleetSecurity =
       eip712Restrictions: "disabled";
     };
 
+export type OneClawIntegrationHealth = {
+  configured: boolean;
+  status: "ready" | "degraded" | "pending";
+  checkedAt: string;
+  platformApi: boolean;
+  reason?:
+    | "not-configured"
+    | "unreachable"
+    | "unauthorized"
+    | "provider-error";
+};
+
 export type UserSession = {
   sub: string;
   provider: "wallet";

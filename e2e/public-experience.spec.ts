@@ -53,6 +53,28 @@ test("discovers real stock-token markets", async ({ page }) => {
   await expectNoPageOverflow(page);
 });
 
+test("publishes safe 1Claw readiness", async ({ request }) => {
+  const apiUrl = process.env.EQLTY_E2E_API_URL ?? "http://localhost:4021";
+  const response = await request.get(`${apiUrl}/api/config`);
+
+  expect(response.ok()).toBeTruthy();
+  const body = (await response.json()) as {
+    integrationHealth?: {
+      oneclaw?: {
+        configured: boolean;
+        platformApi: boolean;
+        status: string;
+      };
+    };
+  };
+  expect(["ready", "degraded", "pending"]).toContain(
+    body.integrationHealth?.oneclaw?.status,
+  );
+  expect(JSON.stringify(body.integrationHealth?.oneclaw)).not.toMatch(
+    /1ck_|plt_|ocv_|email/i,
+  );
+});
+
 async function expectNoPageOverflow(
   page: import("@playwright/test").Page,
 ): Promise<void> {

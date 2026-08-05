@@ -936,6 +936,35 @@
   text-transform: uppercase;
 }
 
+.oneclawHealth {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 8px;
+  color: #a79263;
+  font: normal 12px "DM Mono", monospace;
+}
+
+.oneclawHealth::before {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  content: "";
+}
+
+.oneclawHealth.ready {
+  color: #75df97;
+}
+
+.oneclawHealth.degraded {
+  color: #ef8b83;
+}
+
+.oneclawHealth.checking::before {
+  animation: fleetPulse 1.2s ease-out infinite;
+}
+
 .fleetSecurityCopy span {
   color: #8f9d94;
 }

@@ -1,5 +1,10 @@
 import { z } from "zod";
 import type { ApiConfig } from "./config.js";
+import {
+  graphAdapterErrorCode,
+  graphRecoveryPlan,
+  type GraphRecoveryPlan,
+} from "./graph-recovery.js";
 
 const address = z.string().regex(/^0x[0-9a-fA-F]{40}$/);
 const hex32 = z.string().regex(/^0x[0-9a-fA-F]{64}$/);
@@ -104,9 +109,16 @@ export type GraphPriceSeries = z.infer<typeof graphSeriesSchema>;
 const graphAdapterHealthSchema = z
   .object({
     running: z.boolean(),
+    state: z
+      .enum(["starting", "streaming", "recovering", "stopped"])
+      .optional(),
     processedBlock: z.string().regex(/^\d+$/),
     providerHeadBlock: z.string().regex(/^\d+$/),
     tickers: z.number().int().nonnegative(),
+    restartCount: z.number().int().nonnegative().optional(),
+    lastProgressAt: z.string().datetime().optional(),
+    nextRetryAt: z.string().datetime().optional(),
+    errorCode: z.enum(["quota-exhausted", "provider-error"]).optional(),
     lastError: z.string().max(512).optional(),
   })
   .passthrough();
@@ -120,6 +132,9 @@ export type GraphIntegrationStatus = {
   providerHeadBlock?: string;
   lagBlocks?: number;
   observedTickers?: number;
+  adapterState?: "starting" | "streaming" | "recovering" | "stopped";
+  lastProgressAt?: string;
+  restartCount?: number;
   reason?:
     | "not-configured"
     | "unreachable"
@@ -127,6 +142,7 @@ export type GraphIntegrationStatus = {
     | "quota-exhausted"
     | "provider-error"
     | "lagging";
+  recovery: GraphRecoveryPlan;
 };
 
 type Dependencies = {
@@ -162,6 +178,7 @@ export class GraphEvidenceService {
         status: "pending",
         checkedAt,
         reason: "not-configured",
+        recovery: graphRecoveryPlan({ reason: "not-configured" }),
       };
     }
 
@@ -194,7 +211,7 @@ export class GraphEvidenceService {
         health.running,
         lagBlocks,
         this.config.GRAPH_MAX_LAG_BLOCKS,
-        health.lastError,
+        health.errorCode ?? graphAdapterErrorCode(health.lastError),
       );
       return {
         configured: true,
@@ -205,7 +222,21 @@ export class GraphEvidenceService {
         providerHeadBlock: health.providerHeadBlock,
         lagBlocks,
         observedTickers: health.tickers,
+        ...(health.state ? { adapterState: health.state } : {}),
+        ...(health.lastProgressAt
+          ? { lastProgressAt: health.lastProgressAt }
+          : {}),
+        ...(health.restartCount === undefined
+          ? {}
+          : { restartCount: health.restartCount }),
         ...(reason ? { reason } : {}),
+        recovery: graphRecoveryPlan({
+          reason,
+          processedBlock: health.processedBlock,
+          providerHeadBlock: health.providerHeadBlock,
+          lagBlocks,
+          nextRetryAt: health.nextRetryAt,
+        }),
       };
     } catch {
       return {
@@ -214,6 +245,7 @@ export class GraphEvidenceService {
         checkedAt,
         running: false,
         reason: "unreachable",
+        recovery: graphRecoveryPlan({ reason: "unreachable" }),
       };
     }
   }
@@ -383,13 +415,11 @@ function graphHealthReason(
   running: boolean,
   lagBlocks: number,
   maxLagBlocks: number,
-  lastError?: string,
+  errorCode?: "quota-exhausted" | "provider-error",
 ): GraphIntegrationStatus["reason"] | undefined {
-  if (lastError && /quota.+exceed/i.test(lastError)) {
-    return "quota-exhausted";
-  }
+  if (errorCode === "quota-exhausted") return "quota-exhausted";
   if (!running) return "not-running";
-  if (lastError) return "provider-error";
+  if (errorCode) return "provider-error";
   if (!responseOk) return "provider-error";
   if (lagBlocks > maxLagBlocks) return "lagging";
   return undefined;

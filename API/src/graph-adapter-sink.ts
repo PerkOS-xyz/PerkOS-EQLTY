@@ -7,6 +7,10 @@ import {
   type GraphStreamEvent,
   type GraphSwapEvidence,
 } from "./graph-adapter-decode.js";
+import {
+  graphAdapterErrorCode,
+  graphRetryDelayMs,
+} from "./graph-recovery.js";
 
 const swapTopic =
   "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f";
@@ -34,6 +38,9 @@ export class GraphAdapterSink {
   private headTimer?: NodeJS.Timeout;
   private stopped = false;
   private lastError?: string;
+  private lastProgressAt?: string;
+  private nextRetryAt?: string;
+  private restartCount = 0;
   private pools = new Map<string, GraphPool>();
   private poolManager = "";
   private evidenceByTicker = new Map<string, GraphSwapEvidence>();
@@ -147,9 +154,20 @@ export class GraphAdapterSink {
   status() {
     return {
       running: Boolean(this.child),
+      state: this.child
+        ? "streaming"
+        : this.restart
+          ? "recovering"
+          : this.stopped
+            ? "stopped"
+            : "starting",
       processedBlock: this.processedBlock,
       providerHeadBlock: this.providerHeadBlock,
       tickers: this.evidenceByTicker.size,
+      restartCount: this.restartCount,
+      lastProgressAt: this.lastProgressAt,
+      nextRetryAt: this.nextRetryAt,
+      errorCode: graphAdapterErrorCode(this.lastError),
       lastError: this.lastError,
     };
   }
@@ -202,7 +220,17 @@ export class GraphAdapterSink {
     child.once("close", () => {
       this.child = undefined;
       if (!this.stopped) {
-        this.restart = setTimeout(() => this.spawnStream(), 2_000);
+        const delay = graphRetryDelayMs(
+          graphAdapterErrorCode(this.lastError),
+          this.restartCount,
+        );
+        this.restartCount += 1;
+        this.nextRetryAt = new Date(Date.now() + delay).toISOString();
+        this.restart = setTimeout(() => {
+          this.restart = undefined;
+          this.nextRetryAt = undefined;
+          this.spawnStream();
+        }, delay);
       }
     });
   }
@@ -233,6 +261,9 @@ export class GraphAdapterSink {
     ).toISOString();
     this.processedBlock = blockNumber;
     this.updatedAt = new Date().toISOString();
+    this.lastProgressAt = this.updatedAt;
+    this.nextRetryAt = undefined;
+    this.restartCount = 0;
     this.lastError = undefined;
     for (const event of data.events ?? []) {
       const pool = this.pools.get(event.ticker);

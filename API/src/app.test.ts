@@ -89,6 +89,15 @@ describe("API foundation", () => {
             lagBlocks: 1000,
             observedTickers: 0,
             reason: "quota-exhausted",
+            recovery: {
+              state: "action-required",
+              action: "renew-quota",
+              automatic: false,
+              message:
+                "Provider quota is exhausted. Add capacity; the adapter will resume automatically afterward.",
+              blocksRemaining: 1000,
+              syncPercent: 50,
+            },
           }),
         },
       },

@@ -56,6 +56,9 @@ export type GraphIntegrationHealth = {
   providerHeadBlock?: string;
   lagBlocks?: number;
   observedTickers?: number;
+  adapterState?: "starting" | "streaming" | "recovering" | "stopped";
+  lastProgressAt?: string;
+  restartCount?: number;
   reason?:
     | "not-configured"
     | "unreachable"
@@ -63,6 +66,21 @@ export type GraphIntegrationHealth = {
     | "quota-exhausted"
     | "provider-error"
     | "lagging";
+  recovery?: {
+    state: "healthy" | "recovering" | "action-required";
+    action:
+      | "none"
+      | "configure-provider"
+      | "renew-quota"
+      | "restart-adapter"
+      | "check-provider"
+      | "wait-for-sync";
+    automatic: boolean;
+    message: string;
+    blocksRemaining?: number;
+    syncPercent?: number;
+    nextRetryAt?: string;
+  };
 };
 
 const fallbackUrl = "http://localhost:4021";

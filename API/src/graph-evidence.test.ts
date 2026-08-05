@@ -34,6 +34,14 @@ describe("The Graph evidence", () => {
       providerHeadBlock: "1002",
       lagBlocks: 2,
       observedTickers: 24,
+      recovery: {
+        state: "healthy",
+        action: "none",
+        automatic: true,
+        message: "Live Substreams evidence is synchronized.",
+        blocksRemaining: 2,
+        syncPercent: 99.8,
+      },
     });
   });
 
@@ -60,6 +68,12 @@ describe("The Graph evidence", () => {
       running: false,
       lagBlocks: 1000,
       reason: "quota-exhausted",
+      recovery: {
+        state: "action-required",
+        action: "renew-quota",
+        automatic: false,
+        blocksRemaining: 1000,
+      },
     });
   });
 
@@ -77,7 +91,52 @@ describe("The Graph evidence", () => {
       checkedAt: "2026-07-25T12:00:00.000Z",
       running: false,
       reason: "unreachable",
+      recovery: {
+        state: "action-required",
+        action: "check-provider",
+        automatic: false,
+        message:
+          "The provider cannot supply verified evidence. Check connectivity and credentials.",
+      },
     });
+  });
+
+  it("exposes adapter recovery progress without leaking provider errors", async () => {
+    const service = new GraphEvidenceService(config(), {
+      fetchFn: async () =>
+        Response.json(
+          {
+            running: false,
+            state: "recovering",
+            processedBlock: "1500",
+            providerHeadBlock: "2000",
+            tickers: 10,
+            restartCount: 3,
+            lastProgressAt: "2026-07-25T11:58:00.000Z",
+            nextRetryAt: "2026-07-25T12:01:00.000Z",
+            errorCode: "quota-exhausted",
+            lastError: "private provider diagnostic",
+          },
+          { status: 503 },
+        ),
+      now: () => now,
+    });
+
+    const status = await service.status();
+
+    expect(status).toMatchObject({
+      adapterState: "recovering",
+      lastProgressAt: "2026-07-25T11:58:00.000Z",
+      restartCount: 3,
+      reason: "quota-exhausted",
+      recovery: {
+        action: "renew-quota",
+        blocksRemaining: 500,
+        syncPercent: 75,
+        nextRetryAt: "2026-07-25T12:01:00.000Z",
+      },
+    });
+    expect(JSON.stringify(status)).not.toContain("private provider diagnostic");
   });
 
   it("authenticates the request and reevaluates stream health", async () => {

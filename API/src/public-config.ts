@@ -68,6 +68,18 @@ export function publicConfig(
         config.EQLTY_GRAPH_ADAPTER_URL || config.GRAPH_RISK_URL
           ? "unreachable"
           : "not-configured",
+      recovery: {
+        state: "action-required",
+        action:
+          config.EQLTY_GRAPH_ADAPTER_URL || config.GRAPH_RISK_URL
+            ? "check-provider"
+            : "configure-provider",
+        automatic: false,
+        message:
+          config.EQLTY_GRAPH_ADAPTER_URL || config.GRAPH_RISK_URL
+            ? "The provider cannot supply verified evidence. Check connectivity and credentials."
+            : "Configure a live Substreams provider before enabling decisions.",
+      },
     } satisfies GraphIntegrationStatus);
 
   return {

@@ -44,28 +44,35 @@ can be executed with a clear evidence trail.
 
 - [x] Resolve agent behavior settings from ENS records.
 - [x] Show current settings on each agent card.
-- [ ] Provide clear policy presets for the demonstration.
+- [x] Provide clear policy presets for the demonstration.
 - [x] Stop the workflow immediately when the fleet is paused.
 
 ### 6. Execution and evidence
 
 - [x] Request and review an executable Uniswap quote.
 - [x] Enforce contract and spending limits before execution.
-- [ ] Record the resulting transaction and explorer link.
+- [x] Record the resulting transaction and explorer link.
 - [x] Expose indexed event, block and evidence links.
 - [x] Index transaction evidence with The Graph Substreams.
 - [x] Reconcile the proof bundle through the Auditor role.
 
-### 7. Human authorization
+### 7. Owner control
 
-- [ ] Bind settings changes to the enrolled controller.
-- [ ] Keep biometric images and private proof material out of the application
-  database.
+- [x] Require the authenticated owner wallet for settings changes.
+- [x] Keep wallet challenges and private signing material out of the public API.
 
-### 8. Demonstration readiness
+### 8. Graph operations
+
+- [x] Expose adapter checkpoint, lag and recovery state.
+- [x] Retry failed streams with controlled backoff.
+- [x] Explain fail-closed Graph status in the application.
+- [ ] Restore production provider quota.
+- [ ] Verify production catch-up within the configured lag limit.
+
+### 9. Demonstration readiness
 
 - [ ] Complete a controlled end to end trade.
-- [ ] Verify the experience on mobile and desktop.
+- [x] Verify the experience on mobile and desktop.
 - [ ] Prepare a repeatable two minute goal run.
 - [ ] Document live contract and transaction references.
 

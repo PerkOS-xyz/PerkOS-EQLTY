@@ -72,6 +72,9 @@ export class GraphAdapterSink {
     this.stopped = true;
     if (this.restart) clearTimeout(this.restart);
     if (this.headTimer) clearInterval(this.headTimer);
+    this.restart = undefined;
+    this.headTimer = undefined;
+    this.nextRetryAt = undefined;
     this.child?.kill("SIGTERM");
   }
 

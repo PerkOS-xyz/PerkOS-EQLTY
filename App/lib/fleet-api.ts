@@ -5,6 +5,7 @@ import type {
   FleetPolicyChange,
   FleetPolicyPublication,
   FleetPolicy,
+  OneClawIntegrationHealth,
   OneClawFleetSecurity,
   UserSession,
 } from "./fleet-types";
@@ -96,6 +97,35 @@ export async function activateOneClawRails(
       body: JSON.stringify({ email }),
     },
   );
+}
+
+export async function loadOneClawIntegrationHealth(
+  signal?: AbortSignal,
+): Promise<OneClawIntegrationHealth> {
+  const response = await fetch(`${apiUrl()}/api/config`, {
+    credentials: "include",
+    headers: { accept: "application/json" },
+    signal,
+  });
+  const body: unknown = await response.json().catch(() => undefined);
+  const health =
+    body && typeof body === "object" && "integrationHealth" in body
+      ? (
+          body as {
+            integrationHealth?: {
+              oneclaw?: OneClawIntegrationHealth;
+            };
+          }
+        ).integrationHealth?.oneclaw
+      : undefined;
+  if (
+    !response.ok ||
+    !health ||
+    !["ready", "degraded", "pending"].includes(health.status)
+  ) {
+    throw new Error("1Claw readiness is unavailable");
+  }
+  return health;
 }
 
 export function oneclawAgentSettingsUrl(agentId?: string): string {

@@ -276,7 +276,8 @@ type AppDependencies = {
   ensPolicyPreparation?: Pick<EnsPolicyPreparationService, "prepare"> &
     Partial<Pick<EnsPolicyPreparationService, "publish">>;
   fleetActivation?: Pick<FleetActivationService, "activate">;
-  oneclawFleet?: Pick<OneClawFleetProvisioner, "provision" | "ready">;
+  oneclawFleet?: Pick<OneClawFleetProvisioner, "provision" | "ready"> &
+    Partial<Pick<OneClawFleetProvisioner, "status">>;
   graphEvidence?: Pick<GraphEvidenceService, "evidence"> &
     Partial<Pick<GraphEvidenceService, "series" | "status">>;
   uniswapRwaMarket?: Pick<UniswapRwaMarketService, "series">;
@@ -389,10 +390,11 @@ export function createApp(
 
   app.get("/api/config", async (_request, response) => {
     response.setHeader("cache-control", "no-store");
-    const graphStatus = graphEvidence.status
-      ? await graphEvidence.status()
-      : undefined;
-    response.json(publicConfig(config, graphStatus));
+    const [graphStatus, oneclawStatus] = await Promise.all([
+      graphEvidence.status ? graphEvidence.status() : undefined,
+      oneclawFleet.status ? oneclawFleet.status() : undefined,
+    ]);
+    response.json(publicConfig(config, graphStatus, oneclawStatus));
   });
 
   app.get("/api/wallet/readiness", async (request, response) => {

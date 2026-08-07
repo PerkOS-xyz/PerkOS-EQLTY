@@ -155,6 +155,11 @@ EQLTY follows the Platform API user upsert, template bootstrap and claim flow.
 The Ethereum signing key remains inside the user's 1Claw account, while the
 one-time execution credential passes directly to PerkOS.
 
+The fleet UI reports Platform API availability separately from the user's
+Trader link. Its readiness check is read-only. Bootstrap remains an explicit
+user action because the resulting vault, agent and usage belong to that user's
+1Claw account.
+
 Robinhood EIP-712 restrictions remain disabled for the MVP. Transaction
 guardrails still limit the trader to Robinhood Chain, the EQLTY vault, Uniswap
 contracts, USDG and six transactions per day.

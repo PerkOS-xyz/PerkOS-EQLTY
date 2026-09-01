@@ -11,6 +11,7 @@ import type { ExecutionStrategy } from "./execution-types.js";
 import { DecisionFeeService } from "./decision-fee.js";
 import type { DecisionFeePaymentPayload } from "./decision-fee-types.js";
 import { FleetActivationService } from "./fleet-activation.js";
+import type { FleetAgent, FleetRole } from "./fleet-types.js";
 import { FirestoreGoalStore } from "./firestore-goal.js";
 import { GraphEvidenceService } from "./graph-evidence.js";
 import { OwnerAuth } from "./owner-auth.js";
@@ -278,7 +279,7 @@ type AppDependencies = {
     Partial<Pick<EnsPolicyPreparationService, "publish">>;
   fleetActivation?: Pick<FleetActivationService, "activate">;
   oneclawFleet?: Pick<OneClawFleetProvisioner, "provision" | "ready"> &
-    Partial<Pick<OneClawFleetProvisioner, "status">>;
+    Partial<Pick<OneClawFleetProvisioner, "authorization" | "status">>;
   graphEvidence?: Pick<GraphEvidenceService, "evidence"> &
     Partial<Pick<GraphEvidenceService, "series" | "status">>;
   uniswapRwaMarket?: Pick<UniswapRwaMarketService, "series">;
@@ -322,6 +323,23 @@ export function createApp(
     new FleetActivationService(config, { controlPlane: ensControlPlane });
   const oneclawFleet =
     dependencies.oneclawFleet ?? new OneClawFleetProvisioner(config);
+  const confirmedOneClawRoles = async (
+    externalSubject: string,
+    agents: FleetAgent[] = [],
+  ): Promise<FleetRole[]> => {
+    const traderReady = agents.some(
+      (agent) =>
+        agent.role === "trader" && agent.oneclaw === "linked",
+    );
+    if (!traderReady || !oneclawFleet.authorization) return [];
+    try {
+      const connection =
+        await oneclawFleet.authorization(externalSubject);
+      return connection.status === "active" ? ["trader"] : [];
+    } catch {
+      return [];
+    }
+  };
   const graphEvidence =
     dependencies.graphEvidence ?? new GraphEvidenceService(config);
   const uniswapRwaMarket =
@@ -608,6 +626,34 @@ export function createApp(
     }
   });
 
+  app.get(
+    "/api/fleet/security/oneclaw",
+    async (request, response) => {
+      const session = ownerAuth.session(request);
+      if (!session) {
+        return response
+          .status(401)
+          .json({ error: "owner_session_required" });
+      }
+      if (!oneclawFleet.authorization) {
+        return response.status(503).json({
+          error: "oneclaw_not_configured",
+        });
+      }
+      try {
+        response.setHeader("cache-control", "no-store");
+        return response.json(
+          await oneclawFleet.authorization(session.sub),
+        );
+      } catch (error) {
+        return response.status(503).json({
+          error: "oneclaw_status_unavailable",
+          message: safeMessage(error),
+        });
+      }
+    },
+  );
+
   app.post(
     "/api/fleet/security/oneclaw",
     async (request, response) => {
@@ -792,10 +838,10 @@ export function createApp(
       if (activation.status === "provisioning") {
         throw new Error("The Hermes fleet is still provisioning");
       }
-      const linkedRoles =
-        activation.runtime?.agents
-          .filter((agent) => agent.oneclaw === "linked")
-          .map((agent) => agent.role) ?? [];
+      const linkedRoles = await confirmedOneClawRoles(
+        session.sub,
+        activation.runtime?.agents,
+      );
       response.setHeader("cache-control", "no-store");
       return response.status(201).json(
         await goals.start({
@@ -1064,10 +1110,10 @@ export function createApp(
       if (activation.status === "provisioning") {
         throw new Error("The Hermes fleet is still provisioning");
       }
-      const linkedRoles =
-        activation.runtime?.agents
-          .filter((agent) => agent.oneclaw === "linked")
-          .map((agent) => agent.role) ?? [];
+      const linkedRoles = await confirmedOneClawRoles(
+        session.sub,
+        activation.runtime?.agents,
+      );
       const requiredRoles = ["trader"] as const;
       const oneclaw = oneClawGate({
         amountIn: parsed.data.amountIn,

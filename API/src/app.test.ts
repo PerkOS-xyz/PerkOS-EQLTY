@@ -647,6 +647,36 @@ describe("API foundation", () => {
     });
   });
 
+  it("reports the claimed 1Claw connection for the signed-in wallet", async () => {
+    const session = testSession();
+    const authorization = vi.fn(async () => ({
+      status: "active" as const,
+      connectionId: "22222222-2222-4222-8222-222222222222",
+      oneclawAgentId: "11111111-1111-4111-8111-111111111111",
+      vaultId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      claimedAt: "2026-08-05T12:00:00Z",
+    }));
+    const response = await request(
+      "/api/fleet/security/oneclaw",
+      {
+        ownerAuth: testOwnerAuth(session),
+        oneclawFleet: {
+          ready: true,
+          provision: vi.fn(),
+          authorization,
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(authorization).toHaveBeenCalledWith(session.sub);
+    await expect(response.json()).resolves.toMatchObject({
+      status: "active",
+      oneclawAgentId: "11111111-1111-4111-8111-111111111111",
+    });
+  });
+
   it("serves public Graph evidence for independent verification", async () => {
     const response = await request("/api/evidence/nvda", {
       graphEvidence: {
@@ -738,9 +768,9 @@ describe("API foundation", () => {
               status: "ready",
               agents: [
                 {
-                  role: "scout",
-                  agentId: "agent-scout",
-                  name: "eqlty-scout-12345678",
+                  role: "trader",
+                  agentId: "agent-trader",
+                  name: "eqlty-trader-12345678",
                   runtime: "Hermes",
                   state: "ready",
                   plugins: [],
@@ -754,6 +784,13 @@ describe("API foundation", () => {
           start,
           read: async () => undefined,
           tick: async () => undefined,
+        },
+        oneclawFleet: {
+          ready: true,
+          provision: vi.fn(),
+          authorization: async () => ({
+            status: "claim_pending" as const,
+          }),
         },
       },
       {
@@ -774,7 +811,7 @@ describe("API foundation", () => {
       expect.objectContaining({
         userId: "u-12345678",
         owner: session.walletAddress,
-        linkedRoles: ["scout"],
+        linkedRoles: [],
       }),
     );
     await expect(response.json()).resolves.toMatchObject({
@@ -1224,6 +1261,17 @@ describe("API foundation", () => {
                 }),
               ),
             },
+          }),
+        },
+        oneclawFleet: {
+          ready: true,
+          provision: vi.fn(),
+          authorization: async () => ({
+            status: "active" as const,
+            connectionId: "22222222-2222-4222-8222-222222222222",
+            oneclawAgentId: "11111111-1111-4111-8111-111111111111",
+            vaultId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            claimedAt: "2026-08-05T12:00:00Z",
           }),
         },
         proofRuns: { run },

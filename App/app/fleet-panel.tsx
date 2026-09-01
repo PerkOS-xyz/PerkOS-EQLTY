@@ -7,6 +7,7 @@ import {
   fleetMetadataUrl,
   loadFleetMetadata,
   loadOneClawIntegrationHealth,
+  loadOneClawUserConnection,
   loadFleetPolicy,
   oneclawAgentSettingsUrl,
   publishDemoFleetPolicy,
@@ -18,6 +19,7 @@ import type {
   FleetAgent,
   FleetPhase,
   OneClawIntegrationHealth,
+  OneClawUserConnection,
 } from "../lib/fleet-types";
 import { fleetRoles } from "../lib/fleet-types";
 import {
@@ -67,7 +69,7 @@ export function FleetPanel({ goal }: { goal: GoalAnalysisState }) {
   });
   const readyCount = agents.filter((agent) => agent.state === "ready").length;
   const trader = agents.find((agent) => agent.role === "trader");
-  const executionLinked = trader?.oneclaw === "linked";
+  const credentialInstalled = trader?.oneclaw === "linked";
   const [securityBusy, setSecurityBusy] = useState(false);
   const [securityError, setSecurityError] = useState<string>();
   const [securityEmail, setSecurityEmail] = useState("");
@@ -75,15 +77,49 @@ export function FleetPanel({ goal }: { goal: GoalAnalysisState }) {
   const [oneclawAgentId, setOneclawAgentId] = useState<string>();
   const [oneclawHealth, setOneclawHealth] =
     useState<OneClawIntegrationHealth>();
+  const [oneclawConnection, setOneclawConnection] =
+    useState<OneClawUserConnection>();
+  const executionLinked = Boolean(
+    credentialInstalled && oneclawConnection?.status === "active",
+  );
   useEffect(() => {
+    const owner = state.session?.walletAddress;
+    if (!owner) {
+      setSecurityEmail("");
+      setOneclawAgentId(undefined);
+      return;
+    }
     setSecurityEmail(
-      window.localStorage.getItem("eqlty_oneclaw_email") ?? "",
+      window.localStorage.getItem(oneclawStorageKey("email", owner)) ??
+        "",
     );
     setOneclawAgentId(
-      window.localStorage.getItem("eqlty_oneclaw_agent_id") ??
+      window.localStorage.getItem(oneclawStorageKey("agent", owner)) ??
         undefined,
     );
-  }, []);
+  }, [state.session?.walletAddress]);
+  useEffect(() => {
+    if (!state.session?.walletAddress) {
+      setOneclawConnection(undefined);
+      return;
+    }
+    const controller = new AbortController();
+    loadOneClawUserConnection()
+      .then((connection) => {
+        if (controller.signal.aborted) return;
+        setOneclawConnection(connection);
+        setSecurityStarted(connection.status === "claim_pending");
+        if (connection.oneclawAgentId) {
+          setOneclawAgentId(connection.oneclawAgentId);
+        }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setOneclawConnection(undefined);
+        }
+      });
+    return () => controller.abort();
+  }, [state.session?.walletAddress, state.phase]);
   useEffect(() => {
     const controller = new AbortController();
     loadOneClawIntegrationHealth(controller.signal)
@@ -165,6 +201,9 @@ export function FleetPanel({ goal }: { goal: GoalAnalysisState }) {
                 oneclawAgentId={
                   agent.role === "trader" ? oneclawAgentId : undefined
                 }
+                oneclawActive={
+                  agent.role === "trader" && executionLinked
+                }
                 phase={state.phase}
                 rootName={state.activation?.rootName}
                 runtimeAvailable={Boolean(runtime)}
@@ -201,13 +240,18 @@ export function FleetPanel({ goal }: { goal: GoalAnalysisState }) {
               {oneclawHealthLabel(oneclawHealth)}
             </i>
             <strong>
-              {executionLinked ? "Trader linked" : "Setup required"}
+              {executionLinked
+                ? "Trader linked"
+                : oneclawConnection?.status === "claim_pending"
+                  ? "Claim required"
+                  : "Setup required"}
             </strong>
             <p>
               {executionLinked
                 ? "The user-owned 1Claw vault is linked. Purchases of 3 USDG or more remain locked until live x401 and x402 authorization is enabled."
-                : securityStarted
-                  ? "Complete the 1Claw claim, then check the connection."
+                : oneclawConnection?.status === "claim_pending" ||
+                    securityStarted
+                  ? "Complete the 1Claw authorization, then check the connection."
                   : oneclawHealth?.status === "ready"
                     ? "Continue to create a user-owned vault and Trader agent. Usage belongs to the user's 1Claw account."
                     : oneclawHealthMessage(oneclawHealth)}
@@ -229,7 +273,10 @@ export function FleetPanel({ goal }: { goal: GoalAnalysisState }) {
                   const result =
                     await activateOneClawRails(securityEmail);
                   window.localStorage.setItem(
-                    "eqlty_oneclaw_email",
+                    oneclawStorageKey(
+                      "email",
+                      state.session!.walletAddress,
+                    ),
                     securityEmail,
                   );
                   if ("executionAgent" in result) {
@@ -237,10 +284,32 @@ export function FleetPanel({ goal }: { goal: GoalAnalysisState }) {
                       result.executionAgent.oneclawAgentId,
                     );
                     window.localStorage.setItem(
-                      "eqlty_oneclaw_agent_id",
+                      oneclawStorageKey(
+                        "agent",
+                        state.session!.walletAddress,
+                      ),
                       result.executionAgent.oneclawAgentId,
                     );
                   }
+                  setOneclawConnection(
+                    result.status === "linked"
+                      ? {
+                          status: "active",
+                          connectionId: result.connectionId,
+                          oneclawAgentId:
+                            result.executionAgent.oneclawAgentId,
+                          vaultId: result.vaultId,
+                        }
+                      : result.status === "claim_required"
+                        ? {
+                            status: "claim_pending",
+                            connectionId: result.connectionId,
+                            oneclawAgentId:
+                              result.executionAgent.oneclawAgentId,
+                            vaultId: result.vaultId,
+                          }
+                        : { status: "not_connected" },
+                  );
                   setSecurityStarted(true);
                   const nextUrl =
                     result.status === "link_required"
@@ -287,7 +356,8 @@ export function FleetPanel({ goal }: { goal: GoalAnalysisState }) {
               >
                 {securityBusy
                   ? "Connecting"
-                  : securityStarted
+                  : securityStarted ||
+                      oneclawConnection?.status === "claim_pending"
                     ? "Check connection"
                     : "Continue in 1Claw"}
               </button>
@@ -520,6 +590,7 @@ function AgentCard({
   agent,
   index,
   oneclawAgentId,
+  oneclawActive,
   phase,
   rootName,
   runtimeAvailable,
@@ -529,6 +600,7 @@ function AgentCard({
   agent: FleetAgent;
   index: number;
   oneclawAgentId?: string;
+  oneclawActive: boolean;
   phase: FleetPhase;
   rootName?: string;
   runtimeAvailable: boolean;
@@ -553,7 +625,7 @@ function AgentCard({
         <a
           aria-label="Open the trader settings in 1Claw"
           className={`oneclawAgentLink ${
-            agent.oneclaw === "linked" ? "linked" : ""
+            oneclawActive ? "linked" : ""
           }`}
           href={oneclawAgentSettingsUrl(oneclawAgentId)}
           rel="noreferrer"
@@ -576,9 +648,11 @@ function AgentCard({
         <small>
           {agent.role !== "trader"
             ? "No spending authority"
-            : agent.oneclaw === "linked"
+            : oneclawActive
               ? "1Claw linked"
-              : "1Claw pending"}
+              : agent.oneclaw === "linked"
+                ? "1Claw claim pending"
+                : "1Claw pending"}
         </small>
       </div>
       {workflow.started && (
@@ -832,4 +906,11 @@ function agentPhaseCopy(phase: FleetPhase): string {
     ready: "Online",
     failed: "Failed",
   }[phase];
+}
+
+function oneclawStorageKey(
+  field: "agent" | "email",
+  owner: `0x${string}`,
+): string {
+  return `eqlty_oneclaw_${field}_${owner.toLowerCase()}`;
 }

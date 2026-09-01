@@ -83,6 +83,14 @@ export type OneClawIntegrationHealth = {
     | "provider-error";
 };
 
+export type OneClawUserConnection = {
+  status: "not_connected" | "claim_pending" | "active";
+  connectionId?: string;
+  oneclawAgentId?: string;
+  vaultId?: string;
+  claimedAt?: string;
+};
+
 export type UserSession = {
   sub: string;
   provider: "wallet";

@@ -51,6 +51,64 @@ describe("1Claw Platform API provisioning", () => {
     expect(JSON.stringify(status)).not.toContain("plt_");
   });
 
+  it("keeps an installed agent pending until its owner completes the claim", async () => {
+    const fetchFn = vi.fn(async () =>
+      json({
+        users: [
+          {
+            connection_id: connectionId,
+            external_subject: "wallet:julio",
+            status: "pending_claim",
+            claimed_at: null,
+            agent_ids: [agentId],
+            vault_ids: [vaultId],
+          },
+        ],
+      }),
+    );
+
+    await expect(
+      provisioner(fetchFn).authorization("wallet:julio"),
+    ).resolves.toEqual({
+      status: "claim_pending",
+      connectionId,
+      oneclawAgentId: agentId,
+      vaultId,
+    });
+  });
+
+  it("authorizes only the claimed connection for the wallet subject", async () => {
+    const fetchFn = vi.fn(async () =>
+      json([
+        {
+          connection_id: connectionId,
+          external_subject: "wallet:julio",
+          status: "claimed",
+          claimed_at: "2026-08-05T12:00:00Z",
+          agent_ids: [agentId],
+          vault_ids: [vaultId],
+        },
+        {
+          connection_id: "77777777-7777-4777-8777-777777777777",
+          external_subject: "wallet:other",
+          status: "claimed",
+          claimed_at: "2026-08-05T12:00:00Z",
+          agent_ids: ["88888888-8888-4888-8888-888888888888"],
+          vault_ids: ["99999999-9999-4999-8999-999999999999"],
+        },
+      ]),
+    );
+
+    await expect(
+      provisioner(fetchFn).authorization("wallet:julio"),
+    ).resolves.toMatchObject({
+      status: "active",
+      connectionId,
+      oneclawAgentId: agentId,
+      vaultId,
+    });
+  });
+
   it("bootstraps a user-owned execution agent and hides its credential", async () => {
     const requests: Array<{
       body?: Record<string, unknown>;

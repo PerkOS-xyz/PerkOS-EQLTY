@@ -7,6 +7,7 @@ import type {
   FleetPolicy,
   OneClawIntegrationHealth,
   OneClawFleetSecurity,
+  OneClawUserConnection,
   UserSession,
 } from "./fleet-types";
 
@@ -96,6 +97,12 @@ export async function activateOneClawRails(
       method: "POST",
       body: JSON.stringify({ email }),
     },
+  );
+}
+
+export async function loadOneClawUserConnection(): Promise<OneClawUserConnection> {
+  return request<OneClawUserConnection>(
+    "/api/fleet/security/oneclaw",
   );
 }
 

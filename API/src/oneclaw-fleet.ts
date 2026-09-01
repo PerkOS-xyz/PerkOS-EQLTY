@@ -52,6 +52,18 @@ type Dependencies = {
   fetchFn?: typeof fetch;
 };
 
+export type OneClawIntegrationStatus = {
+  configured: boolean;
+  status: "ready" | "degraded" | "pending";
+  checkedAt: string;
+  platformApi: boolean;
+  reason?:
+    | "not-configured"
+    | "unreachable"
+    | "unauthorized"
+    | "provider-error";
+};
+
 type ExecutionAgent = {
   role: "trader";
   perkosAgentId: string;
@@ -84,6 +96,10 @@ export type OneClawFleetSecurity =
 
 export class OneClawFleetProvisioner {
   private readonly fetchFn: typeof fetch;
+  private healthCache?: {
+    expiresAt: number;
+    value: OneClawIntegrationStatus;
+  };
 
   constructor(
     private readonly config: ApiConfig,
@@ -97,6 +113,61 @@ export class OneClawFleetProvisioner {
       this.config.ONECLAW_PLATFORM_APP_ID &&
         this.config.ONECLAW_PLATFORM_API_KEY,
     );
+  }
+
+  async status(): Promise<OneClawIntegrationStatus> {
+    const checkedAt = new Date().toISOString();
+    if (!this.ready) {
+      return {
+        configured: false,
+        status: "pending",
+        checkedAt,
+        platformApi: false,
+        reason: "not-configured",
+      };
+    }
+    if (this.healthCache && this.healthCache.expiresAt > Date.now()) {
+      return this.healthCache.value;
+    }
+
+    let value: OneClawIntegrationStatus;
+    try {
+      const appId = this.config.ONECLAW_PLATFORM_APP_ID!;
+      const result = await this.platformResponse<unknown>(
+        `/v1/platform/apps/${encodeURIComponent(appId)}/users`,
+        { signal: AbortSignal.timeout(5_000) },
+      );
+      value = result.ok
+        ? {
+            configured: true,
+            status: "ready",
+            checkedAt,
+            platformApi: true,
+          }
+        : {
+            configured: true,
+            status: "degraded",
+            checkedAt,
+            platformApi: false,
+            reason:
+              result.status === 401 || result.status === 403
+                ? "unauthorized"
+                : "provider-error",
+          };
+    } catch {
+      value = {
+        configured: true,
+        status: "degraded",
+        checkedAt,
+        platformApi: false,
+        reason: "unreachable",
+      };
+    }
+    this.healthCache = {
+      expiresAt: Date.now() + 30_000,
+      value,
+    };
+    return value;
   }
 
   async provision(input: {
@@ -437,7 +508,7 @@ export class OneClawFleetProvisioner {
           ...(token ? { authorization: `Bearer ${token}` } : {}),
           ...init.headers,
         },
-        signal: AbortSignal.timeout(30_000),
+        signal: init.signal ?? AbortSignal.timeout(30_000),
       },
     );
     return {

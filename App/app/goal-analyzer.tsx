@@ -25,6 +25,11 @@ export function GoalAnalyzer({ state }: { state: GoalAnalysisState }) {
             Define an outcome. Watch four agents consult ENS rules, compare
             candidates and explain one recommendation before any execution.
           </p>
+          <small className="goalPricingHint">
+            {state.feeConfig
+              ? `Exact proof fee: ${formatUsdG(state.feeConfig.completeAmount)} USDG with a recommendation · ${formatUsdG(state.feeConfig.noCandidateAmount)} USDG when all candidates are rejected · 0 without complete proof.`
+              : "A decision fee is requested only after all four agents produce a verifiable proof."}
+          </small>
         </div>
         <span className="goalWindow">02:00 demo window</span>
       </header>
@@ -148,6 +153,8 @@ export function GoalAnalyzer({ state }: { state: GoalAnalysisState }) {
       {state.session && (
         <GoalProgress
           analysis={analysis}
+          onPay={state.payDecisionFee}
+          paymentBusy={state.paymentBusy}
           session={state.session}
         />
       )}
@@ -157,12 +164,17 @@ export function GoalAnalyzer({ state }: { state: GoalAnalysisState }) {
 
 function GoalProgress({
   analysis,
+  onPay,
+  paymentBusy,
   session,
 }: {
   analysis?: OpportunityAnalysis;
+  onPay: () => void;
+  paymentBusy: boolean;
   session: AutonomousGoal;
 }) {
   const active = session.status === "active";
+  const paymentRequired = session.status === "payment-required";
   const proof = useProofRun(session);
 
   return (
@@ -171,7 +183,11 @@ function GoalProgress({
         <div>
           <span className={`goalStatus ${session.status}`}>
             <i />
-            {active ? "Fleet monitoring" : session.status}
+            {active
+              ? "Fleet monitoring"
+              : paymentRequired
+                ? "Proof sealed"
+                : session.status}
           </span>
           <strong>
             {session.cyclesCompleted} evaluation
@@ -179,7 +195,11 @@ function GoalProgress({
           </strong>
         </div>
         <small>
-          {active ? `${remaining(session.endsAt)} remaining` : "Window complete"}
+          {active
+            ? `${remaining(session.endsAt)} remaining`
+            : paymentRequired
+              ? "x402 authorization required"
+              : "Decision complete"}
         </small>
       </header>
 
@@ -211,6 +231,14 @@ function GoalProgress({
       </div>
 
       {session.error && <p className="goalError">{session.error}</p>}
+
+      {session.decisionFee && (
+        <DecisionFeePanel
+          busy={paymentBusy}
+          fee={session.decisionFee}
+          onPay={onPay}
+        />
+      )}
 
       {analysis && (
         <div className="candidateResult">
@@ -265,11 +293,73 @@ function GoalProgress({
   );
 }
 
+function DecisionFeePanel({
+  busy,
+  fee,
+  onPay,
+}: {
+  busy: boolean;
+  fee: NonNullable<AutonomousGoal["decisionFee"]>;
+  onPay: () => void;
+}) {
+  const exact = formatUsdG(fee.amount);
+  return (
+    <section className={`decisionFee ${fee.status}`}>
+      <div>
+        <span>
+          {fee.status === "payment-required"
+            ? "Verified decision ready"
+            : fee.status === "settled"
+              ? "Decision receipt"
+              : fee.status === "preview"
+                ? "Pricing preview"
+                : "Decision fee waived"}
+        </span>
+        <strong>
+          {exact} {fee.symbol} · x402 {fee.scheme}
+        </strong>
+        <small>{fee.reason}</small>
+      </div>
+      {fee.status === "payment-required" && (
+        <button disabled={busy} onClick={onPay} type="button">
+          {busy ? "Settling with Stack..." : `Authorize ${exact} USDG`}
+        </button>
+      )}
+      {fee.status === "preview" && (
+        <b>No USDG charged in preview mode</b>
+      )}
+      {fee.status === "waived" && <b>0 USDG charged</b>}
+      {fee.receipt && (
+        <div className="decisionFeeReceipt">
+          {fee.receipt.explorerUrl ? (
+            <a
+              href={fee.receipt.explorerUrl}
+              rel="noreferrer"
+              target="_blank"
+            >
+              View payment transaction ↗
+            </a>
+          ) : (
+            <span>Stack confirmed · transaction lookup pending</span>
+          )}
+          {fee.receipt.transaction && (
+            <code>{short(fee.receipt.transaction)}</code>
+          )}
+          <code>nonce {short(fee.receipt.authorizationNonce)}</code>
+          {fee.receipt.requestId && <code>{fee.receipt.requestId}</code>}
+        </div>
+      )}
+      {fee.error && <p>{fee.error}</p>}
+    </section>
+  );
+}
+
 function oneclawLabel(session: AutonomousGoal): string {
   if (!session.gates.oneclawRequired) return "Optional below 3 USDG";
-  return session.gates.oneclawLinked
-    ? "Rails linked"
-    : "Locked from 3 USDG";
+  if (!session.gates.oneclawLinked) return "Locked from 3 USDG";
+  return session.gates.executionAuthorized
+    ? "Live rail authorized"
+    : "Linked · live spend locked";
 }
 
 function CandidateCard({
@@ -327,4 +417,14 @@ function formatPrice(value?: string): string {
   return Number.isFinite(number)
     ? `$${number.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
     : value;
+}
+
+function formatUsdG(value: string): string {
+  const amount = BigInt(value);
+  const whole = amount / 1_000_000n;
+  const fraction = (amount % 1_000_000n)
+    .toString()
+    .padStart(6, "0")
+    .replace(/0+$/, "");
+  return fraction ? `${whole}.${fraction}` : whole.toString();
 }

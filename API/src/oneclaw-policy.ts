@@ -14,6 +14,7 @@ export function oneClawGate(input: {
   linkedRoles: readonly FleetRole[];
   requiredRoles: readonly FleetRole[];
   minimumAmount?: string;
+  liveAuthorization?: boolean;
 }): OneClawGate {
   const minimumAmount =
     input.minimumAmount ?? defaultOneClawMinimumAmount;
@@ -26,6 +27,7 @@ export function oneClawGate(input: {
     required,
     linked,
     minimumAmount,
-    executionAuthorized: !required || linked,
+    executionAuthorized:
+      !required || (linked && Boolean(input.liveAuthorization)),
   };
 }

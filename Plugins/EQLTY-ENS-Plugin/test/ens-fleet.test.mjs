@@ -140,7 +140,7 @@ test("prepares an emergency stop without adding API fields", async () => {
         manifestHash: `0x${"cd".repeat(32)}`,
         manifest: { version: 4 },
         publicationMode: "prepared-only",
-        requiredAuthorization: ["owner-wallet", "world-selfie"],
+        requiredAuthorization: ["owner-wallet"],
         diff: [{ field: "paused", before: false, after: true }],
         agentRecords: Object.fromEntries(
           roles.map((role) => [
@@ -162,10 +162,7 @@ test("prepares an emergency stop without adding API fields", async () => {
   assert.equal("version" in body, false);
   assert.deepEqual(body.allowedTickers, controlPlane().manifest.policy.allowedTickers);
   assert.equal(prepared.publicationMode, "prepared-only");
-  assert.deepEqual(prepared.requiredAuthorization, [
-    "owner-wallet",
-    "world-selfie",
-  ]);
+  assert.deepEqual(prepared.requiredAuthorization, ["owner-wallet"]);
 });
 
 test("preserves the complete ticker policy in opportunity mode", async () => {
@@ -184,7 +181,7 @@ test("preserves the complete ticker policy in opportunity mode", async () => {
         manifestHash: `0x${"cd".repeat(32)}`,
         manifest: { version: 4 },
         publicationMode: "prepared-only",
-        requiredAuthorization: ["owner-wallet", "world-selfie"],
+        requiredAuthorization: ["owner-wallet"],
         diff: [],
         agentRecords: Object.fromEntries(
           roles.map((role) => [

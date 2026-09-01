@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { relativeTime } from "../lib/market-format";
+import { GraphHealthPanel } from "./graph-health-panel";
 import { MarketCard } from "./market-card";
 import { useMarketCatalog } from "./use-market-catalog";
 
@@ -14,6 +15,7 @@ export function MarketCatalog() {
     catalog,
     history,
     graphHistory,
+    graphIntegration,
     loading,
     error,
     refresh,
@@ -57,7 +59,9 @@ export function MarketCatalog() {
             Real Uniswap 1D market curves, V4 routes and{" "}
             {seriesState === "ready"
               ? "live Substreams evidence"
-              : "verifiable execution evidence"}.
+              : graphIntegration?.status === "degraded"
+                ? "fail-closed Graph evidence"
+                : "verifiable execution evidence"}.
           </p>
         </div>
         <div className="marketHeadingActions">
@@ -72,8 +76,8 @@ export function MarketCatalog() {
                 V4 routes
               </span>
               <span>
-                <b>{catalog.summary.available}</b>
-                market ready
+                <b>{catalog.summary.orchestrationReady}</b>
+                decision ready
               </span>
             </div>
           ) : (
@@ -99,6 +103,12 @@ export function MarketCatalog() {
           </button>
         </div>
       )}
+
+      <GraphHealthPanel
+        compact
+        health={graphIntegration}
+        onRefresh={refresh}
+      />
 
       <div
         className="marketCarousel"
@@ -172,6 +182,14 @@ export function MarketCatalog() {
             : historyState === "loading"
               ? "loading"
               : "unavailable"}
+        </small>
+        <small>
+          The Graph{" "}
+          {graphIntegration?.status === "degraded"
+            ? "degraded"
+            : seriesState === "ready"
+              ? "live"
+              : "connecting"}
         </small>
       </footer>
     </section>

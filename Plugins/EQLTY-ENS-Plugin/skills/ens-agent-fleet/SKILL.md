@@ -1,6 +1,6 @@
 ---
 name: ens-agent-fleet
-description: Resolve and inspect live ENS and Durin agent fleets, explain their behavior policy, open role metadata, and prepare bounded policy changes. Use when an agent needs persistent identity, discoverability, fleet settings, or an Emergency Stop without bypassing owner and World authorization.
+description: Resolve and inspect live ENS and Durin agent fleets, explain their behavior policy, open role metadata, and prepare bounded policy changes. Use when an agent needs persistent identity, discoverability, fleet settings, or an Emergency Stop without bypassing owner authorization.
 ---
 
 # ENS Agent Fleet
@@ -31,7 +31,7 @@ All commands require the authenticated owner session. Set
 4. Treat `paused=true` as a hard stop before market analysis or spending.
 5. Use `prepare` to show the exact semantic diff and new manifest hash.
 6. Never publish ENS records from an autonomous agent.
-7. Require owner-wallet and World Selfie authorization for the prepared hash
-   before a production publication flow.
+7. Require owner-wallet authorization for the prepared hash before a
+   production publication flow.
 
 Read [records.md](references/records.md) before integrating the result.

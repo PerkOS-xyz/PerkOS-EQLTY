@@ -205,7 +205,6 @@ export async function runCli({
       prepared.manifest?.version !== current.manifest.version + 1 ||
       !Array.isArray(prepared.diff) ||
       !prepared.requiredAuthorization?.includes("owner-wallet") ||
-      !prepared.requiredAuthorization?.includes("world-selfie") ||
       roles.some(
         (role) =>
           !prepared.agentRecords?.[role]?.name ||

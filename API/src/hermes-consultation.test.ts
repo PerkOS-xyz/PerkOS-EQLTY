@@ -1,12 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import { loadConfig } from "./config.js";
 import type { EnsOrchestrationManifest } from "./ens-types.js";
-import type { FleetAgent } from "./fleet-types.js";
+import type { FleetAgent, FleetRole } from "./fleet-types.js";
 import type { OpportunityCandidate } from "./goal-types.js";
 import { HermesConsultationService } from "./hermes-consultation.js";
 
 const address = "0x1111111111111111111111111111111111111111";
 const transactionHash = `0x${"22".repeat(32)}` as const;
+const manifestHash = `0x${"aa".repeat(32)}` as const;
 
 const manifest: EnsOrchestrationManifest = {
   schema: "urn:eqlty:ens-orchestration:v1",
@@ -38,6 +39,8 @@ const candidates: OpportunityCandidate[] = [
 const agents: FleetAgent[] = [
   agent("scout", "scout-id"),
   agent("risk", "risk-id"),
+  agent("trader", "trader-id"),
+  agent("auditor", "auditor-id"),
 ];
 
 describe("HermesConsultationService", () => {
@@ -66,6 +69,30 @@ describe("HermesConsultationService", () => {
           "graphEvidencePresent",
         ],
       },
+      {
+        decision: "prepare",
+        ticker: "NVDA",
+        summary:
+          "Prepare the exact CLASSIC route from request NVDA-request without submitting funds.",
+        checks: [
+          "riskApproved",
+          "uniswapRoutePresent",
+          "requestIdPresent",
+          "ensTickerAllowed",
+        ],
+      },
+      {
+        decision: "seal",
+        ticker: "NVDA",
+        summary:
+          "Seal NVDA after all four handoffs passed ENS policy version 1.",
+        checks: [
+          "ensManifestPresent",
+          "scoutVerified",
+          "riskVerified",
+          "traderVerified",
+        ],
+      },
     ];
     const fetchFn = vi.fn(
       async (_input: string | URL | Request, _init?: RequestInit) =>
@@ -83,6 +110,7 @@ describe("HermesConsultationService", () => {
       goal: "Prefer the strongest liquid route",
       candidates,
       manifest,
+      manifestHash,
       agents,
       idToken: "owner-token",
     });
@@ -102,6 +130,18 @@ describe("HermesConsultationService", () => {
         agentId: "risk-id",
         detail: "approved",
       },
+      trader: {
+        status: "verified",
+        ticker: "NVDA",
+        agentId: "trader-id",
+        detail: "prepared",
+      },
+      auditor: {
+        status: "verified",
+        ticker: "NVDA",
+        agentId: "auditor-id",
+        detail: "sealed",
+      },
     });
     expect(result.scout.responseHash).toMatch(/^0x[0-9a-f]{64}$/);
     expect(result.risk.responseHash).toMatch(/^0x[0-9a-f]{64}$/);
@@ -117,12 +157,20 @@ describe("HermesConsultationService", () => {
         }),
       ]),
     );
-    expect(fetchFn).toHaveBeenCalledTimes(2);
+    expect(result.trader.responseHash).toMatch(/^0x[0-9a-f]{64}$/);
+    expect(result.auditor.responseHash).toMatch(/^0x[0-9a-f]{64}$/);
+    expect(fetchFn).toHaveBeenCalledTimes(4);
     expect(String(fetchFn.mock.calls[0]?.[0])).toContain(
       "/agents/scout-id/task",
     );
     expect(String(fetchFn.mock.calls[1]?.[0])).toContain(
       "/agents/risk-id/task",
+    );
+    expect(String(fetchFn.mock.calls[2]?.[0])).toContain(
+      "/agents/trader-id/task",
+    );
+    expect(String(fetchFn.mock.calls[3]?.[0])).toContain(
+      "/agents/auditor-id/task",
     );
   });
 
@@ -149,6 +197,7 @@ describe("HermesConsultationService", () => {
         { ...candidates[1]!, status: "rejected" },
       ],
       manifest,
+      manifestHash,
       agents,
       idToken: "owner-token",
     });
@@ -170,6 +219,7 @@ describe("HermesConsultationService", () => {
       goal: "Choose a route",
       candidates,
       manifest,
+      manifestHash,
       agents,
     });
 
@@ -205,6 +255,30 @@ describe("HermesConsultationService", () => {
           "graphEvidencePresent",
         ],
       }),
+      JSON.stringify({
+        decision: "prepare",
+        ticker: "NVDA",
+        summary:
+          "Prepare the exact CLASSIC route from request NVDA-request without submitting funds.",
+        checks: [
+          "riskApproved",
+          "uniswapRoutePresent",
+          "requestIdPresent",
+          "ensTickerAllowed",
+        ],
+      }),
+      JSON.stringify({
+        decision: "seal",
+        ticker: "NVDA",
+        summary:
+          "Seal NVDA after all four handoffs passed ENS policy version 1.",
+        checks: [
+          "ensManifestPresent",
+          "scoutVerified",
+          "riskVerified",
+          "traderVerified",
+        ],
+      }),
     ];
     const fetchFn = vi.fn(
       async (_input: string | URL | Request, _init?: RequestInit) =>
@@ -221,6 +295,7 @@ describe("HermesConsultationService", () => {
       goal: "Choose a route",
       candidates,
       manifest,
+      manifestHash,
       agents,
       idToken: "owner-token",
     });
@@ -228,7 +303,9 @@ describe("HermesConsultationService", () => {
     expect(result.status).toBe("verified");
     expect(result.scout.status).toBe("verified");
     expect(result.risk.status).toBe("verified");
-    expect(fetchFn).toHaveBeenCalledTimes(3);
+    expect(result.trader.status).toBe("verified");
+    expect(result.auditor.status).toBe("verified");
+    expect(fetchFn).toHaveBeenCalledTimes(5);
     expect(fetchFn.mock.calls[1]?.[1]?.body).toContain(
       "Retry once",
     );
@@ -263,7 +340,7 @@ function candidate(
 }
 
 function agent(
-  role: "scout" | "risk",
+  role: FleetRole,
   agentId: string,
 ): FleetAgent {
   return {

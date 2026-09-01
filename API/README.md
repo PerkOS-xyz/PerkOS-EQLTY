@@ -41,7 +41,7 @@ preserves the Graph request and response, Uniswap pool evidence, proof hashes,
 receipt and decoded token transfers.
 
 ENS policy preparation returns hash-bound records for review. It does not
-publish changes before wallet and World authorization are complete.
+publish changes before owner-wallet authorization is complete.
 
 `EQLTY_ONECLAW_MIN_AMOUNT_USDG` stores the 1Claw purchase threshold in
 six-decimal USDG atomic units. The default `3000000` applies the rail lock to
@@ -56,6 +56,11 @@ The one-time Trader credential is sent directly to PerkOS for server-side
 storage and Hermes reprovisioning. It is never returned to the app. The user
 claims the vault, agent and wallet in 1Claw, where `user_pays` keeps ownership
 and billing attached to their account.
+
+`GET /api/config` performs a cached, read-only Platform API check and publishes
+only `ready`, `degraded` or `pending`. It never returns platform identifiers,
+connected users or credentials. Resource creation begins only when the signed-in
+owner selects **Continue in 1Claw**.
 
 EQLTY does not enable EIP-712 domain restrictions for Robinhood Chain. The
 trader still has Robinhood-only, contract, USDG and transaction-count

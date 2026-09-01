@@ -15,7 +15,7 @@
   padding: 8px 11px;
   border-radius: 8px;
   color: #79847e;
-  font-size: 10px;
+  font-size: 13px;
   font-weight: 700;
   text-decoration: none;
 }
@@ -68,7 +68,7 @@
 .auditHeroMetric span,
 .auditHeroMetric small {
   color: #718078;
-  font-size: 9px;
+  font-size: 13px;
 }
 
 .auditHeroMetric strong {
@@ -93,12 +93,12 @@
 }
 
 .auditToolbar strong {
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .auditToolbar span {
   color: #6f7b74;
-  font-size: 9px;
+  font-size: 13px;
 }
 
 .auditToolbar a,
@@ -111,7 +111,7 @@
   background: #111914;
   color: #80e6a0;
   cursor: pointer;
-  font-size: 9px;
+  font-size: 13px;
   font-weight: 700;
   text-decoration: none;
 }
@@ -152,7 +152,7 @@
   max-width: 470px;
   margin: 7px 0 16px;
   color: #758078;
-  font-size: 10px;
+  font-size: 13px;
   line-height: 1.6;
 }
 
@@ -185,7 +185,7 @@
   border-radius: 10px;
   background: #17251c;
   color: #7deb9f;
-  font: 700 12px "DM Mono", monospace;
+  font: 700 13px "DM Mono", monospace;
 }
 
 .assetMonogram img {
@@ -204,20 +204,20 @@
 
 .historyCard > header > div > span {
   color: #72dd95;
-  font: 500 7px "DM Mono", monospace;
+  font: 500 13px "DM Mono", monospace;
   text-transform: uppercase;
 }
 
 .historyCard > header strong,
 .holdingCard > header strong {
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .historyCard > header small,
 .holdingCard > header small {
   overflow: hidden;
   color: #748078;
-  font-size: 8px;
+  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -228,7 +228,7 @@
   border: 1px solid #31543c;
   border-radius: 999px;
   color: #79e49b;
-  font: 500 7px "DM Mono", monospace;
+  font: 500 13px "DM Mono", monospace;
   text-transform: uppercase;
 }
 
@@ -252,12 +252,12 @@
 
 .purchaseFlow small {
   color: #657169;
-  font-size: 7px;
+  font-size: 13px;
   text-transform: uppercase;
 }
 
 .purchaseFlow strong {
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .purchaseFlow i {
@@ -282,7 +282,7 @@
 .proofHashes dt,
 .holdingCard dt {
   color: #667169;
-  font-size: 7px;
+  font-size: 13px;
   text-transform: uppercase;
 }
 
@@ -290,7 +290,7 @@
 .holdingCard dd {
   margin: 3px 0 0;
   color: #a6b0aa;
-  font: 500 8px "DM Mono", monospace;
+  font: 500 13px "DM Mono", monospace;
   overflow-wrap: anywhere;
 }
 
@@ -311,7 +311,7 @@
   background: transparent;
   color: #79d998;
   cursor: pointer;
-  font-size: 8px;
+  font-size: 13px;
   text-decoration: none;
 }
 
@@ -329,6 +329,58 @@
   margin-top: 22px;
 }
 
+.usdGExit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid #47633b;
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 100% 0%, rgb(216 199 120 / 14%), transparent 42%),
+    #14170e;
+}
+
+.usdGExit > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.usdGExit span {
+  color: #d8c778;
+  font: 600 13px "DM Mono", monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.usdGExit strong {
+  font-size: 18px;
+}
+
+.usdGExit p {
+  max-width: 630px;
+  margin: 0;
+  color: #9ca59f;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.usdGExit > a {
+  min-width: 180px;
+  padding: 11px 14px;
+  border: 1px solid #d8c778;
+  border-radius: 9px;
+  background: #d8c778;
+  color: #11130c;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+  text-decoration: none;
+}
+
 .portfolioSummary > span {
   display: flex;
   flex-direction: column;
@@ -340,7 +392,7 @@
 
 .portfolioSummary small {
   color: #69756e;
-  font-size: 8px;
+  font-size: 13px;
 }
 
 .portfolioSummary strong {
@@ -376,7 +428,7 @@
 .recoverableFunds > article span,
 .recoverableFunds > header small {
   color: #9b8f69;
-  font-size: 8px;
+  font-size: 13px;
 }
 
 .recoverableFunds > article {
@@ -392,7 +444,7 @@
   background: #d8c778;
   color: #14140d;
   cursor: pointer;
-  font: 700 8px inherit;
+  font: 700 13px inherit;
 }
 
 .recoverableFunds button:disabled {
@@ -402,14 +454,14 @@
 
 .recoverableFunds > a {
   color: #d8c778;
-  font-size: 8px;
+  font-size: 13px;
   font-weight: 700;
 }
 
 .recoverableFunds > p {
   margin: 0;
   color: #e39a83;
-  font-size: 8px;
+  font-size: 13px;
 }
 
 .recoverableFunds > p button {
@@ -455,7 +507,7 @@
 
 .holdingBalance small {
   color: #667169;
-  font-size: 8px;
+  font-size: 13px;
 }
 
 .holdingCard dl {
@@ -480,7 +532,7 @@
 
 .holdingCard dd small {
   color: inherit;
-  font-size: 7px;
+  font-size: 13px;
 }
 
 .positive {
@@ -498,7 +550,7 @@
 .coverageNote {
   margin: 12px 0 0;
   color: #6d7871;
-  font-size: 8px;
+  font-size: 13px;
   text-align: right;
 }
 
@@ -544,8 +596,8 @@
 
 .sellDialog > header small {
   margin-top: 3px;
-  color: #728078;
-  font-size: 8px;
+  color: #a5afa9;
+  font-size: 13px;
 }
 
 .sellDialog > header > button {
@@ -584,14 +636,14 @@
 .sellJourney > header span,
 .sellJourney > header small {
   color: #68766d;
-  font-size: 8px;
+  font-size: 13px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .sellJourney > header strong {
   color: #d8e5db;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .sellJourneyBar {
@@ -639,7 +691,7 @@
   border-radius: 50%;
   place-items: center;
   color: #68756d;
-  font: 600 8px "DM Mono", monospace;
+  font: 600 13px "DM Mono", monospace;
 }
 
 .sellJourney li > span:empty::after {
@@ -659,14 +711,14 @@
 
 .sellJourney li strong {
   color: inherit;
-  font-size: 9px;
+  font-size: 13px;
   font-weight: 700;
 }
 
 .sellJourney li small {
   overflow: hidden;
   color: #5d6961;
-  font-size: 8px;
+  font-size: 13px;
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -677,7 +729,7 @@
   border: 1px solid #31503a;
   border-radius: 6px;
   color: #83dfa0;
-  font-size: 7px;
+  font-size: 13px;
   text-decoration: none;
 }
 
@@ -733,7 +785,7 @@
 .sellAmount span,
 .sellAmount small {
   color: #6e7a72;
-  font-size: 8px;
+  font-size: 13px;
 }
 
 .sellAmount strong {
@@ -756,7 +808,7 @@
   background: #0b120e;
   color: #7f8b83;
   cursor: pointer;
-  font-size: 9px;
+  font-size: 13px;
 }
 
 .sellPercentages button[aria-pressed="true"] {
@@ -783,13 +835,13 @@
 
 .sellQuote dt {
   color: #6e7a72;
-  font-size: 8px;
+  font-size: 13px;
 }
 
 .sellQuote dd {
   margin: 0;
   color: #c9d3cc;
-  font: 500 8px "DM Mono", monospace;
+  font: 500 13px "DM Mono", monospace;
   overflow-wrap: anywhere;
   text-align: right;
 }
@@ -797,7 +849,7 @@
 .sellNotice {
   margin: 13px 0 0;
   color: #718078;
-  font-size: 8px;
+  font-size: 13px;
   line-height: 1.6;
 }
 
@@ -816,7 +868,7 @@
   background: #18301f;
   color: #9bf1b2;
   cursor: pointer;
-  font-size: 9px;
+  font-size: 13px;
   font-weight: 700;
 }
 
@@ -845,7 +897,7 @@
   border-radius: 8px;
   background: #21100d;
   color: #ee9e91;
-  font-size: 8px;
+  font-size: 13px;
   line-height: 1.5;
 }
 
@@ -863,7 +915,7 @@
 
 .sellResult > span {
   color: #7de39a;
-  font-size: 8px;
+  font-size: 13px;
   text-transform: uppercase;
 }
 
@@ -874,7 +926,7 @@
 
 .sellResult > small {
   color: #6d7a72;
-  font-size: 8px;
+  font-size: 13px;
 }
 
 .sellAuditStatus {
@@ -883,7 +935,7 @@
   border: 1px solid #31503a;
   border-radius: 999px;
   color: #8be5a3;
-  font: 500 7px "DM Mono", monospace;
+  font: 500 13px "DM Mono", monospace;
   text-transform: uppercase;
 }
 
@@ -901,7 +953,7 @@
   background: transparent;
   color: #8be5a3;
   cursor: pointer;
-  font-size: 8px;
+  font-size: 13px;
   text-decoration: none;
 }
 
@@ -949,8 +1001,8 @@
 
 .graphEvidenceDialog > header small {
   margin-top: 3px;
-  color: #728078;
-  font-size: 10px;
+  color: #a5afa9;
+  font-size: 13px;
 }
 
 .graphEvidenceDialog > header > button {
@@ -975,7 +1027,7 @@
   border-radius: 999px;
   background: #0d1911;
   color: #83e3a0;
-  font: 500 8px "DM Mono", monospace;
+  font: 500 13px "DM Mono", monospace;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -1020,7 +1072,7 @@
 
 .graphEvidenceSummary dt {
   color: #657169;
-  font-size: 8px;
+  font-size: 13px;
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
@@ -1029,7 +1081,7 @@
   margin: 4px 0 0;
   overflow: hidden;
   color: #b9c6bd;
-  font: 500 10px "DM Mono", monospace;
+  font: 500 13px "DM Mono", monospace;
   text-overflow: ellipsis;
   text-transform: capitalize;
   white-space: nowrap;
@@ -1054,7 +1106,7 @@
 
 .graphEvidenceFacts span {
   color: #657169;
-  font-size: 8px;
+  font-size: 13px;
   text-transform: uppercase;
 }
 
@@ -1062,7 +1114,7 @@
 .graphEvidenceFacts a {
   overflow: hidden;
   color: #a7b3ab;
-  font: 500 9px "DM Mono", monospace;
+  font: 500 13px "DM Mono", monospace;
   overflow-wrap: anywhere;
   text-decoration: none;
   text-overflow: ellipsis;
@@ -1087,7 +1139,7 @@
   padding: 11px 13px;
   color: #aab7ae;
   cursor: pointer;
-  font-size: 9px;
+  font-size: 13px;
   font-weight: 700;
   list-style: none;
 }
@@ -1101,7 +1153,7 @@
   border: 1px solid #2d4134;
   border-radius: 5px;
   color: #6fd991;
-  font: 500 7px "DM Mono", monospace;
+  font: 500 13px "DM Mono", monospace;
 }
 
 .graphEvidenceJson pre {
@@ -1112,7 +1164,7 @@
   border-top: 1px solid #202b24;
   color: #91b99e;
   direction: ltr;
-  font: 400 10px/1.65 "DM Mono", monospace;
+  font: 400 13px/1.65 "DM Mono", monospace;
   tab-size: 2;
   text-align: left;
   white-space: pre-wrap;
@@ -1135,7 +1187,7 @@
   background: #101b14;
   color: #82dfa0;
   cursor: pointer;
-  font-size: 9px;
+  font-size: 13px;
   font-weight: 700;
   text-decoration: none;
 }
@@ -1155,7 +1207,7 @@
   display: inline-flex;
   margin-bottom: 25px;
   color: #7c8a82;
-  font-size: 9px;
+  font-size: 13px;
   font-weight: 700;
   text-decoration: none;
 }
@@ -1180,7 +1232,7 @@
   max-width: 670px;
   margin: 0;
   color: #818d86;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.65;
 }
 
@@ -1194,8 +1246,8 @@
 }
 
 .auditSeal span {
-  color: #728078;
-  font-size: 8px;
+  color: #a5afa9;
+  font-size: 13px;
 }
 
 .auditSeal strong {
@@ -1206,7 +1258,7 @@
 
 .auditSeal code {
   color: #8d9991;
-  font-size: 8px;
+  font-size: 13px;
 }
 
 .auditChecks {
@@ -1236,7 +1288,7 @@
   border-radius: 50%;
   background: #183622;
   color: #7de99f;
-  font-size: 9px;
+  font-size: 13px;
   font-style: normal;
 }
 
@@ -1247,13 +1299,13 @@
 }
 
 .auditChecks strong {
-  font-size: 9px;
+  font-size: 13px;
 }
 
 .auditChecks small {
   overflow: hidden;
   color: #6d7972;
-  font-size: 7px;
+  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1279,14 +1331,14 @@
 
 .auditOverview span {
   color: #6a7770;
-  font-size: 7px;
+  font-size: 13px;
   text-transform: uppercase;
 }
 
 .auditOverview strong {
   margin-top: 4px;
   overflow: hidden;
-  font-size: 12px;
+  font-size: 13px;
   text-overflow: ellipsis;
 }
 
@@ -1318,7 +1370,7 @@
 
 .auditSectionHeading span {
   color: #6d7871;
-  font-size: 8px;
+  font-size: 13px;
 }
 
 .auditTrail {
@@ -1346,7 +1398,7 @@
   border-radius: 6px;
   background: #16301f;
   color: #7ce59d;
-  font-size: 8px;
+  font-size: 13px;
   font-style: normal;
 }
 
@@ -1357,19 +1409,19 @@
 }
 
 .auditTrail strong {
-  font-size: 8px;
+  font-size: 13px;
 }
 
 .auditTrail code {
   margin-top: 2px;
   color: #68756e;
-  font-size: 7px;
+  font-size: 13px;
 }
 
 .auditTrail b {
   grid-column: 2;
   color: #73d994;
-  font-size: 7px;
+  font-size: 13px;
 }
 
 .auditEvidenceColumns {
@@ -1396,7 +1448,7 @@
 .auditEvidenceCard > header span {
   grid-column: 1;
   color: #6f7b74;
-  font-size: 7px;
+  font-size: 13px;
   text-transform: uppercase;
 }
 
@@ -1413,7 +1465,7 @@
   border: 1px solid #31503b;
   border-radius: 6px;
   color: #7be49c;
-  font: 500 7px "DM Mono", monospace;
+  font: 500 13px "DM Mono", monospace;
 }
 
 .evidenceRow {
@@ -1427,13 +1479,13 @@
 
 .evidenceRow span {
   color: #68746d;
-  font-size: 8px;
+  font-size: 13px;
 }
 
 .evidenceRow code {
   overflow: hidden;
   color: #a7b2aa;
-  font-size: 8px;
+  font-size: 13px;
   text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1449,7 +1501,7 @@
 
 .graphCall span {
   color: #6f7c74;
-  font-size: 7px;
+  font-size: 13px;
 }
 
 .graphCall code {
@@ -1457,7 +1509,7 @@
   margin-top: 6px;
   overflow-wrap: anywhere;
   color: #84dba0;
-  font-size: 7px;
+  font-size: 13px;
   line-height: 1.55;
   white-space: pre-wrap;
 }
@@ -1476,7 +1528,7 @@
   border: 1px solid #2d4235;
   border-radius: 7px;
   color: #7ade99;
-  font-size: 8px;
+  font-size: 13px;
   text-decoration: none;
 }
 
@@ -1499,19 +1551,19 @@
 .transferTable > header {
   background: #111913;
   color: #68746d;
-  font-size: 7px;
+  font-size: 13px;
   text-transform: uppercase;
 }
 
 .transferTable > div {
   border-top: 1px solid #1f2923;
-  font-size: 8px;
+  font-size: 13px;
 }
 
 .transferTable code {
   overflow: hidden;
   color: #8c9991;
-  font-size: 8px;
+  font-size: 13px;
   text-overflow: ellipsis;
 }
 

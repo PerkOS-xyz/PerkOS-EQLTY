@@ -2,6 +2,7 @@ import { keccak256, stringToHex } from "viem";
 import { normalize } from "viem/ens";
 import { z } from "zod";
 import type {
+  EnsAgentRecordKey,
   EnsAgentSettings,
   EnsOrchestrationManifest,
 } from "./ens-types.js";
@@ -19,6 +20,10 @@ const ensName = z
   .max(255)
   .transform((value) => normalize(value));
 const bytes32 = z.string().regex(/^0x[0-9a-fA-F]{64}$/);
+const agentRecordKey = z
+  .string()
+  .max(80)
+  .regex(/^agent-context(?:-v[1-9]\d*-[0-9a-f]{8})?$/);
 const role = z.enum(["scout", "risk", "trader", "auditor"]);
 const roleNames = z
   .object({
@@ -70,9 +75,8 @@ export const agentSettingsSchema = z
           )
           .min(1)
           .max(4),
-        requiresWorldSelfieForChanges: z.literal(true),
       })
-      .strict(),
+      .strip(),
     security: z
       .object({
         provider: z.literal("1claw"),
@@ -186,11 +190,21 @@ export function hashEnsRecord(raw: string): `0x${string}` {
   return keccak256(stringToHex(raw));
 }
 
+export function versionedAgentRecordKey(
+  version: number,
+  settingsHash: `0x${string}`,
+): EnsAgentRecordKey {
+  if (!Number.isSafeInteger(version) || version < 1) {
+    throw new Error("ENS agent settings version must be positive");
+  }
+  return `agent-context-v${version}-${settingsHash.slice(2, 10).toLowerCase()}`;
+}
+
 function settingReference() {
   return z
     .object({
       name: ensName,
-      recordKey: z.literal("agent-context"),
+      recordKey: agentRecordKey,
       hash: bytes32,
     })
     .strict();

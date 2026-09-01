@@ -57,7 +57,11 @@ export function DecisionRoom({
       <header>
         <div>
           <span>Agent decision room</span>
-          <strong>See why the fleet reached this recommendation</strong>
+          <strong>
+            {analysis.decisionStatus === "agent_verified"
+              ? "See why the fleet reached this recommendation"
+              : "See where the consultation stopped"}
+          </strong>
           <small>
             Sealed cycle replay · analysis only · no funds moved
           </small>
@@ -197,7 +201,7 @@ function decisionEvents(analysis: OpportunityAnalysis): DecisionEvent[] {
       title:
         consultation.scout.status === "verified"
           ? `${consultation.scout.agentName ?? "Scout Hermes"} selected ${consultation.scout.ticker}`
-          : `${analysis.candidates.length} candidates compared`,
+          : `${analysis.candidates.length} candidates screened by rules`,
       detail:
         consultation.scout.summary ??
         consultation.scout.detail ??

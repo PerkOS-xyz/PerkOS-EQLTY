@@ -17,17 +17,28 @@ import {
   startGoal,
 } from "../lib/goal-api";
 import type { DecisionFeeConfig } from "../lib/goal-api";
-import type { AutonomousGoal } from "../lib/goal-types";
+import type {
+  AutonomousGoal,
+  FinancialGoalProfile,
+} from "../lib/goal-types";
 import { useWalletAccess } from "./wallet-access-context";
 
 const defaultGoal =
-  "Find the strongest stock token opportunity within my policy and budget.";
+  "Compare policy-compatible Stock Tokens for a long-term growth goal.";
+
+const defaultProfile: FinancialGoalProfile = {
+  purpose: "long-term-growth",
+  horizonMonths: 36,
+  liquidityNeed: "can-commit",
+  riskComfort: "medium",
+};
 
 export type GoalAnalysisState = {
   goalText: string;
   amount: string;
   windowMinutes: number;
   candidateTicker: string;
+  profile: FinancialGoalProfile;
   policy?: FleetPolicy;
   policyLoading: boolean;
   policyError?: string;
@@ -43,17 +54,22 @@ export type GoalAnalysisState = {
   setAmount: (value: string) => void;
   setWindowMinutes: (value: number) => void;
   setCandidateTicker: (value: string) => void;
+  setProfile: (value: FinancialGoalProfile) => void;
   analyze: () => void;
   payDecisionFee: () => void;
 };
 
-export function useGoalAnalysis(): GoalAnalysisState {
+export function useGoalAnalysis(
+  ensureFleetReady?: () => Promise<boolean>,
+): GoalAnalysisState {
   const wallet = useWalletAccess();
   const activeRun = useRef(0);
   const [goalText, setGoalText] = useState(defaultGoal);
   const [amount, setAmount] = useState("1");
   const [windowMinutes, setWindowMinutes] = useState(2);
   const [candidateTicker, setCandidateTicker] = useState("");
+  const [profile, setProfile] =
+    useState<FinancialGoalProfile>(defaultProfile);
   const [policy, setPolicy] = useState<FleetPolicy>();
   const [policyLoading, setPolicyLoading] = useState(false);
   const [policyError, setPolicyError] = useState<string>();
@@ -68,7 +84,7 @@ export function useGoalAnalysis(): GoalAnalysisState {
 
   const analyze = useCallback(async () => {
     if (!wallet.connected) {
-      setError("Connect your wallet and wait for the fleet to come online.");
+      setError("Connect your wallet to begin a private consultation.");
       return;
     }
     const atomicAmount = parseUsdG(amount);
@@ -90,8 +106,14 @@ export function useGoalAnalysis(): GoalAnalysisState {
     setSession(undefined);
 
     try {
+      if (ensureFleetReady && !(await ensureFleetReady())) {
+        throw new Error(
+          "The fleet could not become ready. Retry the consultation in a moment.",
+        );
+      }
       const next = await startGoal({
         goal: goalText.trim(),
+        profile,
         amountIn: atomicAmount.toString(),
         windowMinutes,
         cadenceSeconds: 30,
@@ -120,8 +142,10 @@ export function useGoalAnalysis(): GoalAnalysisState {
   }, [
     amount,
     candidateTicker,
+    ensureFleetReady,
     goalText,
     policy?.allowedTickers.length,
+    profile,
     wallet.connected,
     windowMinutes,
   ]);
@@ -276,6 +300,7 @@ export function useGoalAnalysis(): GoalAnalysisState {
     amount,
     windowMinutes,
     candidateTicker,
+    profile,
     policy,
     policyLoading,
     policyError,
@@ -291,6 +316,7 @@ export function useGoalAnalysis(): GoalAnalysisState {
     setAmount,
     setWindowMinutes,
     setCandidateTicker,
+    setProfile,
     analyze: () => void analyze(),
     payDecisionFee: () => void payDecisionFee(),
   };

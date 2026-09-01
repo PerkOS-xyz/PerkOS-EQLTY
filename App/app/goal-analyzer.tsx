@@ -2,6 +2,8 @@
 
 import type {
   AutonomousGoal,
+  DecisionOutcome,
+  FinancialGoalProfile,
   OpportunityAnalysis,
   OpportunityCandidate,
 } from "../lib/goal-types";
@@ -18,19 +20,37 @@ import { useProofRun } from "./use-proof-run";
 const roles = ["Scout", "Risk", "Trader", "Auditor"];
 const goalPresets = [
   {
-    label: "Conservative income",
+    label: "Learn first",
     value:
-      "Find the lowest risk stock token with high liquidity and consistent pricing.",
+      "Help me understand policy-compatible Stock Tokens without preparing a purchase.",
+    profile: {
+      purpose: "learn",
+      horizonMonths: 24,
+      liquidityNeed: "may-need",
+      riskComfort: "low",
+    } satisfies FinancialGoalProfile,
   },
   {
-    label: "Momentum swing",
+    label: "Long-term growth",
     value:
-      "Find the strongest near-term momentum candidate under active policy limits.",
+      "Compare policy-compatible Stock Tokens for a long-term growth goal.",
+    profile: {
+      purpose: "long-term-growth",
+      horizonMonths: 60,
+      liquidityNeed: "can-commit",
+      riskComfort: "medium",
+    } satisfies FinancialGoalProfile,
   },
   {
-    label: "Balanced growth",
+    label: "Planned purchase",
     value:
-      "Find a candidate balancing risk and return with clean Graph liquidity and fast Uniswap execution.",
+      "Check whether a limited Stock Token position fits a planned future purchase.",
+    profile: {
+      purpose: "planned-purchase",
+      horizonMonths: 12,
+      liquidityNeed: "may-need",
+      riskComfort: "low",
+    } satisfies FinancialGoalProfile,
   },
 ];
 const amountPresets = ["1", "3", "5", "10"];
@@ -42,16 +62,16 @@ export function GoalAnalyzer({ state }: { state: GoalAnalysisState }) {
     <section className="goalAnalyzer">
       <header className="goalHeading">
         <div>
-          <span className="eyebrow">Autonomous goal</span>
-          <h2>Ask the fleet for a recommendation</h2>
+          <span className="eyebrow">Financial goal</span>
+          <h2>Start with what you want to achieve</h2>
           <p>
-            Define an outcome. Watch four agents consult ENS rules, compare
-            candidates and explain one recommendation before any execution.
+            The fleet checks readiness, compares choices and can recommend a
+            candidate, a limited position, or waiting. Nothing executes here.
           </p>
           <small className="goalPricingHint">
             {state.feeConfig
-              ? `Exact proof fee: ${formatUsdG(state.feeConfig.completeAmount)} USDG with a recommendation · ${formatUsdG(state.feeConfig.noCandidateAmount)} USDG when all candidates are rejected · 0 without complete proof.`
-              : "A decision fee is requested only after all four agents produce a verifiable proof."}
+              ? `Preview the process first. A ${formatUsdG(state.feeConfig.completeAmount)} USDG fee is requested only when a four-agent decision receipt is ready to seal.`
+              : "Preview the process first. A fee is requested only after all four agents produce a verifiable decision receipt."}
           </small>
         </div>
         <span className="goalWindow">02:00 demo window</span>
@@ -59,33 +79,110 @@ export function GoalAnalyzer({ state }: { state: GoalAnalysisState }) {
 
       <div className="goalWorkspace">
         <div className="goalForm">
-          <label className="goalObjective">
-            <span>Investment objective</span>
+          <div className="goalNarrative">
+            <label className="goalObjective">
+            <span>What should this money help you achieve?</span>
             <textarea
               aria-label="Investment objective"
               maxLength={500}
               onChange={(event) => state.setGoalText(event.target.value)}
               value={state.goalText}
             />
-          </label>
-          <div
-            aria-label="Goal presets"
-            className="goalPresetActions"
-            role="group"
-          >
-            {goalPresets.map((preset) => (
-              <button
+            </label>
+            <div
+              aria-label="Goal presets"
+              className="goalPresetActions"
+              role="group"
+            >
+              {goalPresets.map((preset) => (
+                <button
                 aria-pressed={state.goalText === preset.value}
                 className={`goalPresetButton${
                   state.goalText === preset.value ? " active" : ""
                 }`}
                 key={preset.label}
-                onClick={() => state.setGoalText(preset.value)}
+                onClick={() => {
+                  state.setGoalText(preset.value);
+                  state.setProfile(preset.profile);
+                }}
                 type="button"
               >
                 {preset.label}
-              </button>
-            ))}
+                </button>
+              ))}
+            </div>
+
+            <div className="goalProfileGrid">
+            <label>
+              <span>Purpose</span>
+              <select
+                aria-label="Financial goal purpose"
+                onChange={(event) =>
+                  state.setProfile({
+                    ...state.profile,
+                    purpose: event.target.value as FinancialGoalProfile["purpose"],
+                  })
+                }
+                value={state.profile.purpose}
+              >
+                <option value="learn">Learn first</option>
+                <option value="long-term-growth">Long-term growth</option>
+                <option value="planned-purchase">Planned purchase</option>
+              </select>
+            </label>
+            <label>
+              <span>Time horizon</span>
+              <select
+                aria-label="Financial goal time horizon"
+                onChange={(event) =>
+                  state.setProfile({
+                    ...state.profile,
+                    horizonMonths: Number(event.target.value),
+                  })
+                }
+                value={state.profile.horizonMonths}
+              >
+                <option value={6}>6 months</option>
+                <option value={12}>1 year</option>
+                <option value={24}>2 years</option>
+                <option value={36}>3 years</option>
+                <option value={60}>5 years</option>
+              </select>
+            </label>
+            <label>
+              <span>Liquidity need</span>
+              <select
+                aria-label="Financial goal liquidity need"
+                onChange={(event) =>
+                  state.setProfile({
+                    ...state.profile,
+                    liquidityNeed: event.target.value as FinancialGoalProfile["liquidityNeed"],
+                  })
+                }
+                value={state.profile.liquidityNeed}
+              >
+                <option value="may-need">I may need these funds</option>
+                <option value="can-commit">I can leave them invested</option>
+              </select>
+            </label>
+            <label>
+              <span>Risk comfort</span>
+              <select
+                aria-label="Financial goal risk comfort"
+                onChange={(event) =>
+                  state.setProfile({
+                    ...state.profile,
+                    riskComfort: event.target.value as FinancialGoalProfile["riskComfort"],
+                  })
+                }
+                value={state.profile.riskComfort}
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            </label>
+            </div>
           </div>
 
           <div className="goalControlStack">
@@ -125,7 +222,7 @@ export function GoalAnalyzer({ state }: { state: GoalAnalysisState }) {
 
             <div className="goalInputs">
               <label>
-                <span>Fleet budget</span>
+                <span>Amount to evaluate</span>
                 <div className="amountInput">
                   <input
                     aria-label="Goal budget in USDG"
@@ -152,7 +249,7 @@ export function GoalAnalyzer({ state }: { state: GoalAnalysisState }) {
                 </div>
               </label>
               <label>
-                <span>Analysis window</span>
+                <span>Consultation window</span>
                 <select
                   aria-label="Autonomous analysis window"
                   onChange={(event) =>
@@ -174,9 +271,9 @@ export function GoalAnalyzer({ state }: { state: GoalAnalysisState }) {
               type="button"
             >
               {state.busy
-                ? "Consulting the fleet..."
+                ? "Waking and consulting the fleet..."
                 : state.connected
-                  ? `Start ${state.windowMinutes} minute consultation`
+                  ? "Compare options with the fleet"
                   : "Connect wallet to begin"}
             </button>
 
@@ -316,6 +413,7 @@ function GoalProgress({
 
       {analysis && (
         <div className="candidateResult">
+          <DecisionSummary analysis={analysis} />
           <DecisionRoom analysis={analysis} />
           <header>
             <div>
@@ -344,11 +442,14 @@ function GoalProgress({
               <strong>
                 {analysis.recommendedTicker
                   ? `${analysis.recommendedTicker} advances to the proof path`
-                  : "No candidate passed this cycle"}
+                  : analysis.decisionStatus === "rules_only"
+                    ? "Evidence passed, but agent reasoning was not verified"
+                    : "No candidate passed this cycle"}
               </strong>
               <small>
-                The analysis is complete. Execution remains optional and
-                requires explicit wallet approval.
+                {analysis.recommendedTicker
+                  ? "Execution remains optional and requires explicit wallet approval."
+                  : "No execution path is available from this consultation."}
               </small>
             </div>
             <span>No funds moved</span>
@@ -365,6 +466,72 @@ function GoalProgress({
       )}
     </div>
   );
+}
+
+function DecisionSummary({
+  analysis,
+}: {
+  analysis: OpportunityAnalysis;
+}) {
+  return (
+    <section className="decisionSummary">
+      <header>
+        <div>
+          <span>Goal readiness</span>
+          <strong>{analysis.readiness.summary}</strong>
+        </div>
+        <b className={`decisionTrust ${analysis.decisionStatus}`}>
+          {decisionStatusLabel(analysis.decisionStatus)}
+        </b>
+      </header>
+      {analysis.readiness.reasons.length > 0 && (
+        <ul>
+          {analysis.readiness.reasons.map((reason) => (
+            <li key={reason}>{reason}</li>
+          ))}
+        </ul>
+      )}
+      <div className="decisionOutcomes">
+        {analysis.outcomes.map((outcome) => (
+          <OutcomeCard
+            key={`${outcome.kind}-${outcome.ticker ?? outcome.title}`}
+            outcome={outcome}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function OutcomeCard({ outcome }: { outcome: DecisionOutcome }) {
+  return (
+    <article className={`decisionOutcome ${outcome.kind}`}>
+      <span>
+        {outcome.kind === "primary"
+          ? "Fleet recommendation"
+          : outcome.kind === "alternative"
+            ? "Alternative"
+            : "No action"}
+      </span>
+      <strong>{outcome.title}</strong>
+      <p>{outcome.summary}</p>
+      {outcome.reasons.length > 0 && (
+        <ul>
+          {outcome.reasons.map((reason) => (
+            <li key={reason}>{reason}</li>
+          ))}
+        </ul>
+      )}
+    </article>
+  );
+}
+
+function decisionStatusLabel(
+  status: OpportunityAnalysis["decisionStatus"],
+): string {
+  if (status === "agent_verified") return "Four-agent verified";
+  if (status === "rules_only") return "Rules-only shortlist";
+  return "Insufficient evidence";
 }
 
 function goalEvidenceCards(

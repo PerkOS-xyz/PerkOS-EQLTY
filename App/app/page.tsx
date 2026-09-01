@@ -4,16 +4,16 @@ import { MarketCatalog } from "./market-catalog";
 
 const journey = [
   {
-    title: "Ask the fleet",
-    copy: "Describe the outcome and let four specialized agents consult.",
+    title: "Define the goal",
+    copy: "Share the purpose, time horizon, liquidity need and risk comfort.",
   },
   {
-    title: "Observe the decision",
-    copy: "Follow ENS rules, candidate comparisons and the recommendation.",
+    title: "Compare choices",
+    copy: "Watch four agents test alternatives against live evidence and ENS rules.",
   },
   {
-    title: "Execute with proof",
-    copy: "Approve optional Uniswap execution and verify it with The Graph.",
+    title: "Choose deliberately",
+    copy: "Review a primary option, an alternative and the case for doing nothing.",
   },
 ];
 
@@ -27,20 +27,21 @@ export default function HomePage() {
           <div>
             <span className="eyebrow">Agent decision intelligence</span>
             <h1>
-              State the goal.
+              Start with the goal.
               <br />
-              <em>Watch the fleet decide.</em>
+              <em>Get a decision you can verify.</em>
             </h1>
             <p>
-              Four specialized agents turn an investment objective into a
-              recommendation with readable policy and verifiable evidence.
+              Four specialized agents turn your circumstances into an
+              explainable comparison. They may recommend a candidate, limit
+              the position, or tell you to wait.
             </p>
           </div>
 
           <aside className="statusCard">
             <span>Current milestone</span>
-            <strong>Live agent consultation</strong>
-            <p>Every recommendation carries policy, route and proof evidence.</p>
+            <strong>Goal-first consultation</strong>
+            <p>The fleet wakes on demand and hibernates after inactivity.</p>
             <div className="meter">
               <i />
             </div>

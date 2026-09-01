@@ -25,6 +25,7 @@ export type FleetActivationState = {
   phase: FleetPhase;
   busy: boolean;
   error?: string;
+  activate: () => Promise<boolean>;
   retry: () => void;
 };
 
@@ -38,9 +39,9 @@ export function useFleetActivation(): FleetActivationState {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
 
-  const begin = useCallback(async () => {
+  const begin = useCallback(async (): Promise<boolean> => {
     if (!wallet.connected || !wallet.address) {
-      return;
+      return false;
     }
     const run = activeRun.current + 1;
     activeRun.current = run;
@@ -59,7 +60,7 @@ export function useFleetActivation(): FleetActivationState {
         const challenge = await requestFleetChallenge(wallet.address);
         const signature = await wallet.signMessage(challenge.message);
         if (activeRun.current !== run) {
-          return;
+          return false;
         }
         nextSession = await verifyFleetOwner(
           wallet.address,
@@ -72,7 +73,7 @@ export function useFleetActivation(): FleetActivationState {
 
       let nextActivation = await activateFleet();
       if (activeRun.current !== run) {
-        return;
+        return false;
       }
       setActivation(nextActivation);
       setPhase(phaseFromActivation(nextActivation));
@@ -84,21 +85,23 @@ export function useFleetActivation(): FleetActivationState {
       ) {
         await wait(5_000);
         if (activeRun.current !== run) {
-          return;
+          return false;
         }
         nextActivation = await activateFleet();
         setActivation(nextActivation);
         setPhase(phaseFromActivation(nextActivation));
       }
+      return !fleetNeedsPolling(nextActivation);
     } catch (cause) {
       if (activeRun.current !== run) {
-        return;
+        return false;
       }
       startedFor.current = undefined;
       setError(
         cause instanceof Error ? cause.message : "Fleet activation failed",
       );
       setPhase("failed");
+      return false;
     } finally {
       if (activeRun.current === run) {
         setBusy(false);
@@ -121,10 +124,7 @@ export function useFleetActivation(): FleetActivationState {
       setPhase("idle");
       return;
     }
-    if (startedFor.current !== wallet.address) {
-      void begin();
-    }
-  }, [begin, wallet.address, wallet.connected]);
+  }, [wallet.address, wallet.connected]);
 
   return {
     activation,
@@ -132,6 +132,7 @@ export function useFleetActivation(): FleetActivationState {
     phase,
     busy,
     error,
+    activate: begin,
     retry: () => {
       startedFor.current = undefined;
       void begin();

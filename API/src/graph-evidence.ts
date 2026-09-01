@@ -1,5 +1,10 @@
 import { z } from "zod";
 import type { ApiConfig } from "./config.js";
+import {
+  graphAdapterErrorCode,
+  graphRecoveryPlan,
+  type GraphRecoveryPlan,
+} from "./graph-recovery.js";
 
 const address = z.string().regex(/^0x[0-9a-fA-F]{40}$/);
 const hex32 = z.string().regex(/^0x[0-9a-fA-F]{64}$/);
@@ -101,6 +106,45 @@ const graphSeriesSchema = z
 
 export type GraphPriceSeries = z.infer<typeof graphSeriesSchema>;
 
+const graphAdapterHealthSchema = z
+  .object({
+    running: z.boolean(),
+    state: z
+      .enum(["starting", "streaming", "recovering", "stopped"])
+      .optional(),
+    processedBlock: z.string().regex(/^\d+$/),
+    providerHeadBlock: z.string().regex(/^\d+$/),
+    tickers: z.number().int().nonnegative(),
+    restartCount: z.number().int().nonnegative().optional(),
+    lastProgressAt: z.string().datetime().optional(),
+    nextRetryAt: z.string().datetime().optional(),
+    errorCode: z.enum(["quota-exhausted", "provider-error"]).optional(),
+    lastError: z.string().max(512).optional(),
+  })
+  .passthrough();
+
+export type GraphIntegrationStatus = {
+  configured: boolean;
+  status: "ready" | "degraded" | "pending";
+  checkedAt: string;
+  running?: boolean;
+  processedBlock?: string;
+  providerHeadBlock?: string;
+  lagBlocks?: number;
+  observedTickers?: number;
+  adapterState?: "starting" | "streaming" | "recovering" | "stopped";
+  lastProgressAt?: string;
+  restartCount?: number;
+  reason?:
+    | "not-configured"
+    | "unreachable"
+    | "not-running"
+    | "quota-exhausted"
+    | "provider-error"
+    | "lagging";
+  recovery: GraphRecoveryPlan;
+};
+
 type Dependencies = {
   fetchFn?: typeof fetch;
   now?: () => number;
@@ -122,6 +166,88 @@ export class GraphEvidenceService {
     return Boolean(
       this.config.EQLTY_GRAPH_ADAPTER_URL ?? this.config.GRAPH_RISK_URL,
     );
+  }
+
+  async status(): Promise<GraphIntegrationStatus> {
+    const checkedAt = new Date(this.now()).toISOString();
+    const configuredUrl =
+      this.config.EQLTY_GRAPH_ADAPTER_URL ?? this.config.GRAPH_RISK_URL;
+    if (!configuredUrl) {
+      return {
+        configured: false,
+        status: "pending",
+        checkedAt,
+        reason: "not-configured",
+        recovery: graphRecoveryPlan({ reason: "not-configured" }),
+      };
+    }
+
+    try {
+      const healthUrl = new URL(configuredUrl);
+      healthUrl.pathname = "/health";
+      healthUrl.search = "";
+      const accessToken =
+        this.config.EQLTY_GRAPH_ACCESS_TOKEN ??
+        this.config.GRAPH_API_TOKEN;
+      const response = await this.fetchFn(healthUrl, {
+        method: "GET",
+        headers: {
+          accept: "application/json",
+          ...(accessToken
+            ? { authorization: `Bearer ${accessToken}` }
+            : {}),
+        },
+        signal: AbortSignal.timeout(5_000),
+      });
+      const health = graphAdapterHealthSchema.parse(
+        await limitedJson(response),
+      );
+      const lagBlocks = blockLag(
+        health.providerHeadBlock,
+        health.processedBlock,
+      );
+      const reason = graphHealthReason(
+        response.ok,
+        health.running,
+        lagBlocks,
+        this.config.GRAPH_MAX_LAG_BLOCKS,
+        health.errorCode ?? graphAdapterErrorCode(health.lastError),
+      );
+      return {
+        configured: true,
+        status: reason ? "degraded" : "ready",
+        checkedAt,
+        running: health.running,
+        processedBlock: health.processedBlock,
+        providerHeadBlock: health.providerHeadBlock,
+        lagBlocks,
+        observedTickers: health.tickers,
+        ...(health.state ? { adapterState: health.state } : {}),
+        ...(health.lastProgressAt
+          ? { lastProgressAt: health.lastProgressAt }
+          : {}),
+        ...(health.restartCount === undefined
+          ? {}
+          : { restartCount: health.restartCount }),
+        ...(reason ? { reason } : {}),
+        recovery: graphRecoveryPlan({
+          reason,
+          processedBlock: health.processedBlock,
+          providerHeadBlock: health.providerHeadBlock,
+          lagBlocks,
+          nextRetryAt: health.nextRetryAt,
+        }),
+      };
+    } catch {
+      return {
+        configured: true,
+        status: "degraded",
+        checkedAt,
+        running: false,
+        reason: "unreachable",
+        recovery: graphRecoveryPlan({ reason: "unreachable" }),
+      };
+    }
   }
 
   async evidence(ticker: string): Promise<GraphEvidence> {
@@ -277,4 +403,24 @@ async function limitedJson(response: Response): Promise<unknown> {
 
 function ageSeconds(now: number, timestamp: string): number {
   return Math.max(0, (now - Date.parse(timestamp)) / 1_000);
+}
+
+function blockLag(head: string, processed: string): number {
+  const lag = BigInt(head) - BigInt(processed);
+  return Number(lag > 0n ? lag : 0n);
+}
+
+function graphHealthReason(
+  responseOk: boolean,
+  running: boolean,
+  lagBlocks: number,
+  maxLagBlocks: number,
+  errorCode?: "quota-exhausted" | "provider-error",
+): GraphIntegrationStatus["reason"] | undefined {
+  if (errorCode === "quota-exhausted") return "quota-exhausted";
+  if (!running) return "not-running";
+  if (errorCode) return "provider-error";
+  if (!responseOk) return "provider-error";
+  if (lagBlocks > maxLagBlocks) return "lagging";
+  return undefined;
 }

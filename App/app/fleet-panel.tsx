@@ -6,7 +6,10 @@ import {
   ensManagerUrl,
   fleetMetadataUrl,
   loadFleetMetadata,
+  loadOneClawIntegrationHealth,
+  loadFleetPolicy,
   oneclawAgentSettingsUrl,
+  publishDemoFleetPolicy,
 } from "../lib/fleet-api";
 import type {
   AgentRole,
@@ -14,6 +17,7 @@ import type {
   EnsAgentMetadata,
   FleetAgent,
   FleetPhase,
+  OneClawIntegrationHealth,
 } from "../lib/fleet-types";
 import { fleetRoles } from "../lib/fleet-types";
 import {
@@ -69,6 +73,8 @@ export function FleetPanel({ goal }: { goal: GoalAnalysisState }) {
   const [securityEmail, setSecurityEmail] = useState("");
   const [securityStarted, setSecurityStarted] = useState(false);
   const [oneclawAgentId, setOneclawAgentId] = useState<string>();
+  const [oneclawHealth, setOneclawHealth] =
+    useState<OneClawIntegrationHealth>();
   useEffect(() => {
     setSecurityEmail(
       window.localStorage.getItem("eqlty_oneclaw_email") ?? "",
@@ -78,7 +84,23 @@ export function FleetPanel({ goal }: { goal: GoalAnalysisState }) {
         undefined,
     );
   }, []);
+  useEffect(() => {
+    const controller = new AbortController();
+    loadOneClawIntegrationHealth(controller.signal)
+      .then(setOneclawHealth)
+      .catch(() =>
+        setOneclawHealth({
+          configured: false,
+          status: "degraded",
+          checkedAt: new Date().toISOString(),
+          platformApi: false,
+          reason: "unreachable",
+        }),
+      );
+    return () => controller.abort();
+  }, []);
   const canActivateSecurity = Boolean(
+    oneclawHealth?.status === "ready" &&
     runtime?.mode === "live" &&
       runtime.agents.length === fleetRoles.length &&
       runtime.agents.every(
@@ -125,6 +147,10 @@ export function FleetPanel({ goal }: { goal: GoalAnalysisState }) {
 
       <WorkflowBanner workflow={workflow} />
 
+      {state.activation?.verified && (
+        <FleetPolicyEditor rootName={state.activation.rootName} />
+      )}
+
       <div className="fleetGrid runtimeGrid">
         {agents.map((agent, index) => {
           const workflowState = roleWorkflowState(agent.role, workflow);
@@ -168,15 +194,23 @@ export function FleetPanel({ goal }: { goal: GoalAnalysisState }) {
         >
           <div className="fleetSecurityCopy">
             <span>1Claw execution rail</span>
+            <i
+              aria-label="1Claw platform status"
+              className={`oneclawHealth ${oneclawHealth?.status ?? "checking"}`}
+            >
+              {oneclawHealthLabel(oneclawHealth)}
+            </i>
             <strong>
-              {executionLinked ? "Trader protected" : "Setup required"}
+              {executionLinked ? "Trader linked" : "Setup required"}
             </strong>
             <p>
               {executionLinked
-                ? "The signing wallet and spending controls belong to your 1Claw account."
+                ? "The user-owned 1Claw vault is linked. Purchases of 3 USDG or more remain locked until live x401 and x402 authorization is enabled."
                 : securityStarted
                   ? "Complete the 1Claw claim, then check the connection."
-                  : "Create a user-owned wallet for the only agent allowed to spend."}
+                  : oneclawHealth?.status === "ready"
+                    ? "Continue to create a user-owned vault and Trader agent. Usage belongs to the user's 1Claw account."
+                    : oneclawHealthMessage(oneclawHealth)}
             </p>
           </div>
           {!executionLinked && (
@@ -255,7 +289,7 @@ export function FleetPanel({ goal }: { goal: GoalAnalysisState }) {
                   ? "Connecting"
                   : securityStarted
                     ? "Check connection"
-                    : "Connect 1Claw"}
+                    : "Continue in 1Claw"}
               </button>
             </form>
           )}
@@ -290,6 +324,150 @@ export function FleetPanel({ goal }: { goal: GoalAnalysisState }) {
         </div>
       )}
     </section>
+  );
+}
+
+function oneclawHealthLabel(
+  health?: OneClawIntegrationHealth,
+): string {
+  if (!health) return "Checking";
+  if (health.status === "ready") return "Platform ready";
+  if (health.status === "pending") return "Not configured";
+  return "Platform unavailable";
+}
+
+function oneclawHealthMessage(
+  health?: OneClawIntegrationHealth,
+): string {
+  if (!health) return "Checking the 1Claw Platform API before setup.";
+  if (health.reason === "unauthorized") {
+    return "The 1Claw Platform API credential needs attention.";
+  }
+  if (health.reason === "not-configured") {
+    return "The 1Claw Platform API is not configured for this environment.";
+  }
+  return "The 1Claw Platform API is temporarily unavailable.";
+}
+
+type PolicyPreset = "protect" | "opportunity" | "stop";
+
+function FleetPolicyEditor({ rootName }: { rootName: string }) {
+  const [busy, setBusy] = useState<PolicyPreset>();
+  const [status, setStatus] = useState<string>();
+  const [error, setError] = useState<string>();
+  const [transactions, setTransactions] = useState<Array<`0x${string}`>>(
+    [],
+  );
+
+  const apply = async (preset: PolicyPreset) => {
+    setBusy(preset);
+    setStatus(undefined);
+    setError(undefined);
+    setTransactions([]);
+    try {
+      const current = await loadFleetPolicy();
+      const base = {
+        maxAmountPerTrade: current.limits.maxAmountPerTrade,
+        maxDeviationBps: current.limits.maxDeviationBps,
+        minLiquidityUsd: current.limits.minLiquidityUsd,
+        maxOracleAgeSeconds: current.limits.maxOracleAgeSeconds,
+      };
+      const change =
+        preset === "protect"
+          ? {
+              paused: false,
+              allowedTickers: ["NVDA", "AMZN"],
+              maxAmountPerTrade: "500000",
+              maxDeviationBps: 100,
+              minLiquidityUsd: 250_000,
+              maxOracleAgeSeconds: 300,
+            }
+          : preset === "opportunity"
+            ? {
+                paused: false,
+                allowedTickers: [
+                  "NVDA",
+                  "AMZN",
+                  "AMD",
+                  "NFLX",
+                  "PLTR",
+                  "TSLA",
+                ],
+                maxAmountPerTrade: "1000000",
+                maxDeviationBps: 300,
+                minLiquidityUsd: 50_000,
+                maxOracleAgeSeconds: 86_400,
+              }
+            : {
+                ...base,
+                paused: true,
+                allowedTickers: current.allowedTickers,
+              };
+      const published = await publishDemoFleetPolicy(change);
+      setTransactions(published.transactions);
+      setStatus(
+        `ENS policy v${published.manifest.version} verified. The next consultation will use it.`,
+      );
+      window.dispatchEvent(new Event("eqlty:policy-published"));
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "ENS publication failed",
+      );
+    } finally {
+      setBusy(undefined);
+    }
+  };
+
+  return (
+    <div className="fleetPolicyEditor">
+      <div>
+        <span>ENS behavior controls</span>
+        <strong>{rootName}</strong>
+        <small>
+          Publish a real policy change and rerun the consultation.
+        </small>
+      </div>
+      <div className="fleetPolicyPresets">
+        <button
+          disabled={Boolean(busy)}
+          onClick={() => void apply("protect")}
+          type="button"
+        >
+          {busy === "protect" ? "Publishing…" : "Capital protection"}
+        </button>
+        <button
+          disabled={Boolean(busy)}
+          onClick={() => void apply("opportunity")}
+          type="button"
+        >
+          {busy === "opportunity" ? "Publishing…" : "Opportunity mode"}
+        </button>
+        <button
+          className="stop"
+          disabled={Boolean(busy)}
+          onClick={() => void apply("stop")}
+          type="button"
+        >
+          {busy === "stop" ? "Stopping…" : "Emergency stop"}
+        </button>
+      </div>
+      {status && <p className="fleetPolicyStatus">{status}</p>}
+      {error && <p className="fleetPolicyError">{error}</p>}
+      {transactions.length > 0 && (
+        <div className="fleetPolicyTransactions">
+          {transactions.map((hash, index) => (
+            <a
+              href={`https://sepolia.basescan.org/tx/${hash}`}
+              key={hash}
+              rel="noreferrer"
+              target="_blank"
+            >
+              ENS tx {index + 1} ↗
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -399,7 +577,7 @@ function AgentCard({
           {agent.role !== "trader"
             ? "No spending authority"
             : agent.oneclaw === "linked"
-              ? "1Claw protected"
+              ? "1Claw linked"
               : "1Claw pending"}
         </small>
       </div>

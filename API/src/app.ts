@@ -8,6 +8,8 @@ import { EnsPolicyPreparationService } from "./ens-policy-preparation.js";
 import { EqltyVaultExecutor } from "./eqlty-vault-executor.js";
 import { executionTraderAddress } from "./execution-addresses.js";
 import type { ExecutionStrategy } from "./execution-types.js";
+import { DecisionFeeService } from "./decision-fee.js";
+import type { DecisionFeePaymentPayload } from "./decision-fee-types.js";
 import { FleetActivationService } from "./fleet-activation.js";
 import { FirestoreGoalStore } from "./firestore-goal.js";
 import { GraphEvidenceService } from "./graph-evidence.js";
@@ -66,6 +68,60 @@ const goalInput = z
   })
   .strict();
 const goalId = z.string().regex(/^[A-Za-z0-9-]{1,128}$/);
+const x402Uint = z
+  .string()
+  .max(78)
+  .regex(/^(0|[1-9]\d*)$/)
+  .refine((value) => BigInt(value) < 2n ** 256n);
+const decisionFeeRequirements = z
+  .object({
+    scheme: z.literal("exact"),
+    network: z.literal("eip155:4663"),
+    amount: uint256,
+    asset: address,
+    payTo: address,
+    maxTimeoutSeconds: z.number().int().min(1).max(3_600),
+    extra: z
+      .object({
+        name: z.literal("Global Dollar"),
+        version: z.literal("1"),
+      })
+      .strict(),
+  })
+  .strict();
+const decisionFeePayment = z
+  .object({
+    x402Version: z.literal(2),
+    resource: z
+      .object({
+        url: z.string().url().max(2_048),
+        description: z.string().min(1).max(256),
+        mimeType: z.literal("application/json"),
+      })
+      .strict(),
+    accepted: decisionFeeRequirements,
+    payload: z
+      .object({
+        signature: z
+          .string()
+          .regex(
+            /^0x(?:[0-9a-fA-F]{128}|[0-9a-fA-F]{130})$/,
+          ),
+        authorization: z
+          .object({
+            from: address,
+            to: address,
+            value: uint256,
+            validAfter: x402Uint,
+            validBefore: uint256,
+            nonce: z.string().regex(/^0x[0-9a-fA-F]{64}$/),
+          })
+          .strict(),
+      })
+      .strict(),
+    extensions: z.record(z.string(), z.unknown()),
+  })
+  .strict();
 const strategyInput = z
   .object({
     owner: address,
@@ -217,13 +273,16 @@ type AppDependencies = {
   > &
     Partial<Pick<OwnerAuth, "perkosIdToken">>;
   ensControlPlane?: Pick<EnsControlPlaneService, "resolve">;
-  ensPolicyPreparation?: Pick<EnsPolicyPreparationService, "prepare">;
+  ensPolicyPreparation?: Pick<EnsPolicyPreparationService, "prepare"> &
+    Partial<Pick<EnsPolicyPreparationService, "publish">>;
   fleetActivation?: Pick<FleetActivationService, "activate">;
-  oneclawFleet?: Pick<OneClawFleetProvisioner, "provision" | "ready">;
+  oneclawFleet?: Pick<OneClawFleetProvisioner, "provision" | "ready"> &
+    Partial<Pick<OneClawFleetProvisioner, "status">>;
   graphEvidence?: Pick<GraphEvidenceService, "evidence"> &
-    Partial<Pick<GraphEvidenceService, "series">>;
+    Partial<Pick<GraphEvidenceService, "series" | "status">>;
   uniswapRwaMarket?: Pick<UniswapRwaMarketService, "series">;
-  goals?: Pick<AutonomousGoalService, "read" | "start" | "tick">;
+  goals?: Pick<AutonomousGoalService, "read" | "start" | "tick"> &
+    Partial<Pick<AutonomousGoalService, "settleFee">>;
   strategies?: Pick<StrategyService, "create"> &
     Partial<
       Pick<StrategyService, "bindOnchain" | "recover" | "restore">
@@ -271,7 +330,10 @@ export function createApp(
       {
         oneclawMinimumAmount:
           config.EQLTY_ONECLAW_MIN_AMOUNT_USDG,
+        oneclawLiveAuthorization:
+          config.EQLTY_ONECLAW_LIVE_AUTHORIZATION,
         store: new FirestoreGoalStore(config),
+        decisionFees: new DecisionFeeService(config),
       },
     );
   const strategyStore = new StrategyStore();
@@ -326,9 +388,13 @@ export function createApp(
     });
   });
 
-  app.get("/api/config", (_request, response) => {
-    response.setHeader("cache-control", "public, max-age=30");
-    response.json(publicConfig(config));
+  app.get("/api/config", async (_request, response) => {
+    response.setHeader("cache-control", "no-store");
+    const [graphStatus, oneclawStatus] = await Promise.all([
+      graphEvidence.status ? graphEvidence.status() : undefined,
+      oneclawFleet.status ? oneclawFleet.status() : undefined,
+    ]);
+    response.json(publicConfig(config, graphStatus, oneclawStatus));
   });
 
   app.get("/api/wallet/readiness", async (request, response) => {
@@ -458,6 +524,47 @@ export function createApp(
     } catch (error) {
       return response.status(409).json({
         error: "ens_policy_change_rejected",
+        message: safeMessage(error),
+      });
+    }
+  });
+
+  app.post("/api/orchestration/apply-demo", async (request, response) => {
+    if (!config.DEMO_MODE) {
+      return response
+        .status(403)
+        .json({ error: "demo_policy_updates_disabled" });
+    }
+    const session = ownerAuth.session(request);
+    if (!session) {
+      return response
+        .status(401)
+        .json({ error: "owner_session_required" });
+    }
+    const parsed = ensPolicyChange.safeParse(request.body);
+    if (!parsed.success) {
+      return response.status(400).json({
+        error: "invalid_ens_policy_change",
+        issues: parsed.error.issues,
+      });
+    }
+    if (!ensPolicyPreparation.publish) {
+      return response
+        .status(503)
+        .json({ error: "ens_policy_publication_unavailable" });
+    }
+    try {
+      response.setHeader("cache-control", "no-store");
+      return response.json(
+        await ensPolicyPreparation.publish({
+          userId: session.fleetUserId,
+          owner: session.walletAddress,
+          change: parsed.data,
+        }),
+      );
+    } catch (error) {
+      return response.status(409).json({
+        error: "ens_policy_publication_rejected",
         message: safeMessage(error),
       });
     }
@@ -702,6 +809,57 @@ export function createApp(
     return goalResponse(request, response, "tick");
   });
 
+  app.post(
+    "/api/goals/:id/decision-fee",
+    async (request, response) => {
+      const session = ownerAuth.session(request);
+      if (!session) {
+        return response
+          .status(401)
+          .json({ error: "owner_session_required" });
+      }
+      const parsedId = goalId.safeParse(request.params.id);
+      const parsedPayment = decisionFeePayment.safeParse(request.body);
+      if (!parsedId.success || !parsedPayment.success) {
+        return response.status(400).json({
+          error: "invalid_decision_fee_payment",
+          issues: [
+            ...(parsedId.success ? [] : parsedId.error.issues),
+            ...(parsedPayment.success
+              ? []
+              : parsedPayment.error.issues),
+          ],
+        });
+      }
+      if (!goals.settleFee) {
+        return response
+          .status(503)
+          .json({ error: "decision_fee_unavailable" });
+      }
+      try {
+        const goal = await goals.settleFee(parsedId.data, {
+          userId: session.fleetUserId,
+          owner: session.walletAddress,
+          perkosIdToken: ownerAuth.perkosIdToken?.(request),
+          payment:
+            parsedPayment.data as DecisionFeePaymentPayload,
+        });
+        if (!goal) {
+          return response
+            .status(404)
+            .json({ error: "goal_not_found" });
+        }
+        response.setHeader("cache-control", "no-store");
+        return response.json(goal);
+      } catch (error) {
+        return response.status(402).json({
+          error: "decision_fee_settlement_failed",
+          message: safeMessage(error),
+        });
+      }
+    },
+  );
+
   async function goalResponse(
     request: express.Request,
     response: express.Response,
@@ -902,6 +1060,8 @@ export function createApp(
         linkedRoles,
         requiredRoles,
         minimumAmount: config.EQLTY_ONECLAW_MIN_AMOUNT_USDG,
+        liveAuthorization:
+          config.EQLTY_ONECLAW_LIVE_AUTHORIZATION,
       });
       response.setHeader("cache-control", "no-store");
       const run = await proofRuns.run({

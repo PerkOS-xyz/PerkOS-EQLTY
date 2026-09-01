@@ -13,4 +13,4 @@ authorize policy changes. Durin stores subnames and records on Base; ENS
 provides the portable `.eth` namespace.
 
 Prepared output is not an onchain update. Publication must bind the exact new
-manifest hash to owner-wallet and World Selfie authorization.
+manifest hash to owner-wallet authorization.

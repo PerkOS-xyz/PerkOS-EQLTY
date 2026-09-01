@@ -11,6 +11,9 @@ and records a verifiable result. The product is designed for people who want
 clear recommendations and bounded automation instead of a conventional
 trading terminal.
 
+Live: [App](https://eqlty.perkos.xyz) ·
+[API](https://eqlty-api.perkos.xyz)
+
 ## Product principles
 
 - One goal should be easier to express than a complex order.

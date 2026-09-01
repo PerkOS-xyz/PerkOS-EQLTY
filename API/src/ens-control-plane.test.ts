@@ -132,7 +132,7 @@ function fixtureReader(): DurinReader {
         role,
         {
           name: `${role}.${root}`,
-          recordKey: "agent-context",
+          recordKey: `agent-context-v1-${hashEnsRecord(settings[role]).slice(2, 10)}`,
           hash: hashEnsRecord(settings[role]),
         },
       ]),
@@ -149,10 +149,17 @@ function fixtureReader(): DurinReader {
     ready: () => true,
     owner: async () => owner,
     address: async () => owner,
-    text: async (name) =>
-      name === root
-        ? manifest
-        : settings[name.split(".")[0] as FleetRole] ?? "",
+    text: async (name, key) => {
+      if (name === root) {
+        return key === "agent-context" ? manifest : "";
+      }
+      const role = name.split(".")[0] as FleetRole;
+      const value = settings[role];
+      const expectedKey = value
+        ? `agent-context-v1-${hashEnsRecord(value).slice(2, 10)}`
+        : "";
+      return key === expectedKey ? value : "";
+    },
   };
 }
 
@@ -173,7 +180,6 @@ function agentSettings(role: FleetRole): string {
       objective: `${role} objective`,
       inputs: ["ens", "the-graph-substreams"],
       actions: [action],
-      requiresWorldSelfieForChanges: true,
     },
     security: {
       provider: "1claw",

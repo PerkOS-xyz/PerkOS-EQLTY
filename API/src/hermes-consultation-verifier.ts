@@ -22,6 +22,18 @@ const riskCheck = z.enum([
   "liquidityAboveMinimum",
   "graphEvidencePresent",
 ]);
+const traderCheck = z.enum([
+  "riskApproved",
+  "uniswapRoutePresent",
+  "requestIdPresent",
+  "ensTickerAllowed",
+]);
+const auditorCheck = z.enum([
+  "ensManifestPresent",
+  "scoutVerified",
+  "riskVerified",
+  "traderVerified",
+]);
 const evidenceReasoning = z
   .string()
   .trim()
@@ -48,6 +60,24 @@ const riskReply = z
       .length(4)
       .refine((items) => new Set(items).size === items.length),
   });
+const traderReply = z.object({
+  decision: z.enum(["prepare", "reject"]),
+  ticker: z.string().regex(/^[A-Z][A-Z0-9.-]{0,11}$/),
+  summary: z.string().trim().min(20).max(500),
+  checks: z
+    .array(traderCheck)
+    .length(4)
+    .refine((items) => new Set(items).size === items.length),
+});
+const auditorReply = z.object({
+  decision: z.enum(["seal", "reject"]),
+  ticker: z.string().regex(/^[A-Z][A-Z0-9.-]{0,11}$/),
+  summary: evidenceReasoning,
+  checks: z
+    .array(auditorCheck)
+    .length(4)
+    .refine((items) => new Set(items).size === items.length),
+});
 
 export type ConsultationTaskResponse = {
   ok?: boolean;
@@ -152,6 +182,115 @@ export function verifyRisk(
   };
 }
 
+export function verifyTrader(
+  agent: ReadyFleetAgent,
+  task: ConsultationTaskResponse,
+  candidate: OpportunityCandidate,
+  manifest: EnsOrchestrationManifest,
+  risk: ConsultationStep,
+): ConsultationStep {
+  if (!task.ok || !task.reply) {
+    return unavailable(agent, task.detail ?? "Trader did not answer");
+  }
+  const parsed = traderReply.safeParse(parseReply(task.reply));
+  if (!parsed.success || parsed.data.ticker !== candidate.ticker) {
+    return invalid(agent, task.reply, "Trader returned an invalid handoff");
+  }
+  const checks = parsed.data.checks.map((key) =>
+    traderFact(key, candidate, manifest, risk),
+  );
+  const eligible = checks.every((check) => check.passed);
+  if (
+    (parsed.data.decision === "prepare" && !eligible) ||
+    (parsed.data.decision === "reject" && eligible)
+  ) {
+    return invalid(
+      agent,
+      task.reply,
+      "Trader decision conflicts with the sealed route gates",
+    );
+  }
+  if (
+    eligible &&
+    (!candidate.uniswapRequestId ||
+      !candidate.uniswapRouting ||
+      !parsed.data.summary.includes(candidate.uniswapRequestId) ||
+      !parsed.data.summary.includes(candidate.uniswapRouting))
+  ) {
+    return invalid(
+      agent,
+      task.reply,
+      "Trader reasoning did not cite the sealed Uniswap route and request",
+    );
+  }
+  return {
+    role: "trader",
+    agentId: agent.agentId,
+    agentName: agent.name,
+    status: "verified",
+    ticker: candidate.ticker,
+    summary: parsed.data.summary,
+    responseHash: hashReply(task.reply),
+    facts: checks.map(({ passed: _passed, ...fact }) => fact),
+    detail: parsed.data.decision === "prepare" ? "prepared" : "rejected",
+  };
+}
+
+export function verifyAuditor(
+  agent: ReadyFleetAgent,
+  task: ConsultationTaskResponse,
+  candidate: OpportunityCandidate,
+  manifest: EnsOrchestrationManifest,
+  manifestHash: `0x${string}`,
+  scout: ConsultationStep,
+  risk: ConsultationStep,
+  trader: ConsultationStep,
+): ConsultationStep {
+  if (!task.ok || !task.reply) {
+    return unavailable(agent, task.detail ?? "Auditor did not answer");
+  }
+  const parsed = auditorReply.safeParse(parseReply(task.reply));
+  if (!parsed.success || parsed.data.ticker !== candidate.ticker) {
+    return invalid(agent, task.reply, "Auditor returned an invalid handoff");
+  }
+  const checks = parsed.data.checks.map((key) =>
+    auditorFact(key, manifestHash, scout, risk, trader),
+  );
+  const sealable = checks.every((check) => check.passed);
+  if (
+    (parsed.data.decision === "seal" && !sealable) ||
+    (parsed.data.decision === "reject" && sealable)
+  ) {
+    return invalid(
+      agent,
+      task.reply,
+      "Auditor decision conflicts with the verified handoff chain",
+    );
+  }
+  if (
+    sealable &&
+    (!parsed.data.summary.includes(String(manifest.version)) ||
+      !parsed.data.summary.includes(candidate.ticker))
+  ) {
+    return invalid(
+      agent,
+      task.reply,
+      "Auditor reasoning did not cite the ticker and ENS policy version",
+    );
+  }
+  return {
+    role: "auditor",
+    agentId: agent.agentId,
+    agentName: agent.name,
+    status: "verified",
+    ticker: candidate.ticker,
+    summary: parsed.data.summary,
+    responseHash: hashReply(task.reply),
+    facts: checks.map(({ passed: _passed, ...fact }) => fact),
+    detail: parsed.data.decision === "seal" ? "sealed" : "rejected",
+  };
+}
+
 export function scoutPrompt(input: {
   goal: string;
   candidates: OpportunityCandidate[];
@@ -195,6 +334,72 @@ export function riskPrompt(
       },
       ensPolicy: manifest.policy,
       candidate,
+    }),
+  ].join("\n");
+}
+
+export function traderPrompt(
+  goal: string,
+  candidate: OpportunityCandidate,
+  manifest: EnsOrchestrationManifest,
+  risk: ConsultationStep,
+): string {
+  return [
+    "You are the Trader in an EQLTY Hermes fleet.",
+    "Prepare, but do not submit, the route approved by Risk.",
+    "Reason only over the sealed JSON. Never invent a route or request id.",
+    "Return only JSON with decision, ticker, summary and checks.",
+    "In summary, cite the exact uniswapRouting and uniswapRequestId.",
+    "checks must contain all four of:",
+    "riskApproved, uniswapRoutePresent, requestIdPresent, ensTickerAllowed.",
+    JSON.stringify({
+      goal,
+      risk: {
+        ticker: risk.ticker,
+        decision: risk.detail,
+        responseHash: risk.responseHash,
+      },
+      ensPolicy: manifest.policy,
+      candidate,
+    }),
+  ].join("\n");
+}
+
+export function auditorPrompt(
+  goal: string,
+  candidate: OpportunityCandidate,
+  manifest: EnsOrchestrationManifest,
+  manifestHash: `0x${string}`,
+  scout: ConsultationStep,
+  risk: ConsultationStep,
+  trader: ConsultationStep,
+): string {
+  return [
+    "You are the Auditor in an EQLTY Hermes fleet.",
+    "Verify the complete handoff chain without changing its decision.",
+    "Return only JSON with decision, ticker, summary and checks.",
+    "In summary, cite the exact ticker and ENS policy version.",
+    "checks must contain all four of:",
+    "ensManifestPresent, scoutVerified, riskVerified, traderVerified.",
+    JSON.stringify({
+      goal,
+      ticker: candidate.ticker,
+      ensPolicyVersion: manifest.version,
+      ensManifestHash: manifestHash,
+      handoffs: {
+        scout: {
+          status: scout.status,
+          responseHash: scout.responseHash,
+        },
+        risk: {
+          status: risk.status,
+          responseHash: risk.responseHash,
+        },
+        trader: {
+          status: trader.status,
+          responseHash: trader.responseHash,
+        },
+      },
     }),
   ].join("\n");
 }
@@ -278,12 +483,82 @@ function policyFact(
   };
 }
 
+function traderFact(
+  key: z.infer<typeof traderCheck>,
+  candidate: OpportunityCandidate,
+  manifest: EnsOrchestrationManifest,
+  risk: ConsultationStep,
+): ConsultationFact & { passed: boolean } {
+  if (key === "riskApproved") {
+    return {
+      source: "ens",
+      label: "Risk handoff",
+      value: risk.detail ?? "missing",
+      passed: risk.status === "verified" && risk.detail === "approved",
+    };
+  }
+  if (key === "uniswapRoutePresent") {
+    return {
+      source: "uniswap",
+      label: "Route",
+      value: candidate.uniswapRouting ?? "missing",
+      passed: Boolean(candidate.uniswapRouting),
+    };
+  }
+  if (key === "requestIdPresent") {
+    return {
+      source: "uniswap",
+      label: "Request",
+      value: candidate.uniswapRequestId ?? "missing",
+      passed: Boolean(candidate.uniswapRequestId),
+    };
+  }
+  return {
+    source: "ens",
+    label: "Ticker permission",
+    value: candidate.ticker,
+    passed: manifest.policy.allowedTickers.includes(candidate.ticker),
+  };
+}
+
+function auditorFact(
+  key: z.infer<typeof auditorCheck>,
+  manifestHash: `0x${string}`,
+  scout: ConsultationStep,
+  risk: ConsultationStep,
+  trader: ConsultationStep,
+): ConsultationFact & { passed: boolean } {
+  if (key === "ensManifestPresent") {
+    return {
+      source: "ens",
+      label: "Manifest",
+      value: manifestHash,
+      passed: /^0x[0-9a-fA-F]{64}$/.test(manifestHash),
+    };
+  }
+  const step = { scout, risk, trader }[key.replace("Verified", "") as
+    | "scout"
+    | "risk"
+    | "trader"];
+  return {
+    source:
+      step.role === "trader"
+        ? "uniswap"
+        : step.role === "scout"
+          ? "the-graph"
+          : "ens",
+    label: `${step.role} handoff`,
+    value: step.responseHash ?? "missing",
+    passed: step.status === "verified" && Boolean(step.responseHash),
+  };
+}
+
 function unavailable(
   agent: ReadyFleetAgent,
   detail: string,
 ): ConsultationStep {
   return {
-    role: agent.role === "risk" ? "risk" : "scout",
+    role: agent.role,
     agentId: agent.agentId,
     agentName: agent.name,
     status: "unavailable",
@@ -298,7 +573,7 @@ function invalid(
   detail: string,
 ): ConsultationStep {
   return {
-    role: agent.role === "risk" ? "risk" : "scout",
+    role: agent.role,
     agentId: agent.agentId,
     agentName: agent.name,
     status: "invalid",

@@ -129,6 +129,7 @@ export class OpportunityAnalysisService {
       goal: input.goal,
       candidates,
       manifest,
+      manifestHash: controlPlane.manifestHash,
       agents: input.fleetAgents,
       idToken: input.perkosIdToken,
     });
@@ -148,12 +149,11 @@ export class OpportunityAnalysisService {
         consultation.status === "verified" &&
         consultation.scout.summary
           ? consultation.scout.summary
-          : "Best policy-compatible route with fresh Uniswap and Substreams evidence.";
+          : dynamicRationale(winner);
     }
     for (const candidate of candidates) {
       if (candidate.status === "eligible") {
-        candidate.reason =
-          "Policy-compatible route ranked below the selected candidate.";
+        candidate.reason = detailedPolicyReason(candidate, manifest);
       }
     }
 
@@ -175,6 +175,8 @@ export class OpportunityAnalysisService {
         selectedTicker: consultation.selectedTicker,
         scoutResponseHash: consultation.scout.responseHash,
         riskResponseHash: consultation.risk.responseHash,
+        traderResponseHash: consultation.trader.responseHash,
+        auditorResponseHash: consultation.auditor.responseHash,
       },
     };
 
@@ -286,6 +288,45 @@ function rejected(
     reason,
     orchestrationReady: false,
   };
+}
+
+function dynamicRationale(candidate: OpportunityCandidate): string {
+  const liquidity = candidate.graphEvidence
+    ? `liquidity ${numberMoney(candidate.graphEvidence.liquidityUsd)}`
+    : "graph liquidity unavailable";
+  const deviation = candidate.deviationBps ?? "deviation unavailable";
+  const deviationText =
+    deviation === "deviation unavailable" ? deviation : `${deviation} bps`;
+  return `Policy-compatible route selected from live evidence: ${deviationText} and ${liquidity}.`;
+}
+
+function detailedPolicyReason(
+  candidate: OpportunityCandidate,
+  policy: {
+    maxDeviationBps: number;
+    minLiquidityUsd: number;
+    maxOracleAgeSeconds: number;
+  },
+): string {
+  const liquidity = candidate.graphEvidence
+    ? `liquidity ${numberMoney(candidate.graphEvidence.liquidityUsd)}`
+    : "liquidity unavailable";
+  const deviation = candidate.deviationBps ?? "deviation unavailable";
+  const deviationText =
+    deviation === "deviation unavailable" ? deviation : `${deviation} bps`;
+  return `Policy-compatible route with ${deviationText}, ${liquidity}, policy floor ${numberMoney(
+    policy.minLiquidityUsd,
+  )} and deviation limit ${policy.maxDeviationBps} bps.`;
+}
+
+function numberMoney(value?: number): string {
+  if (!Number.isFinite(value ?? Number.NaN)) {
+    return "value unavailable";
+  }
+
+  return `$${value!.toLocaleString("en-US", {
+    maximumFractionDigits: 0,
+  })}`;
 }
 
 function compareCandidates(

@@ -6,13 +6,15 @@ import { MarketCard } from "../market-card";
 import { relativeTime } from "../../lib/market-format";
 import type { StockAvailability } from "../../lib/market-types";
 import { useMarketCatalog } from "../use-market-catalog";
+import { GraphHealthPanel } from "../graph-health-panel";
 
-type Filter = "all" | "routed" | StockAvailability;
+type Filter = "all" | "routed" | "decision" | StockAvailability;
 
 const filters: Array<{ value: Filter; label: string }> = [
   { value: "all", label: "All stocks" },
   { value: "routed", label: "Uniswap V4" },
-  { value: "available", label: "Ready" },
+  { value: "decision", label: "Decision ready" },
+  { value: "available", label: "Price aligned" },
   { value: "caution", label: "Review" },
   { value: "blocked", label: "Blocked" },
 ];
@@ -22,6 +24,7 @@ export default function MarketsPage() {
     catalog,
     history,
     graphHistory,
+    graphIntegration,
     loading,
     error,
     refresh,
@@ -38,7 +41,9 @@ export default function MarketsPage() {
         filter === "all" ||
         (filter === "routed"
           ? asset.uniswapRoutable
-          : asset.status === filter);
+          : filter === "decision"
+            ? asset.orchestrationReady
+            : asset.status === filter);
       const matchesQuery =
         !normalized ||
         asset.ticker.toLowerCase().includes(normalized) ||
@@ -71,7 +76,11 @@ export default function MarketsPage() {
                 <strong>{catalog.summary.routed}</strong>
               </span>
               <span>
-                <small>Market ready</small>
+                <small>Decision ready</small>
+                <strong>{catalog.summary.orchestrationReady}</strong>
+              </span>
+              <span>
+                <small>Price aligned</small>
                 <strong>{catalog.summary.available}</strong>
               </span>
             </div>
@@ -101,7 +110,9 @@ export default function MarketsPage() {
             Swap history
             <b>
               The Graph{" "}
-              {seriesState === "ready"
+              {graphIntegration?.status === "degraded"
+                ? graphHealthLabel(graphIntegration.reason)
+                : seriesState === "ready"
                 ? "live"
                 : seriesState === "loading"
                   ? "connecting"
@@ -114,6 +125,11 @@ export default function MarketsPage() {
             synthetic history is displayed.
           </p>
         </section>
+
+        <GraphHealthPanel
+          health={graphIntegration}
+          onRefresh={refresh}
+        />
 
         <section className="marketDirectory">
           <header className="marketDirectoryHeader">
@@ -192,4 +208,20 @@ export default function MarketsPage() {
       </main>
     </div>
   );
+}
+
+function graphHealthLabel(
+  reason:
+    | "not-configured"
+    | "unreachable"
+    | "not-running"
+    | "quota-exhausted"
+    | "provider-error"
+    | "lagging"
+    | undefined,
+): string {
+  if (reason === "quota-exhausted") return "degraded · quota exhausted";
+  if (reason === "lagging") return "degraded · syncing";
+  if (reason === "not-configured") return "not configured";
+  return "degraded";
 }

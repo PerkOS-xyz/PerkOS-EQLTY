@@ -1,6 +1,6 @@
 import type { ApiConfig } from "./config.js";
 import type { EnsOrchestrationManifest } from "./ens-types.js";
-import type { FleetAgent } from "./fleet-types.js";
+import type { FleetAgent, FleetRole } from "./fleet-types.js";
 import type {
   AgentConsultation,
   ConsultationStep,
@@ -9,10 +9,14 @@ import type { OpportunityCandidate } from "./goal-types.js";
 import {
   type ConsultationTaskResponse,
   type ReadyFleetAgent,
+  auditorPrompt,
   riskPrompt,
   scoutPrompt,
+  traderPrompt,
+  verifyAuditor,
   verifyRisk,
   verifyScout,
+  verifyTrader,
 } from "./hermes-consultation-verifier.js";
 
 type Dependencies = {
@@ -33,16 +37,27 @@ export class HermesConsultationService {
     goal: string;
     candidates: OpportunityCandidate[];
     manifest: EnsOrchestrationManifest;
+    manifestHash: `0x${string}`;
     agents?: FleetAgent[];
     idToken?: string;
   }): Promise<AgentConsultation> {
     const scoutAgent = readyAgent(input.agents, "scout");
     const riskAgent = readyAgent(input.agents, "risk");
-    if (!input.idToken || !scoutAgent || !riskAgent) {
+    const traderAgent = readyAgent(input.agents, "trader");
+    const auditorAgent = readyAgent(input.agents, "auditor");
+    if (
+      !input.idToken ||
+      !scoutAgent ||
+      !riskAgent ||
+      !traderAgent ||
+      !auditorAgent
+    ) {
       return fallback(
         scoutAgent,
         riskAgent,
-        "Live Scout and Risk credentials are unavailable",
+        traderAgent,
+        auditorAgent,
+        "Live fleet credentials are unavailable",
       );
     }
 
@@ -75,6 +90,14 @@ export class HermesConsultationService {
           scout.status === "invalid" ? "invalid" : "unavailable",
         scout,
         risk: skipped(riskAgent, "Scout produced no verified handoff"),
+        trader: skipped(
+          traderAgent,
+          "Scout produced no verified handoff",
+        ),
+        auditor: skipped(
+          auditorAgent,
+          "Scout produced no verified handoff",
+        ),
       };
     }
 
@@ -115,6 +138,121 @@ export class HermesConsultationService {
           risk.status === "invalid" ? "invalid" : "unavailable",
         scout,
         risk,
+        trader: skipped(
+          traderAgent,
+          "Risk produced no verified handoff",
+        ),
+        auditor: skipped(
+          auditorAgent,
+          "Risk produced no verified handoff",
+        ),
+      };
+    }
+
+    let traderTask = await this.task(
+      traderAgent,
+      input.idToken,
+      traderPrompt(input.goal, candidate, input.manifest, risk),
+    );
+    let trader = verifyTrader(
+      traderAgent,
+      traderTask,
+      candidate,
+      input.manifest,
+      risk,
+    );
+    if (trader.status === "invalid") {
+      traderTask = await this.task(
+        traderAgent,
+        input.idToken,
+        repairPrompt(
+          "trader",
+          traderPrompt(input.goal, candidate, input.manifest, risk),
+        ),
+      );
+      trader = verifyTrader(
+        traderAgent,
+        traderTask,
+        candidate,
+        input.manifest,
+        risk,
+      );
+    }
+    if (trader.status !== "verified") {
+      return {
+        mode: "deterministic-fallback",
+        status:
+          trader.status === "invalid" ? "invalid" : "unavailable",
+        scout,
+        risk,
+        trader,
+        auditor: skipped(
+          auditorAgent,
+          "Trader produced no verified handoff",
+        ),
+      };
+    }
+
+    let auditorTask = await this.task(
+      auditorAgent,
+      input.idToken,
+      auditorPrompt(
+        input.goal,
+        candidate,
+        input.manifest,
+        input.manifestHash,
+        scout,
+        risk,
+        trader,
+      ),
+    );
+    let auditor = verifyAuditor(
+      auditorAgent,
+      auditorTask,
+      candidate,
+      input.manifest,
+      input.manifestHash,
+      scout,
+      risk,
+      trader,
+    );
+    if (auditor.status === "invalid") {
+      auditorTask = await this.task(
+        auditorAgent,
+        input.idToken,
+        repairPrompt(
+          "auditor",
+          auditorPrompt(
+            input.goal,
+            candidate,
+            input.manifest,
+            input.manifestHash,
+            scout,
+            risk,
+            trader,
+          ),
+        ),
+      );
+      auditor = verifyAuditor(
+        auditorAgent,
+        auditorTask,
+        candidate,
+        input.manifest,
+        input.manifestHash,
+        scout,
+        risk,
+        trader,
+      );
+    }
+    if (auditor.status !== "verified") {
+      return {
+        mode: "deterministic-fallback",
+        status:
+          auditor.status === "invalid" ? "invalid" : "unavailable",
+        scout,
+        risk,
+        trader,
+        auditor,
       };
     }
 
@@ -125,6 +263,8 @@ export class HermesConsultationService {
         risk.detail === "approved" ? candidate.ticker : undefined,
       scout,
       risk,
+      trader,
+      auditor,
     };
   }
 
@@ -177,25 +317,31 @@ export class HermesConsultationService {
 }
 
 function repairPrompt(
-  role: "scout" | "risk",
+  role: FleetRole,
   originalPrompt: string,
 ): string {
-  const shape =
-    role === "scout"
-      ? '{"recommendedTicker":"TICKER","thesis":"reason with the exact block and deviation numbers","evidence":["graphLiquidity","graphBlock","routeDeviation","uniswapRouting"]}'
-      : '{"decision":"approve","ticker":"TICKER","summary":"reason with exact candidate and ENS limit numbers","checks":["ensAllowed","deviationWithinLimit","liquidityAboveMinimum","graphEvidencePresent"]}';
+  const shapes: Record<FleetRole, string> = {
+    scout:
+      '{"recommendedTicker":"TICKER","thesis":"reason with the exact block and deviation numbers","evidence":["graphLiquidity","graphBlock","routeDeviation","uniswapRouting"]}',
+    risk:
+      '{"decision":"approve","ticker":"TICKER","summary":"reason with exact candidate and ENS limit numbers","checks":["ensAllowed","deviationWithinLimit","liquidityAboveMinimum","graphEvidencePresent"]}',
+    trader:
+      '{"decision":"prepare","ticker":"TICKER","summary":"reason citing the exact route and request id","checks":["riskApproved","uniswapRoutePresent","requestIdPresent","ensTickerAllowed"]}',
+    auditor:
+      '{"decision":"seal","ticker":"TICKER","summary":"reason citing the ticker and ENS policy version","checks":["ensManifestPresent","scoutVerified","riskVerified","traderVerified"]}',
+  };
   return [
     `Your previous ${role} handoff failed schema verification.`,
     "Retry once using the same sealed evidence below.",
     "Return exactly one raw JSON object with no markdown or commentary.",
-    `Required shape: ${shape}`,
+    `Required shape: ${shapes[role]}`,
     originalPrompt,
   ].join("\n");
 }
 
 function readyAgent(
   agents: FleetAgent[] | undefined,
-  role: "scout" | "risk",
+  role: FleetRole,
 ): ReadyFleetAgent | undefined {
   const agent = agents?.find(
     (candidate) =>
@@ -211,6 +357,8 @@ function readyAgent(
 function fallback(
   scout: ReadyFleetAgent | undefined,
   risk: ReadyFleetAgent | undefined,
+  trader: ReadyFleetAgent | undefined,
+  auditor: ReadyFleetAgent | undefined,
   detail: string,
 ): AgentConsultation {
   return {
@@ -218,6 +366,8 @@ function fallback(
     status: "unavailable",
     scout: unavailable(scout, "scout", detail),
     risk: unavailable(risk, "risk", detail),
+    trader: unavailable(trader, "trader", detail),
+    auditor: unavailable(auditor, "auditor", detail),
   };
 }
 
@@ -226,7 +376,7 @@ function skipped(
   detail: string,
 ): ConsultationStep {
   return {
-    role: "risk",
+    role: agent?.role ?? "auditor",
     agentId: agent?.agentId,
     agentName: agent?.name,
     status: "skipped",
@@ -237,7 +387,7 @@ function skipped(
 
 function unavailable(
   agent: ReadyFleetAgent | undefined,
-  role: "scout" | "risk",
+  role: FleetRole,
   detail: string,
 ): ConsultationStep {
   return {

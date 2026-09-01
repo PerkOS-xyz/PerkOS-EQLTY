@@ -284,7 +284,7 @@ export function workflowHeadline(workflow: FleetWorkflow): string {
       ? "Fleet monitoring the next evaluation"
       : "First evaluation in progress";
   }
-  return "All four agent gates completed";
+  return "All four Hermes handoffs verified";
 }
 
 function runtimeCheck(
@@ -308,21 +308,29 @@ function runtimeCheck(
     };
   }
   const analysis = workflow.analysis;
+  const handoff = analysis.consultation[role];
+  if (handoff.status !== "verified") {
+    return {
+      label: "Hermes handoff",
+      value: handoff.detail ?? `${role} response was not verified`,
+      state: "blocked",
+    };
+  }
   const evidenced = analysis.candidates.filter(
     (candidate) => candidate.orchestrationReady,
   );
   if (role === "scout") {
     return {
-      label: "Graph scan",
-      value: `${analysis.candidates.length} candidates compared`,
-      state: analysis.candidates.length > 0 ? "passed" : "blocked",
+      label: "Hermes handoff",
+      value: `${handoff.agentName ?? "Scout"} · ${shortHash(handoff.responseHash)}`,
+      state: "passed",
     };
   }
   if (role === "risk") {
     return {
-      label: "Graph evidence",
-      value: `${evidenced.length} candidates passed`,
-      state: evidenced.length > 0 ? "passed" : "blocked",
+      label: "Hermes handoff",
+      value: `${handoff.agentName ?? "Risk"} · ${evidenced.length} passed`,
+      state: "passed",
     };
   }
   if (role === "trader") {
@@ -330,15 +338,15 @@ function runtimeCheck(
       (candidate) => candidate.uniswapRequestId,
     );
     return {
-      label: "Uniswap route",
-      value: `${quoted.length} V4 request IDs`,
-      state: quoted.length > 0 ? "passed" : "blocked",
+      label: "Hermes handoff",
+      value: `${handoff.agentName ?? "Trader"} · ${quoted.length} V4 routes`,
+      state: "passed",
     };
   }
   return {
-    label: "Proof root",
-    value: `${analysis.proofRoot.slice(0, 10)}…`,
-    state: analysis.proofRoot ? "passed" : "blocked",
+    label: "Hermes handoff",
+    value: `${handoff.agentName ?? "Auditor"} · ${shortHash(handoff.responseHash)}`,
+    state: "passed",
   };
 }
 
@@ -360,6 +368,19 @@ function workflowStop(
         analysis.policy.version ? `v${analysis.policy.version} ` : ""
       }paused fleet activity.`,
     };
+  }
+  if (analysis) {
+    for (const role of roleOrder) {
+      const handoff = analysis.consultation[role];
+      if (handoff.status !== "verified") {
+        return {
+          stopRole: role,
+          stopReason:
+            handoff.detail ??
+            `${role} Hermes handoff was not verified; the deterministic fallback cannot authorize execution.`,
+        };
+      }
+    }
   }
   if (
     analysis?.recommendedTicker &&
@@ -387,4 +408,9 @@ function workflowStop(
     };
   }
   return undefined;
+}
+
+function shortHash(value?: string): string {
+  if (!value) return "verified";
+  return `${value.slice(0, 8)}…${value.slice(-4)}`;
 }

@@ -4,6 +4,7 @@ import type {
   GoalIdentity,
   GoalInput,
   OpportunityAnalysis,
+  SettleGoalDecisionFeeInput,
 } from "./goal-types.js";
 import type { FleetRole } from "./fleet-types.js";
 import type {
@@ -15,6 +16,7 @@ import {
   defaultOneClawMinimumAmount,
   oneClawGate,
 } from "./oneclaw-policy.js";
+import type { DecisionFeeService } from "./decision-fee.js";
 
 type StoredGoal = AutonomousGoal & {
   input: GoalInput;
@@ -25,7 +27,12 @@ type Dependencies = {
   now?: () => number;
   id?: () => string;
   oneclawMinimumAmount?: string;
+  oneclawLiveAuthorization?: boolean;
   store?: GoalStore;
+  decisionFees?: Pick<
+    DecisionFeeService,
+    "failed" | "quote" | "settle"
+  >;
 };
 
 export class AutonomousGoalService {
@@ -33,7 +40,12 @@ export class AutonomousGoalService {
   private readonly now: () => number;
   private readonly id: () => string;
   private readonly oneclawMinimumAmount: string;
+  private readonly oneclawLiveAuthorization: boolean;
   private readonly store?: GoalStore;
+  private readonly decisionFees?: Pick<
+    DecisionFeeService,
+    "failed" | "quote" | "settle"
+  >;
 
   constructor(
     private readonly opportunities: Pick<
@@ -47,7 +59,10 @@ export class AutonomousGoalService {
     this.oneclawMinimumAmount =
       dependencies.oneclawMinimumAmount ??
       defaultOneClawMinimumAmount;
+    this.oneclawLiveAuthorization =
+      dependencies.oneclawLiveAuthorization ?? false;
     this.store = dependencies.store;
+    this.decisionFees = dependencies.decisionFees;
   }
 
   async start(input: GoalInput): Promise<AutonomousGoal> {
@@ -61,6 +76,7 @@ export class AutonomousGoalService {
       linkedRoles,
       requiredRoles,
       minimumAmount: this.oneclawMinimumAmount,
+      liveAuthorization: this.oneclawLiveAuthorization,
     });
     const goal: StoredGoal = {
       id: this.id(),
@@ -119,6 +135,50 @@ export class AutonomousGoalService {
     return publicGoal(goal);
   }
 
+  async settleFee(
+    id: string,
+    input: SettleGoalDecisionFeeInput,
+  ): Promise<AutonomousGoal | undefined> {
+    const goal = await this.ownedGoal(id, input);
+    if (!goal) return undefined;
+    if (!this.decisionFees || !goal.decisionFee) {
+      throw new Error("Decision-fee settlement is not available");
+    }
+    if (goal.decisionFee.status === "settled") {
+      return publicGoal(goal);
+    }
+    if (goal.decisionFee.status !== "payment-required") {
+      throw new Error("This goal does not require a decision fee");
+    }
+    if (goal.running) {
+      throw new Error("This goal is already being updated");
+    }
+
+    goal.running = true;
+    try {
+      goal.decisionFee = await this.decisionFees.settle({
+        fee: goal.decisionFee,
+        goalId: goal.id,
+        owner: goal.input.owner,
+        payment: input.payment,
+      });
+      goal.status = "completed";
+      goal.error = undefined;
+      goal.nextEvaluationAt = undefined;
+    } catch (error) {
+      goal.decisionFee = this.decisionFees.failed(
+        goal.decisionFee,
+        error,
+      );
+      await this.persist(goal);
+      throw error;
+    } finally {
+      goal.running = false;
+    }
+    await this.persist(goal);
+    return publicGoal(goal);
+  }
+
   private async ownedGoal(
     id: string,
     identity: GoalIdentity,
@@ -169,10 +229,19 @@ export class AutonomousGoalService {
       });
       this.record(goal, analysis);
       goal.error = undefined;
-      const next = now + goal.cadenceSeconds * 1_000;
-      goal.nextEvaluationAt = new Date(
-        Math.min(next, Date.parse(goal.endsAt)),
-      ).toISOString();
+      if (this.decisionFees) {
+        goal.decisionFee = this.decisionFees.quote(analysis);
+        goal.status =
+          goal.decisionFee.status === "payment-required"
+            ? "payment-required"
+            : "completed";
+        goal.nextEvaluationAt = undefined;
+      } else {
+        const next = now + goal.cadenceSeconds * 1_000;
+        goal.nextEvaluationAt = new Date(
+          Math.min(next, Date.parse(goal.endsAt)),
+        ).toISOString();
+      }
     } catch (error) {
       goal.error =
         error instanceof Error ? error.message : "Goal evaluation failed";
@@ -223,12 +292,21 @@ function gateDetail(gate: ReturnType<typeof oneClawGate>): string {
     return "This purchase is below the 3 USDG 1Claw threshold.";
   }
   if (gate.linked) {
-    return "The trader has an active 1Claw execution rail.";
+    return "The trader is linked to 1Claw, but live x401 and x402 authorization is still fail-closed.";
   }
   return "Analysis may continue, but purchases of 3 USDG or more are locked until the trader has an active 1Claw execution rail.";
 }
 
 function publicGoal(goal: StoredGoal): AutonomousGoal {
+  const value = storedGoal(goal);
+  if (value.decisionFee?.status === "payment-required") {
+    value.latest = undefined;
+    value.history = [];
+  }
+  return value;
+}
+
+function storedGoal(goal: StoredGoal): AutonomousGoal {
   const { input: _input, running: _running, ...value } = goal;
   return structuredClone(value);
 }
@@ -236,7 +314,7 @@ function publicGoal(goal: StoredGoal): AutonomousGoal {
 function persistedGoal(goal: StoredGoal): PersistedGoal {
   const { perkosIdToken: _perkosIdToken, ...input } = goal.input;
   return {
-    goal: publicGoal(goal),
+    goal: storedGoal(goal),
     input: structuredClone(input),
   };
 }

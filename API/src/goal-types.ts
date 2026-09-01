@@ -1,6 +1,10 @@
 import type { FleetAgent, FleetRole } from "./fleet-types.js";
 import type { EvmAddress } from "./market-types.js";
 import type { AgentConsultation } from "./consultation-types.js";
+import type {
+  DecisionFee,
+  DecisionFeePaymentPayload,
+} from "./decision-fee-types.js";
 
 export type OpportunityCandidate = {
   ticker: string;
@@ -62,7 +66,7 @@ export type AutonomousGoal = {
   id: string;
   goal: string;
   amountIn: string;
-  status: "active" | "completed" | "blocked";
+  status: "active" | "payment-required" | "completed" | "blocked";
   startedAt: string;
   endsAt: string;
   nextEvaluationAt?: string;
@@ -77,6 +81,7 @@ export type AutonomousGoal = {
     proofRoot: `0x${string}`;
     policyManifestHash?: `0x${string}`;
   }>;
+  decisionFee?: DecisionFee;
   error?: string;
 };
 
@@ -96,4 +101,8 @@ export type GoalInput = GoalIdentity & {
   linkedRoles: readonly FleetRole[];
   fleetAgents?: FleetAgent[];
   perkosIdToken?: string;
+};
+
+export type SettleGoalDecisionFeeInput = GoalIdentity & {
+  payment: DecisionFeePaymentPayload;
 };

@@ -32,12 +32,27 @@ describe("1Claw purchase policy", () => {
     });
   });
 
-  it("allows purchases from 3 USDG when the trader rail is linked", () => {
+  it("keeps linked purchases fail-closed until live authorization is enabled", () => {
     expect(
       oneClawGate({
         amountIn: "5000000",
         linkedRoles: requiredRoles,
         requiredRoles,
+      }),
+    ).toMatchObject({
+      required: true,
+      linked: true,
+      executionAuthorized: false,
+    });
+  });
+
+  it("allows purchases from 3 USDG only with linked live authorization", () => {
+    expect(
+      oneClawGate({
+        amountIn: "5000000",
+        linkedRoles: requiredRoles,
+        requiredRoles,
+        liveAuthorization: true,
       }),
     ).toMatchObject({
       required: true,

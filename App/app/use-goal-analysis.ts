@@ -8,7 +8,15 @@ import {
 } from "react";
 import { loadFleetPolicy } from "../lib/fleet-api";
 import type { FleetPolicy } from "../lib/fleet-types";
-import { readGoal, startGoal } from "../lib/goal-api";
+import { authorizeDecisionFee } from "../lib/decision-fee";
+import {
+  goalDecisionFeeResource,
+  readDecisionFeeConfig,
+  readGoal,
+  settleGoalDecisionFee,
+  startGoal,
+} from "../lib/goal-api";
+import type { DecisionFeeConfig } from "../lib/goal-api";
 import type { AutonomousGoal } from "../lib/goal-types";
 import { useWalletAccess } from "./wallet-access-context";
 
@@ -23,8 +31,10 @@ export type GoalAnalysisState = {
   policy?: FleetPolicy;
   policyLoading: boolean;
   policyError?: string;
+  feeConfig?: DecisionFeeConfig;
   session?: AutonomousGoal;
   busy: boolean;
+  paymentBusy: boolean;
   error?: string;
   workflowError?: string;
   connected: boolean;
@@ -34,6 +44,7 @@ export type GoalAnalysisState = {
   setWindowMinutes: (value: number) => void;
   setCandidateTicker: (value: string) => void;
   analyze: () => void;
+  payDecisionFee: () => void;
 };
 
 export function useGoalAnalysis(): GoalAnalysisState {
@@ -46,9 +57,12 @@ export function useGoalAnalysis(): GoalAnalysisState {
   const [policy, setPolicy] = useState<FleetPolicy>();
   const [policyLoading, setPolicyLoading] = useState(false);
   const [policyError, setPolicyError] = useState<string>();
+  const [feeConfig, setFeeConfig] = useState<DecisionFeeConfig>();
+  const [policyRevision, setPolicyRevision] = useState(0);
   const [session, setSession] = useState<AutonomousGoal>();
   const [runKey, setRunKey] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [paymentBusy, setPaymentBusy] = useState(false);
   const [error, setError] = useState<string>();
   const [workflowError, setWorkflowError] = useState<string>();
 
@@ -112,6 +126,51 @@ export function useGoalAnalysis(): GoalAnalysisState {
     windowMinutes,
   ]);
 
+  const payDecisionFee = useCallback(async () => {
+    const fee = session?.decisionFee;
+    if (
+      !session ||
+      fee?.status !== "payment-required" ||
+      !fee.requirements
+    ) {
+      setError("This decision has no payable x402 request.");
+      return;
+    }
+    setPaymentBusy(true);
+    setError(undefined);
+    try {
+      const payment = await authorizeDecisionFee({
+        wallet,
+        goalId: session.id,
+        requirements: fee.requirements,
+        resourceUrl: goalDecisionFeeResource(session.id),
+      });
+      const settled = await settleGoalDecisionFee(session.id, payment);
+      setSession(settled);
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Decision fee settlement failed",
+      );
+    } finally {
+      setPaymentBusy(false);
+    }
+  }, [session, wallet]);
+
+  useEffect(() => {
+    void readDecisionFeeConfig()
+      .then(setFeeConfig)
+      .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    const refresh = () => setPolicyRevision((current) => current + 1);
+    window.addEventListener("eqlty:policy-published", refresh);
+    return () =>
+      window.removeEventListener("eqlty:policy-published", refresh);
+  }, []);
+
   useEffect(() => {
     if (!wallet.connected) {
       setPolicy(undefined);
@@ -158,7 +217,7 @@ export function useGoalAnalysis(): GoalAnalysisState {
       cancelled = true;
       if (timer !== undefined) window.clearTimeout(timer);
     };
-  }, [wallet.connected]);
+  }, [policyRevision, wallet.connected]);
 
   useEffect(() => {
     if (!session || session.status !== "active") {
@@ -206,6 +265,7 @@ export function useGoalAnalysis(): GoalAnalysisState {
       setSession(undefined);
       setRunKey(0);
       setBusy(false);
+      setPaymentBusy(false);
       setError(undefined);
       setWorkflowError(undefined);
     }
@@ -219,8 +279,10 @@ export function useGoalAnalysis(): GoalAnalysisState {
     policy,
     policyLoading,
     policyError,
+    feeConfig,
     session,
     busy,
+    paymentBusy,
     error,
     workflowError,
     connected: wallet.connected,
@@ -230,6 +292,7 @@ export function useGoalAnalysis(): GoalAnalysisState {
     setWindowMinutes,
     setCandidateTicker,
     analyze: () => void analyze(),
+    payDecisionFee: () => void payDecisionFee(),
   };
 }
 

@@ -96,7 +96,7 @@ freshness.
 
 ENS is the behavior source of truth. Policy preparation produces the next
 manifest and role hashes but does not publish them before owner-wallet and
-World authorization.
+The authenticated owner wallet authorizes ENS policy changes.
 
 The testnet UI opens names in the current ENSv2 app at `app.ens.dev`. EQLTY's
 control plane still uses the deployed Durin L2 registry and does not claim that
@@ -155,10 +155,15 @@ EQLTY follows the Platform API user upsert, template bootstrap and claim flow.
 The Ethereum signing key remains inside the user's 1Claw account, while the
 one-time execution credential passes directly to PerkOS.
 
+The fleet UI reports Platform API availability separately from the user's
+Trader link. Its readiness check is read-only. Bootstrap remains an explicit
+user action because the resulting vault, agent and usage belong to that user's
+1Claw account.
+
 Robinhood EIP-712 restrictions remain disabled for the MVP. Transaction
 guardrails still limit the trader to Robinhood Chain, the EQLTY vault, Uniswap
 contracts, USDG and six transactions per day.
 
-World Selfie authorization remains required for future ENS settings
+ENS settings are authorized by the authenticated owner wallet
 publication, not for reading the current policy or demonstrating a 1 USDG
 purchase.

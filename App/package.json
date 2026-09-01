@@ -10,16 +10,16 @@
     "typecheck": "tsc --noEmit --pretty false"
   },
   "dependencies": {
-    "@dynamic-labs/ethereum": "4.94.0",
-    "@dynamic-labs/sdk-react-core": "4.94.0",
-    "next": "16.2.10",
-    "react": "19.2.7",
-    "react-dom": "19.2.7",
-    "viem": "2.55.4"
+    "@dynamic-labs/ethereum": "4.95.1",
+    "@dynamic-labs/sdk-react-core": "4.95.1",
+    "next": "16.2.12",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "viem": "2.55.10"
   },
   "devDependencies": {
-    "@types/node": "24.10.1",
-    "@types/react": "19.2.7",
+    "@types/node": "24.13.3",
+    "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
     "typescript": "5.9.3"
   }

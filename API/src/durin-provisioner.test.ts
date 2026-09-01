@@ -189,4 +189,14 @@ class MemoryWriter implements DurinWriter {
     this.records.texts.set(input.name, input.text);
     return `0x${this.calls.toString(16).padStart(64, "0")}`;
   }
+
+  async setText(
+    name: string,
+    _key: string,
+    value: string,
+  ): Promise<`0x${string}`> {
+    this.calls += 1;
+    this.records.texts.set(name, value);
+    return `0x${this.calls.toString(16).padStart(64, "0")}`;
+  }
 }

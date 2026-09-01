@@ -120,28 +120,24 @@ function roleBehavior(
         "x401",
       ],
       actions: ["recommend"],
-      requiresWorldSelfieForChanges: true,
     },
     risk: {
       objective:
         "Verify freshness, liquidity and owner policy before approving a candidate.",
       inputs: ["ens", "the-graph-substreams", "x401"],
       actions: ["risk-gate"],
-      requiresWorldSelfieForChanges: true,
     },
     trader: {
       objective:
         "Execute the approved stock-token route through Uniswap within every limit.",
       inputs: ["ens", "x401", "x402"],
       actions: ["swap-uniswap"],
-      requiresWorldSelfieForChanges: true,
     },
     auditor: {
       objective:
         "Reconcile policy, indexed evidence and the final transaction receipt.",
       inputs: ["ens", "the-graph-substreams", "x401", "x402"],
       actions: ["audit"],
-      requiresWorldSelfieForChanges: true,
     },
   };
   return behavior[role];

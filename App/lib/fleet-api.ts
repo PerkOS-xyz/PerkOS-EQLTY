@@ -2,7 +2,10 @@ import type {
   AgentRole,
   EnsAgentMetadata,
   FleetActivation,
+  FleetPolicyChange,
+  FleetPolicyPublication,
   FleetPolicy,
+  OneClawIntegrationHealth,
   OneClawFleetSecurity,
   UserSession,
 } from "./fleet-types";
@@ -96,6 +99,35 @@ export async function activateOneClawRails(
   );
 }
 
+export async function loadOneClawIntegrationHealth(
+  signal?: AbortSignal,
+): Promise<OneClawIntegrationHealth> {
+  const response = await fetch(`${apiUrl()}/api/config`, {
+    credentials: "include",
+    headers: { accept: "application/json" },
+    signal,
+  });
+  const body: unknown = await response.json().catch(() => undefined);
+  const health =
+    body && typeof body === "object" && "integrationHealth" in body
+      ? (
+          body as {
+            integrationHealth?: {
+              oneclaw?: OneClawIntegrationHealth;
+            };
+          }
+        ).integrationHealth?.oneclaw
+      : undefined;
+  if (
+    !response.ok ||
+    !health ||
+    !["ready", "degraded", "pending"].includes(health.status)
+  ) {
+    throw new Error("1Claw readiness is unavailable");
+  }
+  return health;
+}
+
 export function oneclawAgentSettingsUrl(agentId?: string): string {
   return agentId
     ? `https://1claw.xyz/agents/${encodeURIComponent(agentId)}`
@@ -121,4 +153,16 @@ export async function loadFleetMetadata(
 
 export async function loadFleetPolicy(): Promise<FleetPolicy> {
   return request<FleetPolicy>("/api/fleet/policy");
+}
+
+export async function publishDemoFleetPolicy(
+  change: FleetPolicyChange,
+): Promise<FleetPolicyPublication> {
+  return request<FleetPolicyPublication>(
+    "/api/orchestration/apply-demo",
+    {
+      method: "POST",
+      body: JSON.stringify(change),
+    },
+  );
 }

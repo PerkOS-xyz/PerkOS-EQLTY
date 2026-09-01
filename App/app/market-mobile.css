@@ -15,6 +15,15 @@
 }
 
 @media (max-width: 820px) {
+  .graphHealthPanel,
+  .graphHealthPanel.compact {
+    grid-template-columns: 1fr;
+  }
+
+  .marketCatalog > .graphHealthPanel {
+    margin-inline: 20px;
+  }
+
   .marketHeading {
     align-items: flex-start;
     flex-direction: column;
@@ -75,6 +84,34 @@
 }
 
 @media (max-width: 560px) {
+  .graphHealthPanel,
+  .graphHealthPanel.compact {
+    gap: 13px;
+    margin-bottom: 20px;
+    padding: 14px;
+  }
+
+  .marketCatalog > .graphHealthPanel {
+    margin-inline: 12px;
+  }
+
+  .graphHealthDetails {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .graphHealthDetails span {
+    border-bottom: 1px solid #29342d;
+  }
+
+  .graphHealthActions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .graphHealthActions button {
+    width: 100%;
+  }
+
   .marketCatalog {
     margin-top: 15px;
     border-radius: 15px;
@@ -90,7 +127,7 @@
   }
 
   .marketHeading p {
-    font-size: 9px;
+    font-size: 13px;
     line-height: 1.5;
   }
 
@@ -104,7 +141,7 @@
   }
 
   .marketSummary span {
-    font-size: 6px;
+    font-size: 13px;
   }
 
   .marketSummary b {
@@ -161,7 +198,7 @@
   }
 
   .marketPageHero p {
-    font-size: 12px;
+    font-size: 13px;
   }
 
   .marketPageMetrics span {
@@ -170,7 +207,7 @@
   }
 
   .marketPageMetrics small {
-    font-size: 6px;
+    font-size: 13px;
   }
 
   .marketPageMetrics strong {
@@ -210,7 +247,9 @@
   .priceHistory .chartLast,
   .priceHistory .chartLine,
   .marketCardSkeleton,
-  .marketCatalogFooter i {
+  .marketCatalogFooter i,
+  .graphHealthSignal,
+  .graphSyncProgress i {
     animation: none;
     scroll-behavior: auto;
     transition: none;

@@ -160,10 +160,13 @@ function decisionEvents(analysis: OpportunityAnalysis): DecisionEvent[] {
   const winner = analysis.candidates.find(
     (candidate) => candidate.status === "recommended",
   );
-  const evidence = winner?.graphEvidence;
-  const failed = analysis.candidates.find(
-    (candidate) => candidate.status === "rejected",
-  );
+  const representative =
+    winner ??
+    analysis.candidates.find((candidate) => candidate.status === "eligible") ??
+    analysis.candidates[0];
+  const evidence = representative?.graphEvidence;
+  const representativeTicker = representative?.ticker;
+  const representativeSummary = representative?.reason;
   const consultation = analysis.consultation;
   const ensLinks = analysis.policy.rootName
     ? [
@@ -197,26 +200,26 @@ function decisionEvents(analysis: OpportunityAnalysis): DecisionEvent[] {
           : `${analysis.candidates.length} candidates compared`,
       detail:
         consultation.scout.summary ??
+        consultation.scout.detail ??
         (evidence
-          ? `Substreams confirmed the latest Uniswap V4 event for ${winner?.ticker} before it entered the risk gate.`
-          : "The scout compared the ENS-allowed universe, but no indexed route passed into the shortlist."),
+          ? `Substreams confirmed latest Graph evidence for ${representativeTicker} before risk gate.`
+          : "No verified scout handoff was produced."),
       fact: consultationFact(
         consultation.scout,
         evidence
           ? `block ${evidence.blockNumber} · ${money(evidence.liquidityUsd)} indexed liquidity`
           : "indexed evidence unavailable",
       ),
-      links: graphLinks(winner),
+      links: graphLinks(representative),
       graphEvidence: evidence
         ? {
-            ticker: winner.ticker,
-            fallback: { ...evidence, ticker: winner.ticker },
+            ticker: representativeTicker ?? "N/A",
+            fallback: { ...evidence, ticker: representativeTicker },
             transactionHash: evidence.transactionHash,
           }
         : undefined,
       stopped:
-        consultation.scout.status === "invalid" ||
-        (!evidence && consultation.scout.status !== "verified"),
+        consultation.scout.status !== "verified",
     },
     {
       actor: "Risk",
@@ -224,15 +227,17 @@ function decisionEvents(analysis: OpportunityAnalysis): DecisionEvent[] {
       provider: "EQLTY",
       title:
         consultation.risk.status === "verified"
-          ? `${consultation.risk.agentName ?? "Risk Hermes"} approved ${consultation.risk.ticker}`
+          ? `${consultation.risk.agentName ?? "Risk Hermes"} ${consultation.risk.detail ?? "approved"} ${consultation.risk.ticker}`
           : winner
             ? `${winner.ticker} passed the policy gates`
-            : "The policy stopped this cycle",
+            : "Policy checks could not pass",
       detail:
         consultation.risk.summary ??
+        consultation.risk.detail ??
         (winner
-          ? `${winner.ticker} ranked first with score ${winner.score}. Its price deviation and indexed liquidity remained inside the ENS limits.`
-          : failed?.reason ?? "No candidate met every active rule."),
+          ? `${winner.ticker} ranked first with score ${winner.score}. ${representativeSummary}`
+          : representativeSummary ??
+            "No candidate met every active rule."),
       fact: consultationFact(
         consultation.risk,
         winner
@@ -252,13 +257,14 @@ function decisionEvents(analysis: OpportunityAnalysis): DecisionEvent[] {
         consultation.trader.status === "verified"
           ? `${consultation.trader.agentName ?? "Trader Hermes"} prepared ${consultation.trader.ticker}`
           : winner
-            ? `${winner.ticker} route prepared by policy engine`
+            ? `${winner.ticker} route passed to trader handoff`
             : "Execution path remains closed",
       detail:
         consultation.trader.summary ??
+        consultation.trader.detail ??
         (winner
-          ? "The deterministic policy engine preserved the executable Uniswap quote. No Hermes Trader handoff was verified."
-          : "No quote can advance when the recommendation is rejected."
+          ? "The deterministic policy engine preserved the executable Uniswap quote."
+          : "No quote can advance while policy gates are blocked."
         ),
       fact: consultationFact(
         consultation.trader,
@@ -287,12 +293,15 @@ function decisionEvents(analysis: OpportunityAnalysis): DecisionEvent[] {
           ? `${consultation.auditor.agentName ?? "Auditor Hermes"} sealed ${consultation.auditor.ticker}`
           : winner
             ? `${winner.ticker} proof sealed by policy engine`
-            : "Rejected cycle sealed",
+            : "Cycle sealed with rejection",
       detail:
         consultation.auditor.summary ??
+        consultation.auditor.detail ??
         (winner
-          ? "The deterministic policy engine sealed the evidence because no Hermes Auditor handoff was verified."
-          : "The auditor sealed the rejection reason so the stopped workflow remains auditable."
+          ? `The deterministic policy engine sealed ${winner.ticker} with evidence hash ${short(
+              analysis.proofRoot,
+            )}.`
+          : "The auditor sealed the rejection reason for later audit."
         ),
       fact: consultationFact(
         consultation.auditor,

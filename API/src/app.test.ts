@@ -1114,6 +1114,18 @@ describe("API foundation", () => {
 
   it("runs the authenticated four-agent proof path", async () => {
     const session = testSession();
+    const authorization = {
+      goalId: "goal-1",
+      amountIn: "1000000",
+      ticker: "NVDA",
+      proofRoot: `0x${"77".repeat(32)}` as const,
+      policyManifestHash: `0x${"aa".repeat(32)}` as const,
+      payment: {
+        mode: "live" as const,
+        status: "settled" as const,
+        authorizationNonce: `0x${"88".repeat(32)}` as const,
+      },
+    };
     const restore = vi.fn(async (strategy) => strategy);
     const run = vi.fn(async (input) => ({
       id: "run-1",
@@ -1132,6 +1144,12 @@ describe("API foundation", () => {
       "/api/runs",
       {
         ownerAuth: testOwnerAuth(session),
+        goals: {
+          start: vi.fn(),
+          read: async () => undefined,
+          tick: async () => undefined,
+          executionAuthorization: async () => authorization,
+        },
         strategies: {
           create: vi.fn(),
           restore,
@@ -1179,6 +1197,7 @@ describe("API foundation", () => {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
+          goalId: "goal-1",
           strategyId: "strategy-1",
           strategy: {
             id: "strategy-1",
@@ -1227,6 +1246,7 @@ describe("API foundation", () => {
         minimumAmount: "3000000",
         executionAuthorized: true,
       },
+      authorization,
     });
     await expect(response.json()).resolves.toMatchObject({
       id: "run-1",

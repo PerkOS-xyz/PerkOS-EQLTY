@@ -182,6 +182,7 @@ const executionStrategyInput = z
   .strip();
 const runInput = z
   .object({
+    goalId,
     strategyId: goalId,
     strategy: executionStrategyInput.optional(),
     amountIn: uint256,
@@ -282,7 +283,12 @@ type AppDependencies = {
     Partial<Pick<GraphEvidenceService, "series" | "status">>;
   uniswapRwaMarket?: Pick<UniswapRwaMarketService, "series">;
   goals?: Pick<AutonomousGoalService, "read" | "start" | "tick"> &
-    Partial<Pick<AutonomousGoalService, "settleFee">>;
+    Partial<
+      Pick<
+        AutonomousGoalService,
+        "executionAuthorization" | "settleFee"
+      >
+    >;
   strategies?: Pick<StrategyService, "create"> &
     Partial<
       Pick<StrategyService, "bindOnchain" | "recover" | "restore">
@@ -1063,6 +1069,20 @@ export function createApp(
         liveAuthorization:
           config.EQLTY_ONECLAW_LIVE_AUTHORIZATION,
       });
+      if (!goals.executionAuthorization) {
+        throw new Error("Goal execution authorization is unavailable");
+      }
+      const authorization = await goals.executionAuthorization(
+        parsed.data.goalId,
+        {
+          userId: session.fleetUserId,
+          owner: session.walletAddress,
+          perkosIdToken,
+        },
+      );
+      if (!authorization) {
+        throw new Error("The paid decision proof was not found");
+      }
       response.setHeader("cache-control", "no-store");
       const run = await proofRuns.run({
         strategyId: parsed.data.strategyId,
@@ -1071,6 +1091,7 @@ export function createApp(
         userId: session.fleetUserId,
         owner: session.walletAddress,
         oneclaw,
+        authorization,
       });
       if (run.status === "executed" && run.transactionHash) {
         const strategy = strategyStore.strategy(

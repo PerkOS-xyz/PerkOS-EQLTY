@@ -200,6 +200,18 @@ describe("autonomous goals", () => {
     expect(completed?.decisionFee?.receipt?.transaction).toBe(
       `0x${"dd".repeat(32)}`,
     );
+    await expect(
+      service.executionAuthorization("goal-paid", identity()),
+    ).resolves.toMatchObject({
+      goalId: "goal-paid",
+      amountIn: "1000000",
+      ticker: "AMZN",
+      payment: {
+        mode: "live",
+        status: "settled",
+        transaction: `0x${"dd".repeat(32)}`,
+      },
+    });
   });
 });
 

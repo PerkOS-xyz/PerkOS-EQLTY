@@ -1,5 +1,6 @@
 import type { EvmAddress } from "./market-types.js";
 import type { OneClawGate } from "./oneclaw-policy.js";
+import type { GoalExecutionAuthorization } from "./goal-types.js";
 
 export type ProofMode = "preview" | "live";
 
@@ -75,11 +76,14 @@ export type TradeRun = {
   rejectionReason?: string;
   transactionHash?: `0x${string}`;
   signal?: {
+    goalId: string;
+    decisionProofRoot: `0x${string}`;
+    policyManifestHash: `0x${string}`;
     sourceAgent: string;
     side: string;
     confidence: number;
     rationale: string;
-    payment: { mode: ProofMode };
+    payment: GoalExecutionAuthorization["payment"];
   };
   market?: {
     liquidityUsd: number;

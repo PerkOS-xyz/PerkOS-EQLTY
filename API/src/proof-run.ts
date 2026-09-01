@@ -8,6 +8,7 @@ import type {
   TradeRun,
 } from "./execution-types.js";
 import type { EvmAddress, StockCatalogAsset } from "./market-types.js";
+import type { GoalExecutionAuthorization } from "./goal-types.js";
 import type { OneClawGate } from "./oneclaw-policy.js";
 import { createHandoff, hashPayload } from "./proof-handoff.js";
 import type { StockCatalogService } from "./stock-catalog.js";
@@ -53,6 +54,7 @@ export class ProofRunService {
     userId: string;
     owner: EvmAddress;
     oneclaw: OneClawGate;
+    authorization: GoalExecutionAuthorization;
   }): Promise<TradeRun> {
     const strategy = this.store.strategy(input.strategyId, input.owner);
     const run: TradeRun = {
@@ -68,6 +70,15 @@ export class ProofRunService {
       oneclaw: input.oneclaw,
     };
     if (!strategy) return this.reject(run, "Strategy not found");
+    if (
+      input.authorization.amountIn !== input.amountIn ||
+      input.authorization.ticker !== strategy.ticker
+    ) {
+      return this.reject(
+        run,
+        "The strategy does not match the paid decision proof",
+      );
+    }
     if (strategy.status !== "active") {
       return this.reject(run, `Strategy is ${strategy.status}`);
     }
@@ -120,6 +131,15 @@ export class ProofRunService {
     if (manifest.paused) {
       return this.reject(run, "ENS fleet policy is paused");
     }
+    if (
+      controlPlane.manifestHash !==
+      input.authorization.policyManifestHash
+    ) {
+      return this.reject(
+        run,
+        "ENS policy changed after the paid recommendation",
+      );
+    }
     if (!manifest.policy.allowedTickers.includes(strategy.ticker)) {
       return this.reject(run, `${strategy.ticker} is not allowed by ENS`);
     }
@@ -152,6 +172,9 @@ export class ProofRunService {
 
     const graph = asset.graphEvidence!;
     run.signal = {
+      goalId: input.authorization.goalId,
+      decisionProofRoot: input.authorization.proofRoot,
+      policyManifestHash: input.authorization.policyManifestHash,
       sourceAgent: "scout",
       side: "buy",
       confidence: Math.max(
@@ -162,14 +185,14 @@ export class ProofRunService {
         `${strategy.ticker} is allowed by ENS policy v${manifest.version}; ` +
         `Substreams block ${graph.blockNumber} reports $${graph.liquidityUsd} liquidity with ${graph.lagBlocks} blocks of lag, ` +
         `and Uniswap ${asset.uniswapRouting} deviates ${asset.deviationBps} bps from the Robinhood reference.`,
-      payment: { mode: "preview" },
+      payment: input.authorization.payment,
     };
     run.handoffs.push(
       createHandoff({
         from: "scout",
         to: "risk",
         kind: "paid-signal",
-        mode: "preview",
+        mode: input.authorization.payment.mode,
         payload: run.signal,
         at: this.timestamp(),
       }),
@@ -179,8 +202,9 @@ export class ProofRunService {
       "scout",
       "Scout recommendation",
       "passed",
-      "preview",
-      "Candidate and supporting evidence were handed to Risk.",
+      input.authorization.payment.mode,
+      `Candidate evidence is bound to goal ${input.authorization.goalId}.`,
+      input.authorization.proofRoot,
     );
 
     run.market = {
@@ -236,6 +260,12 @@ export class ProofRunService {
     };
     let prepared;
     if (input.execute) {
+      if (input.authorization.payment.mode !== "live") {
+        return this.reject(
+          run,
+          "Live x402 decision authorization is required for execution",
+        );
+      }
       if (!input.oneclaw.executionAuthorized) {
         return this.reject(
           run,
@@ -244,15 +274,6 @@ export class ProofRunService {
       }
       if (strategy.executionMode !== "full") {
         return this.reject(run, "Strategy is analysis-only");
-      }
-      if (
-        input.oneclaw.required &&
-        run.signal.payment.mode !== "live"
-      ) {
-        return this.reject(
-          run,
-          "Live x401 and x402 authorization is not configured",
-        );
       }
       if (!this.executor.ready()) {
         return this.reject(

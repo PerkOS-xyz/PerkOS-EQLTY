@@ -106,3 +106,22 @@ export type GoalInput = GoalIdentity & {
 export type SettleGoalDecisionFeeInput = GoalIdentity & {
   payment: DecisionFeePaymentPayload;
 };
+
+export type GoalExecutionAuthorization = {
+  goalId: string;
+  amountIn: string;
+  ticker: string;
+  proofRoot: `0x${string}`;
+  policyManifestHash: `0x${string}`;
+  payment:
+    | {
+        mode: "live";
+        status: "settled";
+        authorizationNonce: `0x${string}`;
+        transaction?: `0x${string}`;
+      }
+    | {
+        mode: "preview";
+        status: "preview";
+      };
+};

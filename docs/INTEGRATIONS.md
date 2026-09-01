@@ -142,15 +142,22 @@ The following path is implemented and testable now:
 4. Robinhood Stock Token discovery;
 5. Uniswap quote and The Graph evidence;
 6. repeated two-minute recommendation;
-7. wallet-owned strategy creation and funding;
-8. guarded Uniswap execution;
-9. wallet-scoped audit bundle and historical evidence page.
+7. x402 settlement for the verified recommendation;
+8. wallet-owned strategy creation and funding;
+9. guarded Uniswap execution;
+10. wallet-scoped audit bundle and historical evidence page.
+
+The execution proof is bound to the settled goal. Its goal ID, ticker, amount,
+proof root, ENS manifest hash and x402 receipt become part of the sealed Scout
+signal. A different strategy or amount cannot reuse that authorization. Live
+execution fails closed when the decision fee is only previewed.
 
 The proof panel exposes the indexed Swap event, source block, PoolManager,
 Substreams JSON and final purchase receipt when present. Explorer links are
 kept separate from quote request IDs and offchain proof hashes.
 
-Purchases of 3 USDG or more remain fail-closed until the Trader rail is linked.
+Purchases of 3 USDG or more remain fail-closed until the Trader rail is linked
+and authorized by the user's live 1Claw policy.
 EQLTY follows the Platform API user upsert, template bootstrap and claim flow.
 The Ethereum signing key remains inside the user's 1Claw account, while the
 one-time execution credential passes directly to PerkOS.

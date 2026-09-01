@@ -19,6 +19,7 @@ describe("opportunity analysis", () => {
       catalog: {
         assessTicker: async (ticker) => assets.get(ticker),
       },
+      consultation: verifiedConsultation("AMZN"),
     });
 
     const result = await service.analyze(input());
@@ -147,7 +148,7 @@ describe("opportunity analysis", () => {
     expect(result.consultation.mode).toBe("hermes-a2a");
   });
 
-  it("uses live policy evidence for deterministic rationale", async () => {
+  it("does not present deterministic fallback as an agent recommendation", async () => {
     const service = createService({
       consultation: {
         consult: async () => ({
@@ -190,11 +191,33 @@ describe("opportunity analysis", () => {
       (candidate) => candidate.status === "eligible",
     );
 
-    expect(recommended).toBeDefined();
-    expect(recommended?.reason).toContain(
-      "Policy-compatible route selected from live evidence",
-    );
+    expect(recommended).toBeUndefined();
+    expect(result.recommendedTicker).toBeUndefined();
+    expect(result.decisionStatus).toBe("rules_only");
     expect(bestEligible?.reason).toContain("policy floor");
+    expect(result.outcomes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "alternative" }),
+        expect.objectContaining({ kind: "no_action" }),
+      ]),
+    );
+  });
+
+  it("keeps a short liquid horizon in no-action readiness", async () => {
+    const service = createService();
+    const result = await service.analyze({
+      ...input(),
+      profile: {
+        purpose: "planned-purchase",
+        horizonMonths: 6,
+        liquidityNeed: "may-need",
+        riskComfort: "low",
+      },
+    });
+
+    expect(result.readiness.status).toBe("no_action");
+    expect(result.recommendedTicker).toBeUndefined();
+    expect(result.outcomes.at(-1)).toMatchObject({ kind: "no_action" });
   });
 
   it("rejects unavailable ENS policy and disallowed tickers", async () => {
@@ -222,6 +245,26 @@ describe("opportunity analysis", () => {
     ).rejects.toThrow("No requested ticker is allowed");
   });
 });
+
+function verifiedConsultation(ticker: string) {
+  const step = (role: "scout" | "risk" | "trader" | "auditor") => ({
+    role,
+    status: "verified" as const,
+    ticker,
+    facts: [],
+  });
+  return {
+    consult: async () => ({
+      mode: "hermes-a2a" as const,
+      status: "verified" as const,
+      selectedTicker: ticker,
+      scout: step("scout"),
+      risk: step("risk"),
+      trader: step("trader"),
+      auditor: step("auditor"),
+    }),
+  };
+}
 
 function createService(
   dependencies: ConstructorParameters<

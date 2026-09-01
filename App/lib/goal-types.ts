@@ -2,6 +2,31 @@ import type { AgentRole } from "./fleet-types";
 
 export type CandidateStatus = "recommended" | "eligible" | "rejected";
 
+export type FinancialGoalProfile = {
+  purpose: "learn" | "long-term-growth" | "planned-purchase";
+  horizonMonths: number;
+  liquidityNeed: "may-need" | "can-commit";
+  riskComfort: "low" | "medium" | "high";
+};
+
+export type GoalReadiness = {
+  status:
+    | "explore_only"
+    | "limited_position"
+    | "ready_to_compare"
+    | "no_action";
+  summary: string;
+  reasons: string[];
+};
+
+export type DecisionOutcome = {
+  kind: "primary" | "alternative" | "no_action";
+  ticker?: string;
+  title: string;
+  summary: string;
+  reasons: string[];
+};
+
 export type OpportunityCandidate = {
   ticker: string;
   name: string;
@@ -70,8 +95,14 @@ export type OpportunityAnalysis = {
   mode: "analysis";
   policy: GoalPolicy;
   evaluatedAt: string;
+  decisionStatus:
+    | "agent_verified"
+    | "rules_only"
+    | "insufficient_evidence";
+  readiness: GoalReadiness;
   recommendedTicker?: string;
   candidates: OpportunityCandidate[];
+  outcomes: DecisionOutcome[];
   consultation: AgentConsultation;
   proofRoot: `0x${string}`;
 };
@@ -179,6 +210,7 @@ export type AutonomousGoal = {
 
 export type StartGoalInput = {
   goal: string;
+  profile?: FinancialGoalProfile;
   amountIn: string;
   windowMinutes: number;
   cadenceSeconds?: number;

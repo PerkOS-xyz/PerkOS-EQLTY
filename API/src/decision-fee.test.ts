@@ -187,8 +187,17 @@ function analysis(recommended: boolean): OpportunityAnalysis {
       paused: false,
     },
     evaluatedAt: "2026-07-30T14:00:00.000Z",
+    decisionStatus: recommended
+      ? "agent_verified"
+      : "insufficient_evidence",
+    readiness: {
+      status: "ready_to_compare",
+      summary: "Ready to compare",
+      reasons: [],
+    },
     recommendedTicker: recommended ? "AMZN" : undefined,
     candidates: [],
+    outcomes: [],
     consultation: {
       mode: "hermes-a2a",
       status: "verified",

@@ -147,6 +147,56 @@ describe("opportunity analysis", () => {
     expect(result.consultation.mode).toBe("hermes-a2a");
   });
 
+  it("uses live policy evidence for deterministic rationale", async () => {
+    const service = createService({
+      consultation: {
+        consult: async () => ({
+          mode: "deterministic-fallback",
+          status: "unavailable",
+          scout: {
+            role: "scout",
+            status: "invalid",
+            detail: "Scout reasoning did not cite the sealed block",
+            facts: [],
+          },
+          risk: {
+            role: "risk",
+            status: "unavailable",
+            detail: "Risk never ran",
+            facts: [],
+          },
+          trader: {
+            role: "trader",
+            status: "unavailable",
+            detail: "Trader never ran",
+            facts: [],
+          },
+          auditor: {
+            role: "auditor",
+            status: "unavailable",
+            detail: "Auditor never ran",
+            facts: [],
+          },
+        }),
+      },
+    });
+
+    const result = await service.analyze(input());
+
+    const recommended = result.candidates.find(
+      (candidate) => candidate.status === "recommended",
+    );
+    const bestEligible = result.candidates.find(
+      (candidate) => candidate.status === "eligible",
+    );
+
+    expect(recommended).toBeDefined();
+    expect(recommended?.reason).toContain(
+      "Policy-compatible route selected from live evidence",
+    );
+    expect(bestEligible?.reason).toContain("policy floor");
+  });
+
   it("rejects unavailable ENS policy and disallowed tickers", async () => {
     const unavailable = createService({
       controlPlane: {

@@ -153,7 +153,7 @@ export class OpportunityAnalysisService {
     }
     for (const candidate of candidates) {
       if (candidate.status === "eligible") {
-        candidate.reason = detailedPolicyReason(candidate, manifest);
+        candidate.reason = detailedPolicyReason(candidate, manifest.policy);
       }
     }
 

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type {
   AutonomousGoal,
+  GoalExecutionAuthorization,
   GoalIdentity,
   GoalInput,
   OpportunityAnalysis,
@@ -179,6 +180,50 @@ export class AutonomousGoalService {
     return publicGoal(goal);
   }
 
+  async executionAuthorization(
+    id: string,
+    identity: GoalIdentity,
+  ): Promise<GoalExecutionAuthorization | undefined> {
+    const goal = await this.ownedGoal(id, identity);
+    if (!goal) return undefined;
+    const analysis = goal.latest;
+    const ticker = analysis?.recommendedTicker;
+    const manifestHash = analysis?.policy.manifestHash;
+    if (!analysis || !ticker || !manifestHash) {
+      throw new Error("The goal has no executable recommendation");
+    }
+    if (goal.status !== "completed" || !goal.decisionFee) {
+      throw new Error("The decision proof is not complete");
+    }
+    const fee = goal.decisionFee;
+    if (fee.status === "settled" && fee.receipt) {
+      return {
+        goalId: goal.id,
+        amountIn: goal.amountIn,
+        ticker,
+        proofRoot: analysis.proofRoot,
+        policyManifestHash: manifestHash,
+        payment: {
+          mode: "live",
+          status: "settled",
+          authorizationNonce: fee.receipt.authorizationNonce,
+          transaction: fee.receipt.transaction,
+        },
+      };
+    }
+    if (fee.status === "preview") {
+      return {
+        goalId: goal.id,
+        amountIn: goal.amountIn,
+        ticker,
+        proofRoot: analysis.proofRoot,
+        policyManifestHash: manifestHash,
+        payment: { mode: "preview", status: "preview" },
+      };
+    }
+    throw new Error("The x402 decision authorization is not settled");
+  }
+
   private async ownedGoal(
     id: string,
     identity: GoalIdentity,
@@ -291,8 +336,11 @@ function gateDetail(gate: ReturnType<typeof oneClawGate>): string {
   if (!gate.required) {
     return "This purchase is below the 3 USDG 1Claw threshold.";
   }
+  if (gate.executionAuthorized) {
+    return "The Trader rail is linked and authorized by the user's 1Claw policy.";
+  }
   if (gate.linked) {
-    return "The trader is linked to 1Claw, but live x401 and x402 authorization is still fail-closed.";
+    return "The Trader rail is linked, but live 1Claw authorization remains fail-closed.";
   }
   return "Analysis may continue, but purchases of 3 USDG or more are locked until the trader has an active 1Claw execution rail.";
 }

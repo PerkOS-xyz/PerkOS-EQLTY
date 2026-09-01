@@ -162,6 +162,19 @@ function VerificationLogs({ run }: { run: TradeRun }) {
       </header>
 
       <div className="verificationLogGrid">
+        {run.signal?.payment.mode === "live" &&
+          run.signal.payment.transaction && (
+            <a
+              href={transactionUrl(run.signal.payment.transaction)}
+              rel="noreferrer"
+              target="_blank"
+            >
+              <span>x402 decision payment</span>
+              <strong>Recommendation authorized</strong>
+              <code>{short(run.signal.payment.authorizationNonce)}</code>
+              <b>Verify payment ↗</b>
+            </a>
+          )}
         {market.transactionHash && (
           <a
             href={transactionEventsUrl(market.transactionHash)}

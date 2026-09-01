@@ -114,6 +114,7 @@ export function readWalletReadiness(
 }
 
 export function startProofRun(
+  goalId: string,
   strategy: ExecutionStrategy,
   amountIn: string,
   execute: boolean,
@@ -121,6 +122,7 @@ export function startProofRun(
   return request<TradeRun>("/api/runs", {
     method: "POST",
     body: JSON.stringify({
+      goalId,
       strategyId: strategy.id,
       strategy,
       amountIn,

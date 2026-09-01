@@ -86,6 +86,7 @@ export function useProofRun(session?: AutonomousGoal): ProofRunState {
       });
       setStrategy(nextStrategy);
       const proof = await startProofRun(
+        session.id,
         nextStrategy,
         session.amountIn,
         false,
@@ -106,6 +107,7 @@ export function useProofRun(session?: AutonomousGoal): ProofRunState {
     if (
       !strategy ||
       !run ||
+      !session ||
       run.status !== "approved" ||
       !acknowledged ||
       !readiness?.ready
@@ -159,7 +161,14 @@ export function useProofRun(session?: AutonomousGoal): ProofRunState {
         setStrategy(activeStrategy);
       }
       setPurchaseStage("executing");
-      setRun(await startProofRun(activeStrategy, run.amountIn, true));
+      setRun(
+        await startProofRun(
+          session.id,
+          activeStrategy,
+          run.amountIn,
+          true,
+        ),
+      );
       setReviewOpen(false);
     } catch (cause) {
       setError(
@@ -169,7 +178,7 @@ export function useProofRun(session?: AutonomousGoal): ProofRunState {
       setPurchaseBusy(false);
       setPurchaseStage("idle");
     }
-  }, [acknowledged, readiness?.ready, run, strategy, wallet]);
+  }, [acknowledged, readiness?.ready, run, session, strategy, wallet]);
 
   const openReview = useCallback(async () => {
     if (!run || run.status !== "approved") return;

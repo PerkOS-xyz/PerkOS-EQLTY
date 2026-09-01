@@ -77,11 +77,24 @@ export type TradeRun = {
   rejectionReason?: string;
   transactionHash?: `0x${string}`;
   signal?: {
+    goalId: string;
+    decisionProofRoot: `0x${string}`;
+    policyManifestHash: `0x${string}`;
     sourceAgent: string;
     side: string;
     confidence: number;
     rationale: string;
-    payment: { mode: ProofMode };
+    payment:
+      | {
+          mode: "live";
+          status: "settled";
+          authorizationNonce: `0x${string}`;
+          transaction?: `0x${string}`;
+        }
+      | {
+          mode: "preview";
+          status: "preview";
+        };
   };
   market?: {
     liquidityUsd: number;

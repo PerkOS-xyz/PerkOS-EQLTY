@@ -52,6 +52,11 @@ describe("proof runs", () => {
     expect(run.signal?.rationale).toContain(
       "Uniswap V4 deviates 20 bps",
     );
+    expect(run.signal).toMatchObject({
+      goalId: "goal-1",
+      decisionProofRoot: `0x${"77".repeat(32)}`,
+      policyManifestHash: `0x${"aa".repeat(32)}`,
+    });
     expect(run.proofBundleRoot).toMatch(/^0x[0-9a-f]{64}$/);
     expect(run.transactionHash).toBeUndefined();
   });
@@ -69,6 +74,19 @@ describe("proof runs", () => {
     expect(run.rejectionReason).toBe("ENS fleet policy is paused");
     expect(run.steps.some((step) => step.status === "blocked")).toBe(true);
     expect(run.handoffs.at(-1)?.kind).toBe("audit-bundle");
+  });
+
+  it("rejects a decision sealed under an older ENS policy", async () => {
+    const changed = controlPlane();
+    changed.manifestHash = `0x${"bb".repeat(32)}`;
+    const { service, strategyId } = setup({
+      controlPlane: { resolve: async () => changed },
+    });
+
+    const run = await service.run(runInput(strategyId));
+
+    expect(run.status).toBe("rejected");
+    expect(run.rejectionReason).toContain("ENS policy changed");
   });
 
   it("executes a wallet-authorized purchase below the 1Claw lock", async () => {
@@ -100,9 +118,14 @@ describe("proof runs", () => {
     expect(run.transactionHash).toBe(`0x${"55".repeat(32)}`);
   });
 
-  it("keeps x401 and x402 required for a protected purchase", async () => {
-    const prepare = vi.fn();
-    const execute = vi.fn();
+  it("executes a protected purchase with x402 and 1Claw authorization", async () => {
+    const prepare = vi.fn().mockResolvedValue(preparedSwap("3000000"));
+    const execute = vi.fn().mockResolvedValue({
+      transactionHash: `0x${"66".repeat(32)}`,
+      requestId: "protected-quote",
+      routing: "CLASSIC",
+      quotedAmountOut: "9900000000000000",
+    });
     const { service, strategyId } = setup(
       {
         controlPlane: {
@@ -127,11 +150,39 @@ describe("proof runs", () => {
         minimumAmount: "3000000",
         executionAuthorized: true,
       },
+      authorization: {
+        ...decisionAuthorization(),
+        amountIn: "3000000",
+      },
+    });
+
+    expect(run.status).toBe("executed");
+    expect(run.signal?.payment.status).toBe("settled");
+    expect(prepare).toHaveBeenCalledOnce();
+    expect(execute).toHaveBeenCalledOnce();
+  });
+
+  it("rejects execution when the decision payment is only previewed", async () => {
+    const execute = vi.fn();
+    const { service, strategyId } = setup({
+      executor: {
+        ready: () => true,
+        prepare: vi.fn(),
+        execute,
+      },
+    });
+
+    const run = await service.run({
+      ...runInput(strategyId),
+      execute: true,
+      authorization: {
+        ...decisionAuthorization(),
+        payment: { mode: "preview", status: "preview" },
+      },
     });
 
     expect(run.status).toBe("rejected");
-    expect(run.rejectionReason).toContain("x401 and x402");
-    expect(prepare).not.toHaveBeenCalled();
+    expect(run.rejectionReason).toContain("x402 decision authorization");
     expect(execute).not.toHaveBeenCalled();
   });
 
@@ -160,6 +211,10 @@ describe("proof runs", () => {
         linked: false,
         minimumAmount: "3000000",
         executionAuthorized: false,
+      },
+      authorization: {
+        ...decisionAuthorization(),
+        amountIn: "3000000",
       },
     });
 
@@ -218,7 +273,7 @@ function setup(
   return { service, strategyId: strategy.id };
 }
 
-function preparedSwap() {
+function preparedSwap(amount = "1000000") {
   return {
     amountOut: "9900000000000000",
     requestId: "execution-quote",
@@ -226,7 +281,7 @@ function preparedSwap() {
     rawQuote: {
       input: {
         token: "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
-        amount: "1000000",
+        amount,
       },
     },
     transaction: {
@@ -251,6 +306,23 @@ function runInput(strategyId: string) {
       linked: false,
       minimumAmount: "3000000",
       executionAuthorized: true,
+    },
+    authorization: decisionAuthorization(),
+  };
+}
+
+function decisionAuthorization() {
+  return {
+    goalId: "goal-1",
+    amountIn: "1000000",
+    ticker: "NVDA",
+    proofRoot: `0x${"77".repeat(32)}` as `0x${string}`,
+    policyManifestHash: `0x${"aa".repeat(32)}` as `0x${string}`,
+    payment: {
+      mode: "live" as const,
+      status: "settled" as const,
+      authorizationNonce: `0x${"88".repeat(32)}` as `0x${string}`,
+      transaction: `0x${"99".repeat(32)}` as `0x${string}`,
     },
   };
 }

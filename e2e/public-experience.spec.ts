@@ -16,6 +16,16 @@ test("explains the agent decision workflow", async ({ page }) => {
     page.getByText(/Exact proof fee|decision fee is requested only/i),
   ).toBeVisible();
 
+  const objective = page.getByLabel("Investment objective");
+  await page.getByRole("button", { name: "Conservative income" }).click();
+  await expect(objective).toHaveValue(/lowest risk stock token/i);
+  await expect(
+    page.getByRole("button", { name: "Conservative income" }),
+  ).toHaveAttribute("aria-pressed", "true");
+
+  await page.getByRole("button", { name: "3 USDG", exact: true }).click();
+  await expect(page.getByLabel("Goal budget in USDG")).toHaveValue("3");
+
   await expect
     .poll(() => page.locator(".marketCard").count(), { timeout: 45_000 })
     .toBeGreaterThan(0);

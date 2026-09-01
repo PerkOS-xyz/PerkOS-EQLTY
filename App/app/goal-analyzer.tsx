@@ -5,12 +5,35 @@ import type {
   OpportunityAnalysis,
   OpportunityCandidate,
 } from "../lib/goal-types";
+import {
+  addressUrl,
+  transactionEventsUrl,
+} from "../lib/execution-api";
+import { ensManagerUrl } from "../lib/fleet-api";
 import { ProofRunPanel } from "./proof-run-panel";
 import type { GoalAnalysisState } from "./use-goal-analysis";
 import { DecisionRoom } from "./decision-room";
 import { useProofRun } from "./use-proof-run";
 
 const roles = ["Scout", "Risk", "Trader", "Auditor"];
+const goalPresets = [
+  {
+    label: "Conservative income",
+    value:
+      "Find the lowest risk stock token with high liquidity and consistent pricing.",
+  },
+  {
+    label: "Momentum swing",
+    value:
+      "Find the strongest near-term momentum candidate under active policy limits.",
+  },
+  {
+    label: "Balanced growth",
+    value:
+      "Find a candidate balancing risk and return with clean Graph liquidity and fast Uniswap execution.",
+  },
+];
+const amountPresets = ["1", "3", "5", "10"];
 
 export function GoalAnalyzer({ state }: { state: GoalAnalysisState }) {
   const analysis = state.session?.latest;
@@ -45,6 +68,25 @@ export function GoalAnalyzer({ state }: { state: GoalAnalysisState }) {
               value={state.goalText}
             />
           </label>
+          <div
+            aria-label="Goal presets"
+            className="goalPresetActions"
+            role="group"
+          >
+            {goalPresets.map((preset) => (
+              <button
+                aria-pressed={state.goalText === preset.value}
+                className={`goalPresetButton${
+                  state.goalText === preset.value ? " active" : ""
+                }`}
+                key={preset.label}
+                onClick={() => state.setGoalText(preset.value)}
+                type="button"
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
 
           <div className="goalControlStack">
             <label className="goalCandidateFocus">
@@ -92,6 +134,21 @@ export function GoalAnalyzer({ state }: { state: GoalAnalysisState }) {
                     value={state.amount}
                   />
                   <b>USDG</b>
+                </div>
+                <div className="goalAmountPresets" role="group">
+                  {amountPresets.map((preset) => (
+                    <button
+                      aria-pressed={state.amount === preset}
+                      className={`goalAmountPreset${
+                        state.amount === preset ? " active" : ""
+                      }`}
+                      key={preset}
+                      onClick={() => state.setAmount(preset)}
+                      type="button"
+                    >
+                      {preset} USDG
+                    </button>
+                  ))}
                 </div>
               </label>
               <label>
@@ -229,6 +286,23 @@ function GoalProgress({
           {analysis ? short(analysis.proofRoot) : "Waiting for first cycle"}
         </span>
       </div>
+      <div className="goalEvidenceGrid">
+        {goalEvidenceCards(analysis).map((entry) => (
+          <article
+            className={`goalEvidenceCard ${entry.state}`}
+            key={entry.title}
+          >
+            <span>{entry.title}</span>
+            <strong>{entry.value}</strong>
+            <small>{entry.detail}</small>
+            {entry.link && (
+              <a href={entry.link} rel="noreferrer" target="_blank">
+                {entry.linkLabel}
+              </a>
+            )}
+          </article>
+        ))}
+      </div>
 
       {session.error && <p className="goalError">{session.error}</p>}
 
@@ -291,6 +365,126 @@ function GoalProgress({
       )}
     </div>
   );
+}
+
+function goalEvidenceCards(
+  analysis?: OpportunityAnalysis,
+): Array<{
+  title: string;
+  detail: string;
+  state: "waiting" | "ready" | "blocked";
+  value: string;
+  link?: string;
+  linkLabel?: string;
+}> {
+  if (!analysis) {
+    return [
+      {
+        title: "ENS policy",
+        value: "Waiting",
+        detail: "No policy has been resolved yet.",
+        state: "waiting",
+      },
+      {
+        title: "The Graph",
+        value: "Waiting",
+        detail: "No candidate evidence loaded yet.",
+        state: "waiting",
+      },
+      {
+        title: "Uniswap",
+        value: "Waiting",
+        detail: "No live route requested yet.",
+        state: "waiting",
+      },
+      {
+        title: "Audit",
+        value: "Waiting",
+        detail: "No proof root yet.",
+        state: "waiting",
+      },
+    ];
+  }
+
+  const policySource = ["ens", "durin"].includes(analysis.policy.source)
+    ? "ENS"
+    : "Local";
+  const policyBlocked = analysis.policy.paused
+    ? "Fleet paused"
+    : analysis.policy.allowedTickers.length === 0
+      ? "No allowed tickers"
+      : "";
+
+  const bestMatch =
+    analysis.candidates.find((candidate) =>
+      candidate.status === "recommended" || candidate.status === "eligible",
+    ) ??
+    analysis.candidates[0];
+  const graphEvidence = bestMatch?.graphEvidence;
+  const graphReady = analysis.candidates.filter(
+    (candidate) => candidate.orchestrationReady,
+  ).length;
+  const graphRoute = analysis.candidates.find(
+    (candidate) => candidate.uniswapRequestId,
+  );
+
+  return [
+    {
+      title: "ENS policy",
+      value: `${policySource} v${analysis.policy.version ?? "local"}`,
+      detail:
+        policyBlocked ||
+        `${analysis.policy.allowedTickers.length} allowed symbols under active rules`,
+      state: policyBlocked ? "blocked" : "ready",
+      link: analysis.policy.rootName
+        ? ensManagerUrl(analysis.policy.rootName)
+        : undefined,
+      linkLabel: analysis.policy.rootName ? "Open ENS policy ↗" : undefined,
+    },
+    {
+      title: "The Graph",
+      value: `${graphReady} verified routes`,
+      detail: graphEvidence
+        ? `${graphEvidence.blockNumber} checkpoint · ${formatUsd(
+            graphEvidence.liquidityUsd,
+          )} liquidity`
+        : "No candidate passed the Graph evidence check",
+      state: graphReady > 0 ? "ready" : "blocked",
+      link: graphEvidence?.transactionHash
+        ? transactionEventsUrl(graphEvidence.transactionHash)
+        : undefined,
+      linkLabel: graphEvidence ? "Open Graph event ↗" : undefined,
+    },
+    {
+      title: "Uniswap",
+      value:
+        graphRoute?.uniswapRequestId
+          ? `${graphRoute.ticker} route ${short(graphRoute.uniswapRequestId)}`
+          : "No live route",
+      detail:
+        graphRoute?.uniswapRouting ??
+        "Waiting for an executable V4 path and quote signature",
+      state: graphRoute?.uniswapRequestId ? "ready" : "waiting",
+      link: graphRoute?.graphEvidence?.poolAddress
+        ? addressUrl(graphRoute.graphEvidence.poolAddress)
+        : undefined,
+      linkLabel:
+        graphRoute?.graphEvidence?.poolAddress
+          ? "Open V4 contract ↗"
+          : undefined,
+    },
+    {
+      title: "Audit",
+      value: short(analysis.proofRoot),
+      detail:
+        analysis.candidates.find(
+          (candidate) => candidate.status === "recommended",
+        )
+          ? "Cycle sealed with proof root"
+          : "Workflow ended without a winning recommendation",
+      state: analysis.proofRoot ? "ready" : "waiting",
+    },
+  ];
 }
 
 function DecisionFeePanel({
@@ -417,6 +611,14 @@ function formatPrice(value?: string): string {
   return Number.isFinite(number)
     ? `$${number.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
     : value;
+}
+
+function formatUsd(value: number): string {
+  return `${value.toLocaleString(undefined, {
+    maximumFractionDigits: 0,
+    style: "currency",
+    currency: "USD",
+  })}`;
 }
 
 function formatUsdG(value: string): string {

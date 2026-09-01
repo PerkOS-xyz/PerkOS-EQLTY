@@ -48,3 +48,5 @@ tmp/
 .vscode/
 *.swp
 *~
+.vercel
+.env*

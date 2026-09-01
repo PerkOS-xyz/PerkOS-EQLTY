@@ -69,6 +69,47 @@
   gap: 18px;
 }
 
+.goalPresetActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 6px 0 12px;
+}
+
+.goalPresetButton,
+.goalAmountPreset {
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid #32423a;
+  border-radius: 999px;
+  background: #121916;
+  color: #9eaa9f;
+  cursor: pointer;
+  font: 500 12px "DM Mono", monospace;
+  text-transform: uppercase;
+}
+
+.goalPresetButton:hover,
+.goalAmountPreset:hover,
+.goalPresetButton.active,
+.goalAmountPreset.active {
+  border-color: #6de08f;
+  background: #17251c;
+  color: #c9f4d4;
+}
+
+.goalAmountPreset {
+  min-height: 27px;
+  padding: 0 9px;
+  font-size: 11px;
+}
+
+.goalAmountPresets {
+  display: flex;
+  gap: 7px;
+  margin-top: 8px;
+}
+
 .goalForm label {
   display: block;
 }
@@ -386,6 +427,20 @@
 }
 
 @media (max-width: 700px) {
+  .goalPresetActions {
+    gap: 6px;
+  }
+
+  .goalPresetButton,
+  .goalAmountPreset {
+    padding-inline: 9px;
+    font-size: 10px;
+  }
+
+  .goalEvidenceGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .decisionFee {
     grid-template-columns: 1fr;
   }
@@ -455,6 +510,65 @@
 .goalGateRow b {
   color: #c5cec8;
   font-size: 13px;
+}
+
+.goalEvidenceGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.goalEvidenceCard {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px;
+  border: 1px solid #1f2d28;
+  border-radius: 10px;
+  background: #090d0b;
+}
+
+.goalEvidenceCard span {
+  color: #7de29c;
+  font: 500 13px "DM Mono", monospace;
+  text-transform: uppercase;
+}
+
+.goalEvidenceCard strong {
+  color: #d4ddd8;
+  font-size: 13px;
+}
+
+.goalEvidenceCard small {
+  color: #7e8782;
+  font-size: 12px;
+}
+
+.goalEvidenceCard a {
+  margin-top: auto;
+  color: #8be8a8;
+  font: 500 12px "DM Mono", monospace;
+  text-decoration: none;
+}
+
+.goalEvidenceCard a:hover {
+  text-decoration: underline;
+}
+
+.goalEvidenceCard.ready {
+  border-color: #315c3e;
+  background: #0d1412;
+}
+
+.goalEvidenceCard.blocked {
+  border-color: #6f3e3b;
+  background: #130d0d;
+}
+
+.goalEvidenceCard.waiting {
+  border-color: #3d463f;
 }
 
 .candidateResult {

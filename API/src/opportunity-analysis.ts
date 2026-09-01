@@ -319,8 +319,12 @@ function detailedPolicyReason(
   )} and deviation limit ${policy.maxDeviationBps} bps.`;
 }
 
-function numberMoney(value: number): string {
-  return `$${value.toLocaleString("en-US", {
+function numberMoney(value?: number): string {
+  if (!Number.isFinite(value ?? Number.NaN)) {
+    return "value unavailable";
+  }
+
+  return `$${value!.toLocaleString("en-US", {
     maximumFractionDigits: 0,
   })}`;
 }

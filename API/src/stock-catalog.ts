@@ -13,9 +13,9 @@ import type {
 } from "./market-types.js";
 import { UniswapClient } from "./uniswap-client.js";
 import {
-  hasObservedV4Route,
-  UNISWAP_V4_COVERAGE_OBSERVED_AT,
-} from "./uniswap-coverage.js";
+  UniswapRwaMarketService,
+  type UniswapRwaCoverage,
+} from "./uniswap-rwa-market.js";
 
 const assetsUrl = "https://api.robinhood.com/rhj/assets";
 const pricesUrl = "https://api.robinhood.com/rhj/prices";
@@ -27,6 +27,7 @@ type Dependencies = {
   fetchFn?: typeof fetch;
   now?: () => number;
   uniswap?: Pick<UniswapClient, "quote" | "ready">;
+  uniswapMarket?: Pick<UniswapRwaMarketService, "coverage">;
   graph?: Pick<GraphEvidenceService, "evidence" | "ready">;
 };
 
@@ -36,6 +37,10 @@ export class StockCatalogService {
   private readonly fetchFn: typeof fetch;
   private readonly now: () => number;
   private readonly uniswap: Pick<UniswapClient, "quote" | "ready">;
+  private readonly uniswapMarket: Pick<
+    UniswapRwaMarketService,
+    "coverage"
+  >;
   private readonly graph: Pick<GraphEvidenceService, "evidence" | "ready">;
 
   constructor(
@@ -46,6 +51,9 @@ export class StockCatalogService {
     this.now = dependencies.now ?? Date.now;
     this.uniswap =
       dependencies.uniswap ?? new UniswapClient(config, this.fetchFn);
+    this.uniswapMarket =
+      dependencies.uniswapMarket ??
+      new UniswapRwaMarketService(config, { fetch: this.fetchFn });
     this.graph =
       dependencies.graph ??
       new GraphEvidenceService(config, {
@@ -119,7 +127,9 @@ export class StockCatalogService {
             10_000
           : undefined;
       const reasons = entry.reasons.filter(
-        (reason) => !reason.startsWith("No observed Uniswap"),
+        (reason) =>
+          !reason.startsWith("Not observed in the Uniswap") &&
+          !reason.startsWith("Uniswap market coverage"),
       );
       if (
         deviationBps !== undefined &&
@@ -170,6 +180,7 @@ export class StockCatalogService {
 
       return {
         ...entry,
+        uniswapCoverage: "quote_verified",
         uniswapRoutable: true,
         uniswapRouting: quote.routing,
         uniswapRouteVerifiedAt: new Date(this.now()).toISOString(),
@@ -194,9 +205,10 @@ export class StockCatalogService {
   }
 
   private async refresh(): Promise<StockCatalog> {
-    const [assetsBody, pricesBody] = await Promise.all([
+    const [assetsBody, pricesBody, uniswapCoverage] = await Promise.all([
       this.fetchJson<{ assets?: RobinhoodAsset[] }>(assetsUrl),
       this.fetchJson<{ quotes?: RobinhoodQuote[] }>(pricesUrl),
+      this.uniswapMarket.coverage().catch(() => undefined),
     ]);
     const quotes = new Map(
       (pricesBody.quotes ?? []).map((quote) => [
@@ -204,6 +216,7 @@ export class StockCatalogService {
         quote,
       ]),
     );
+    const observedRoutes = coverageAddresses(uniswapCoverage);
     const assets = (assetsBody.assets ?? [])
       .flatMap((asset): StockCatalogAsset[] => {
         const deployment = asset.deployments.find(
@@ -217,6 +230,8 @@ export class StockCatalogService {
             asset,
             deployment.contractAddress,
             quotes.get(asset.tokenSymbol.toUpperCase()),
+            observedRoutes.has(deployment.contractAddress.toLowerCase()),
+            uniswapCoverage?.observedAt,
           ),
         ];
       })
@@ -241,11 +256,13 @@ export class StockCatalogService {
     asset: RobinhoodAsset,
     tokenAddress: EvmAddress,
     quote?: RobinhoodQuote,
+    uniswapObserved = false,
+    uniswapObservedAt?: string,
   ): StockCatalogAsset {
     const ticker = asset.tokenSymbol.toUpperCase();
     const robinhoodStatus = normalizeStatus(asset.status);
     const tradability = normalizeTradability(asset);
-    const uniswapRoutable = hasObservedV4Route(ticker);
+    const uniswapRoutable = uniswapObserved;
     const reasons: string[] = [];
 
     if (robinhoodStatus !== "ACTIVE") {
@@ -267,8 +284,10 @@ export class StockCatalogService {
     ) {
       reasons.push("Robinhood reference price is stale");
     }
-    if (!uniswapRoutable) {
-      reasons.push("No observed Uniswap V4 route");
+    if (!uniswapObservedAt) {
+      reasons.push("Uniswap market coverage is unavailable");
+    } else if (!uniswapRoutable) {
+      reasons.push("Not observed in the Uniswap Robinhood market");
     }
 
     const referencePrice = quote
@@ -295,10 +314,15 @@ export class StockCatalogService {
       referencePrice,
       referenceUpdatedAt: quote?.generatedAt,
       uniswapRoutable,
-      uniswapRouting: uniswapRoutable ? "V4 OBSERVED" : undefined,
-      uniswapRouteVerifiedAt: uniswapRoutable
-        ? UNISWAP_V4_COVERAGE_OBSERVED_AT
+      uniswapCoverage: !uniswapObservedAt
+        ? "unavailable"
+        : uniswapRoutable
+          ? "market_observed"
+          : "not_observed",
+      uniswapMarketObservedAt: uniswapRoutable
+        ? uniswapObservedAt
         : undefined,
+      uniswapRouting: uniswapRoutable ? "RWA MARKET" : undefined,
       quotedAmountIn: this.config.MAINNET_QUOTE_AMOUNT,
       status: reasons.length === 0 ? "available" : "blocked",
       reasons,
@@ -344,6 +368,16 @@ function summarizeGraph(
     checkpointBlock: evidence.stream.checkpointBlock,
     reasons: evidence.health.reasons,
   };
+}
+
+function coverageAddresses(
+  coverage?: UniswapRwaCoverage,
+): Set<string> {
+  return new Set(
+    (coverage?.assets ?? []).map((asset) =>
+      asset.tokenAddress.toLowerCase(),
+    ),
+  );
 }
 
 function normalizeStatus(status: string): string {

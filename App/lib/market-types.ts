@@ -1,4 +1,9 @@
 export type StockAvailability = "available" | "caution" | "blocked";
+export type UniswapCoverageStatus =
+  | "unavailable"
+  | "not_observed"
+  | "market_observed"
+  | "quote_verified";
 
 export type GraphEvidenceSummary = {
   source: "the-graph-substreams";
@@ -38,6 +43,8 @@ export type StockCatalogAsset = {
   referencePrice?: number;
   referenceUpdatedAt?: string;
   uniswapRoutable: boolean;
+  uniswapCoverage?: UniswapCoverageStatus;
+  uniswapMarketObservedAt?: string;
   uniswapRouting?: string;
   uniswapRouteVerifiedAt?: string;
   uniswapRequestId?: string;

@@ -282,7 +282,8 @@ type AppDependencies = {
     Partial<Pick<OneClawFleetProvisioner, "authorization" | "status">>;
   graphEvidence?: Pick<GraphEvidenceService, "evidence"> &
     Partial<Pick<GraphEvidenceService, "series" | "status">>;
-  uniswapRwaMarket?: Pick<UniswapRwaMarketService, "series">;
+  uniswapRwaMarket?: Pick<UniswapRwaMarketService, "series"> &
+    Partial<Pick<UniswapRwaMarketService, "coverage">>;
   goals?: Pick<AutonomousGoalService, "read" | "start" | "tick"> &
     Partial<
       Pick<
@@ -308,8 +309,15 @@ export function createApp(
   dependencies: AppDependencies = {},
 ): Express {
   const app = express();
+  const uniswapRwaMarket =
+    dependencies.uniswapRwaMarket ?? new UniswapRwaMarketService(config);
   const stockCatalog =
-    dependencies.stockCatalog ?? new StockCatalogService(config);
+    dependencies.stockCatalog ??
+    new StockCatalogService(config, {
+      uniswapMarket: uniswapRwaMarket.coverage
+        ? { coverage: uniswapRwaMarket.coverage.bind(uniswapRwaMarket) }
+        : new UniswapRwaMarketService(config),
+    });
   const ownerAuth = dependencies.ownerAuth ?? new OwnerAuth(config);
   const ensControlPlane =
     dependencies.ensControlPlane ?? new EnsControlPlaneService(config);
@@ -342,8 +350,6 @@ export function createApp(
   };
   const graphEvidence =
     dependencies.graphEvidence ?? new GraphEvidenceService(config);
-  const uniswapRwaMarket =
-    dependencies.uniswapRwaMarket ?? new UniswapRwaMarketService(config);
   const goals =
     dependencies.goals ??
     new AutonomousGoalService(

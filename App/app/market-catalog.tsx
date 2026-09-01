@@ -56,7 +56,7 @@ export function MarketCatalog() {
           <span className="eyebrow">Live market universe</span>
           <h2>Stock Tokens</h2>
           <p>
-            Real Uniswap 1D market curves, V4 routes and{" "}
+            Real Uniswap 1D market curves, live market coverage and{" "}
             {seriesState === "ready"
               ? "live Substreams evidence"
               : graphIntegration?.status === "degraded"
@@ -73,7 +73,7 @@ export function MarketCatalog() {
               </span>
               <span>
                 <b>{catalog.summary.routed}</b>
-                V4 routes
+                Uniswap markets
               </span>
               <span>
                 <b>{catalog.summary.orchestrationReady}</b>
@@ -154,7 +154,7 @@ export function MarketCatalog() {
             ))}
           {!loading && !error && featuredAssets.length === 0 && (
             <div className="marketEmpty">
-              No observed Uniswap V4 stock-token routes are available.
+              No Robinhood stock-token markets are currently observed by Uniswap.
             </div>
           )}
         </div>

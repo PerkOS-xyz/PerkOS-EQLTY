@@ -52,8 +52,10 @@ The product focuses on three sponsor integrations:
 
 - [`uniswap-client.ts`](API/src/uniswap-client.ts#L22) requests V4 exact input
   quotes from the Uniswap Trading API on Robinhood Chain.
-- [`stock-catalog.ts`](API/src/stock-catalog.ts#L90) combines each quote with a
-  reference price to score route deviation per candidate.
+- [`uniswap-rwa-market.ts`](API/src/uniswap-rwa-market.ts#L98) discovers the
+  current Robinhood market universe observed by Uniswap using token addresses.
+- [`stock-catalog.ts`](API/src/stock-catalog.ts#L90) promotes market coverage to
+  an executable route only after a fresh V4 quote and deviation check.
 - [`proof-run.ts`](API/src/proof-run.ts#L227) keeps the routing, quoted output
   and request id inside the four agent proof bundle.
 - [`EQLTYVault.sol`](Contracts/src/EQLTYVault.sol#L214) executes the approved

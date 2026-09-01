@@ -12,7 +12,7 @@ type Filter = "all" | "routed" | "decision" | StockAvailability;
 
 const filters: Array<{ value: Filter; label: string }> = [
   { value: "all", label: "All stocks" },
-  { value: "routed", label: "Uniswap V4" },
+  { value: "routed", label: "Uniswap market" },
   { value: "decision", label: "Decision ready" },
   { value: "available", label: "Price aligned" },
   { value: "caution", label: "Review" },
@@ -61,8 +61,8 @@ export default function MarketsPage() {
             <span className="eyebrow">Robinhood Chain markets</span>
             <h1>Explore stock tokens</h1>
             <p>
-              Live reference prices from Robinhood, observed Uniswap V4 routes
-              and The Graph evidence when a fleet completes its assessment.
+              Live Robinhood assets, current Uniswap market coverage and The
+              Graph evidence when a fleet completes its assessment.
             </p>
           </div>
           {catalog && (
@@ -72,7 +72,7 @@ export default function MarketsPage() {
                 <strong>{catalog.summary.total}</strong>
               </span>
               <span>
-                <small>V4 routes</small>
+                <small>Uniswap markets</small>
                 <strong>{catalog.summary.routed}</strong>
               </span>
               <span>
@@ -103,7 +103,7 @@ export default function MarketsPage() {
           <span>
             <i />
             Routes
-            <b>Uniswap V4</b>
+            <b>Uniswap market live</b>
           </span>
           <span>
             <i />

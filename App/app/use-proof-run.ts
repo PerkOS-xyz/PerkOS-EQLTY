@@ -16,6 +16,7 @@ import {
   universalRouter,
 } from "../lib/execution-api";
 import type { WalletReadiness } from "../lib/execution-api";
+import type { ExecutionConfig } from "../lib/execution-api";
 import {
   provisionWalletStrategy,
   type PurchaseStage,
@@ -36,6 +37,7 @@ export type ProofRunState = {
   reviewOpen: boolean;
   reviewBusy: boolean;
   readiness?: WalletReadiness;
+  execution?: ExecutionConfig["execution"];
   acknowledged: boolean;
   error?: string;
   runProof: () => void;
@@ -56,6 +58,8 @@ export function useProofRun(session?: AutonomousGoal): ProofRunState {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewBusy, setReviewBusy] = useState(false);
   const [readiness, setReadiness] = useState<WalletReadiness>();
+  const [execution, setExecution] =
+    useState<ExecutionConfig["execution"]>();
   const [acknowledged, setAcknowledged] = useState(false);
   const [error, setError] = useState<string>();
 
@@ -186,21 +190,34 @@ export function useProofRun(session?: AutonomousGoal): ProofRunState {
     setReviewBusy(true);
     setAcknowledged(false);
     setReadiness(undefined);
+    setExecution(undefined);
     setError(undefined);
     try {
-      const walletReadiness = await readWalletReadiness(run.amountIn);
+      const [walletReadiness, config] = await Promise.all([
+        readWalletReadiness(run.amountIn),
+        readExecutionConfig(),
+      ]);
+      const executionReady =
+        config.execution.status === "ready" &&
+        config.execution.decisionAuthorization === "live" &&
+        (!run.oneclaw.required ||
+          config.execution.protectedPurchases === "enabled");
+      setExecution(config.execution);
       setReadiness(
         strategy?.onchain
           ? {
               ...walletReadiness,
-              ready: walletReadiness.checks.vault,
+              ready: walletReadiness.checks.vault && executionReady,
               checks: {
                 ...walletReadiness.checks,
                 funds: true,
                 gas: true,
               },
             }
-          : walletReadiness,
+          : {
+              ...walletReadiness,
+              ready: walletReadiness.ready && executionReady,
+            },
       );
     } catch (cause) {
       setError(
@@ -228,6 +245,7 @@ export function useProofRun(session?: AutonomousGoal): ProofRunState {
     setReviewOpen(false);
     setReviewBusy(false);
     setReadiness(undefined);
+    setExecution(undefined);
     setError(undefined);
   }, [session?.id]);
 
@@ -240,6 +258,7 @@ export function useProofRun(session?: AutonomousGoal): ProofRunState {
     reviewOpen,
     reviewBusy,
     readiness,
+    execution,
     acknowledged,
     error,
     runProof: () => void runProof(),

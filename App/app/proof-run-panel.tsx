@@ -273,6 +273,14 @@ function PurchaseReviewScreen({
   state: ProofRunState;
 }) {
   const readiness = state.readiness;
+  const executionReady = state.execution?.status === "ready";
+  const decisionReady =
+    state.execution?.decisionAuthorization === "live" &&
+    run.signal?.payment.mode === "live";
+  const protectedSpendReady =
+    !run.oneclaw.required ||
+    (run.oneclaw.executionAuthorized &&
+      state.execution?.protectedPurchases === "enabled");
   const funded = Boolean(state.strategy?.onchain);
   const fundsAfter =
     funded
@@ -362,7 +370,13 @@ function PurchaseReviewScreen({
               </div>
               <div>
                 <dt>1Claw</dt>
-                <dd>{run.oneclaw.required ? "Required" : "Below lock"}</dd>
+                <dd>
+                  {run.oneclaw.required
+                    ? protectedSpendReady
+                      ? "Authorized"
+                      : "Blocked"
+                    : "Below lock"}
+                </dd>
               </div>
             </dl>
           </article>
@@ -382,6 +396,20 @@ function PurchaseReviewScreen({
             <i>{readiness?.checks.vault ? "✓" : "·"}</i>
             Vault verified
           </span>
+          <span className={executionReady ? "passed" : ""}>
+            <i>{executionReady ? "✓" : "·"}</i>
+            Execution service armed
+          </span>
+          <span className={decisionReady ? "passed" : ""}>
+            <i>{decisionReady ? "✓" : "·"}</i>
+            x402 decision authorization settled
+          </span>
+          {run.oneclaw.required && (
+            <span className={protectedSpendReady ? "passed" : ""}>
+              <i>{protectedSpendReady ? "✓" : "·"}</i>
+              1Claw protected spend authorized
+            </span>
+          )}
         </div>
 
         <div className="purchaseReviewSteps">

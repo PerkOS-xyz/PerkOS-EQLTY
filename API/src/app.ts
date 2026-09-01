@@ -348,12 +348,13 @@ export function createApp(
     new StrategyService(config, strategyStore, {
       catalog: stockCatalog,
     });
+  const vaultExecutor = new EqltyVaultExecutor(config);
   const proofRuns =
     dependencies.proofRuns ??
     new ProofRunService(config, strategyStore, {
       catalog: stockCatalog,
       controlPlane: ensControlPlane,
-      executor: new EqltyVaultExecutor(config),
+      executor: vaultExecutor,
     });
   const purchaseAudit =
     dependencies.purchaseAudit ?? new PurchaseAuditService(config);
@@ -400,7 +401,14 @@ export function createApp(
       graphEvidence.status ? graphEvidence.status() : undefined,
       oneclawFleet.status ? oneclawFleet.status() : undefined,
     ]);
-    response.json(publicConfig(config, graphStatus, oneclawStatus));
+    response.json(
+      publicConfig(
+        config,
+        graphStatus,
+        oneclawStatus,
+        vaultExecutor.ready(),
+      ),
+    );
   });
 
   app.get("/api/wallet/readiness", async (request, response) => {

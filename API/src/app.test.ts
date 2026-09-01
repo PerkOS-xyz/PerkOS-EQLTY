@@ -68,7 +68,42 @@ describe("API foundation", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(body.projectName).toBe("EQLTY");
+    expect(body).toMatchObject({
+      integrations: { execution: "pending" },
+      execution: {
+        status: "pending",
+        decisionAuthorization: "preview",
+        protectedPurchases: "blocked",
+      },
+    });
     expect(serialized).not.toMatch(/key|secret|token|rpcUrl/i);
+  });
+
+  it("reports an armed execution service without exposing credentials", async () => {
+    const response = await request("/api/config", undefined, undefined, {
+      ROBINHOOD_MAINNET_RPC_URL: "https://rpc.example.com",
+      UNISWAP_API_KEY: "test-uniswap-key",
+      EQLTY_VAULT_ADDRESS:
+        "0x033f13BC2CCB53dbfBEef7594668F9cfa4A70833",
+      EQLTY_TRADER_PRIVATE_KEY: `0x${"11".repeat(32)}`,
+      EQLTY_RISK_SIGNER_PRIVATE_KEY: `0x${"22".repeat(32)}`,
+      EQLTY_EXECUTION_MODE: "live",
+      EQLTY_EXECUTION_CONFIRM: "ROBINHOOD_MAINNET",
+      EQLTY_ONECLAW_LIVE_AUTHORIZATION: "true",
+      EQLTY_DECISION_FEE_MODE: "live",
+      EQLTY_DECISION_FEE_RECIPIENT:
+        "0x2222222222222222222222222222222222222222",
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      integrations: { execution: "ready" },
+      execution: {
+        status: "ready",
+        decisionAuthorization: "live",
+        protectedPurchases: "enabled",
+      },
+    });
   });
 
   it("does not report The Graph ready when its adapter is degraded", async () => {

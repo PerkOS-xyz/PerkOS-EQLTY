@@ -27,6 +27,7 @@ export type PublicApiConfig = {
   };
   integrations: {
     ens: "ready" | "pending";
+    execution: "ready" | "pending";
     oneclaw: "ready" | "degraded" | "pending";
     perkos: "disabled" | "live" | "preview";
     theGraph: "ready" | "degraded" | "pending";
@@ -45,12 +46,18 @@ export type PublicApiConfig = {
     decimals: 6;
     symbol: "USDG";
   };
+  execution: {
+    status: "ready" | "pending";
+    decisionAuthorization: "live" | "preview";
+    protectedPurchases: "enabled" | "blocked";
+  };
 };
 
 export function publicConfig(
   config: ApiConfig,
   graphStatus?: GraphIntegrationStatus,
   oneclawStatus?: OneClawIntegrationStatus,
+  executionReady = false,
 ): PublicApiConfig {
   const executionName =
     config.ROBINHOOD_CHAIN_ID === 46630
@@ -136,6 +143,7 @@ export function publicConfig(
         config.EQLTY_ENS_L2_REGISTRY_ADDRESS
           ? "ready"
           : "pending",
+      execution: executionReady ? "ready" : "pending",
       oneclaw: oneclaw.status,
       perkos: config.PERKOS_FLEET_MODE,
       theGraph: theGraph.status,
@@ -157,6 +165,13 @@ export function publicConfig(
         config.EQLTY_DECISION_FEE_NO_CANDIDATE_AMOUNT,
       decimals: 6,
       symbol: "USDG",
+    },
+    execution: {
+      status: executionReady ? "ready" : "pending",
+      decisionAuthorization: config.EQLTY_DECISION_FEE_MODE,
+      protectedPurchases: config.EQLTY_ONECLAW_LIVE_AUTHORIZATION
+        ? "enabled"
+        : "blocked",
     },
   };
 }

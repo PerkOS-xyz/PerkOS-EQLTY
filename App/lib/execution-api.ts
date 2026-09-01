@@ -82,6 +82,11 @@ export type ExecutionConfig = {
     eqltyVault?: `0x${string}`;
     trader?: `0x${string}`;
   };
+  execution: {
+    status: "ready" | "pending";
+    decisionAuthorization: "live" | "preview";
+    protectedPurchases: "enabled" | "blocked";
+  };
 };
 
 export type WalletReadiness = {

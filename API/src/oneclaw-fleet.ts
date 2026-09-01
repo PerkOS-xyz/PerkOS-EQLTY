@@ -64,6 +64,14 @@ export type OneClawIntegrationStatus = {
     | "provider-error";
 };
 
+export type OneClawUserConnection = {
+  status: "not_connected" | "claim_pending" | "active";
+  connectionId?: string;
+  oneclawAgentId?: string;
+  vaultId?: string;
+  claimedAt?: string;
+};
+
 type ExecutionAgent = {
   role: "trader";
   perkosAgentId: string;
@@ -168,6 +176,32 @@ export class OneClawFleetProvisioner {
       value,
     };
     return value;
+  }
+
+  async authorization(
+    externalSubject: string,
+  ): Promise<OneClawUserConnection> {
+    this.assertReady();
+    const connected = await this.connectedUser(externalSubject);
+    if (!connected) return { status: "not_connected" };
+
+    const connection = {
+      connectionId: connected.connection_id,
+      oneclawAgentId: connected.agent_ids[0],
+      vaultId: connected.vault_ids[0],
+    };
+    if (
+      !connected.claimed_at ||
+      !connection.oneclawAgentId ||
+      !connection.vaultId
+    ) {
+      return { status: "claim_pending", ...connection };
+    }
+    return {
+      status: "active",
+      ...connection,
+      claimedAt: connected.claimed_at,
+    };
   }
 
   async provision(input: {

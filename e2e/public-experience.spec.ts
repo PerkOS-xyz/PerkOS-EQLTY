@@ -40,7 +40,9 @@ test("discovers real stock-token markets", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Explore stock tokens" }),
   ).toBeVisible();
-  await expect(page.getByText("Uniswap V4", { exact: true }).first()).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Uniswap market" }),
+  ).toBeVisible();
   await expect(page.getByText(/The Graph/).first()).toBeVisible();
   await expect(
     page.getByLabel("The Graph evidence status"),
@@ -57,8 +59,8 @@ test("discovers real stock-token markets", async ({ page }) => {
   await expect(page.locator(".chartLine")).toHaveAttribute("d", /C|L/);
 
   await search.fill("");
-  await page.getByRole("button", { name: "Uniswap V4" }).click();
-  await expect(page.locator(".marketCard").first()).toContainText("V4");
+  await page.getByRole("button", { name: "Uniswap market" }).click();
+  await expect(page.locator(".marketCard").first()).toContainText("Uniswap");
 
   await expectNoPageOverflow(page);
 });

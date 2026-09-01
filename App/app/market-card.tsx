@@ -27,6 +27,9 @@ export function MarketCard({
         point.source === "the-graph-substreams" &&
         point.transactionHash,
     );
+  const uniswapCoverage =
+    asset.uniswapCoverage ??
+    (asset.uniswapRoutable ? "market_observed" : "not_observed");
 
   return (
     <article className={`marketCard ${asset.status}`}>
@@ -50,7 +53,7 @@ export function MarketCard({
           </small>
         </span>
         <span className={`routeState ${asset.uniswapRoutable ? "ready" : ""}`}>
-          {asset.uniswapRoutable ? "V4" : "No route"}
+          {coverageBadge(uniswapCoverage)}
         </span>
       </header>
 
@@ -77,7 +80,7 @@ export function MarketCard({
       <footer>
         <span className={asset.uniswapRoutable ? "verified" : ""}>
           <i />
-          Uniswap {asset.uniswapRouting ?? "not observed"}
+          {coverageLabel(uniswapCoverage, asset.uniswapRouting)}
         </span>
         {latestGraphPoint?.transactionHash ? (
           <a
@@ -98,6 +101,27 @@ export function MarketCard({
       </footer>
     </article>
   );
+}
+
+function coverageBadge(
+  coverage: NonNullable<StockCatalogAsset["uniswapCoverage"]>,
+): string {
+  if (coverage === "quote_verified") return "V4 live";
+  if (coverage === "market_observed") return "Uniswap";
+  if (coverage === "unavailable") return "Checking";
+  return "Not observed";
+}
+
+function coverageLabel(
+  coverage: NonNullable<StockCatalogAsset["uniswapCoverage"]>,
+  routing?: string,
+): string {
+  if (coverage === "quote_verified") {
+    return `Uniswap ${routing ?? "V4"} quote verified`;
+  }
+  if (coverage === "market_observed") return "Uniswap market observed";
+  if (coverage === "unavailable") return "Uniswap coverage unavailable";
+  return "Uniswap market not observed";
 }
 
 function PriceHistory({

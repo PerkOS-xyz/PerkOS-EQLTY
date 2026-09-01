@@ -63,6 +63,16 @@ export type MarketDaySeries = {
   }>;
 };
 
+export type UniswapRwaCoverage = {
+  source: "uniswap-rwa-market";
+  chainId: 4663;
+  observedAt: string;
+  assets: Array<{
+    ticker: string;
+    tokenAddress: `0x${string}`;
+  }>;
+};
+
 type Dependencies = {
   fetch?: typeof fetch;
   now?: () => Date;
@@ -73,7 +83,8 @@ export class UniswapRwaMarketService {
   private readonly now: () => Date;
   private cached?: {
     expiresAt: number;
-    value: MarketDaySeries;
+    observedAt: string;
+    value: z.infer<typeof rankedRwaResponse>;
   };
 
   constructor(
@@ -86,17 +97,47 @@ export class UniswapRwaMarketService {
 
   async series(tickers: string[]): Promise<MarketDaySeries> {
     const requested = new Set(tickers.map((ticker) => ticker.toUpperCase()));
-    const market = await this.market();
+    const snapshot = await this.snapshot();
     return {
-      ...market,
-      series: market.series.filter((entry) => requested.has(entry.ticker)),
+      source: "uniswap-rwa-1d",
+      chainId: 4663,
+      observedAt: snapshot.observedAt,
+      series: this.marketSeries(snapshot.value).filter((entry) =>
+        requested.has(entry.ticker),
+      ),
     };
   }
 
-  private async market(): Promise<MarketDaySeries> {
+  async coverage(): Promise<UniswapRwaCoverage> {
+    const snapshot = await this.snapshot();
+    return {
+      source: "uniswap-rwa-market",
+      chainId: 4663,
+      observedAt: snapshot.observedAt,
+      assets: snapshot.value.rwas.flatMap((rwa) => {
+        const issuer = robinhoodIssuer(rwa.issuerTokens);
+        const token = issuer?.chainTokens.find(
+          (entry) => entry.chainId === 4663,
+        );
+        return issuer && token
+          ? [
+              {
+                ticker: issuer.symbol.toUpperCase(),
+                tokenAddress: token.address as `0x${string}`,
+              },
+            ]
+          : [];
+      }),
+    };
+  }
+
+  private async snapshot(): Promise<{
+    observedAt: string;
+    value: z.infer<typeof rankedRwaResponse>;
+  }> {
     const now = this.now();
     if (this.cached && this.cached.expiresAt > now.getTime()) {
-      return this.cached.value;
+      return this.cached;
     }
 
     const response = await this.fetch(
@@ -120,55 +161,62 @@ export class UniswapRwaMarketService {
     if (!response.ok) {
       throw new Error(`Uniswap RWA request failed with ${response.status}`);
     }
-    const parsed = rankedRwaResponse.parse(await response.json());
-    const value: MarketDaySeries = {
-      source: "uniswap-rwa-1d",
-      chainId: 4663,
-      observedAt: now.toISOString(),
-      series: parsed.rwas.flatMap((rwa) => {
-        const issuer = rwa.issuerTokens.find(
-          (entry) =>
-            entry.issuer.toLowerCase() === "robinhood" &&
-            entry.chainTokens.some((token) => token.chainId === 4663),
-        );
-        const token = issuer?.chainTokens.find(
-          (entry) => entry.chainId === 4663,
-        );
-        if (!issuer || !token) {
-          return [];
-        }
-        const sourceSparkline = issuer.sparkline1d ?? rwa.sparkline1d;
-        const priceUsd = issuer.priceUsd ?? rwa.priceUsd;
-        if (!sourceSparkline || !priceUsd) {
-          return [];
-        }
-        const points = sourceSparkline.points
-          .map((point) => ({
-            at: new Date(Number(point.timestampS) * 1_000).toISOString(),
-            value: point.value,
-          }))
-          .sort((left, right) => Date.parse(left.at) - Date.parse(right.at));
-        if (points.length < 2) {
-          return [];
-        }
-        return [
-          {
-            ticker: issuer.symbol.toUpperCase(),
-            name: issuer.name || rwa.name,
-            tokenAddress: token.address as `0x${string}`,
-            priceUsd,
-            priceChange24hPct:
-              issuer.priceChange24hPct ?? rwa.priceChange24hPct,
-            volume24hUsd: issuer.volume24hUsd ?? rwa.volume24hUsd ?? 0,
-            points,
-          },
-        ];
-      }),
-    };
+    const value = rankedRwaResponse.parse(await response.json());
     this.cached = {
       expiresAt: now.getTime() + 5 * 60 * 1_000,
+      observedAt: now.toISOString(),
       value,
     };
-    return value;
+    return this.cached;
   }
+
+  private marketSeries(
+    snapshot: z.infer<typeof rankedRwaResponse>,
+  ): MarketDaySeries["series"] {
+    return snapshot.rwas.flatMap((rwa) => {
+      const issuer = robinhoodIssuer(rwa.issuerTokens);
+      const token = issuer?.chainTokens.find(
+        (entry) => entry.chainId === 4663,
+      );
+      if (!issuer || !token) {
+        return [];
+      }
+      const sourceSparkline = issuer.sparkline1d ?? rwa.sparkline1d;
+      const priceUsd = issuer.priceUsd ?? rwa.priceUsd;
+      if (!sourceSparkline || !priceUsd) {
+        return [];
+      }
+      const points = sourceSparkline.points
+        .map((point) => ({
+          at: new Date(Number(point.timestampS) * 1_000).toISOString(),
+          value: point.value,
+        }))
+        .sort((left, right) => Date.parse(left.at) - Date.parse(right.at));
+      if (points.length < 2) {
+        return [];
+      }
+      return [
+        {
+          ticker: issuer.symbol.toUpperCase(),
+          name: issuer.name || rwa.name,
+          tokenAddress: token.address as `0x${string}`,
+          priceUsd,
+          priceChange24hPct:
+            issuer.priceChange24hPct ?? rwa.priceChange24hPct,
+          volume24hUsd: issuer.volume24hUsd ?? rwa.volume24hUsd ?? 0,
+          points,
+        },
+      ];
+    });
+  }
+}
+
+function robinhoodIssuer(
+  issuers: z.infer<typeof issuerToken>[],
+): z.infer<typeof issuerToken> | undefined {
+  return issuers.find(
+    (entry) =>
+      entry.issuer.toLowerCase() === "robinhood" &&
+      entry.chainTokens.some((token) => token.chainId === 4663),
+  );
 }

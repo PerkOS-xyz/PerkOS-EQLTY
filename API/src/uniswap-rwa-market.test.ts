@@ -61,6 +61,37 @@ describe("Uniswap RWA market", () => {
 
     expect(result.series).toEqual([]);
   });
+
+  it("discovers Uniswap coverage without requiring chart history", async () => {
+    const response = fixture();
+    delete (response.rwas[0]!.issuerTokens[0]! as {
+      sparkline1d?: unknown;
+    }).sparkline1d;
+    const service = new UniswapRwaMarketService(loadConfig({}), {
+      fetch: async () => Response.json(response),
+      now: () => new Date("2026-07-26T04:00:00.000Z"),
+    });
+
+    const coverage = await service.coverage();
+
+    expect(coverage).toMatchObject({
+      source: "uniswap-rwa-market",
+      chainId: 4663,
+      assets: [
+        {
+          ticker: "NVDA",
+          tokenAddress: "0x1111111111111111111111111111111111111111",
+        },
+        {
+          ticker: "AMZN",
+          tokenAddress: "0x2222222222222222222222222222222222222222",
+        },
+      ],
+    });
+    await expect(service.series(["NVDA"])).resolves.toMatchObject({
+      series: [],
+    });
+  });
 });
 
 function fixture() {

@@ -6,6 +6,7 @@ Uniswap API quotes and guarded execution on Robinhood Chain.
 ## What it proves
 
 - The Stock Token universe is discovered from live Robinhood and Uniswap data.
+- Market observation and executable V4 quote verification are separate states.
 - Quote routing and calldata originate from the Uniswap API.
 - ENS policy, The Graph evidence and 1Claw controls gate execution.
 - A dry run never claims funds moved.

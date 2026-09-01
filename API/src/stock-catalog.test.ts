@@ -55,11 +55,12 @@ const prices = {
 };
 
 describe("stock catalog", () => {
-  it("combines Robinhood assets with observed V4 coverage", async () => {
+  it("combines Robinhood assets with the current Uniswap RWA market", async () => {
     const fetchFn = fixtureFetch();
     const service = new StockCatalogService(loadConfig({}), {
       fetchFn,
       now: () => now,
+      uniswapMarket: observedMarket(),
     });
 
     const catalog = await service.catalog();
@@ -75,10 +76,11 @@ describe("stock catalog", () => {
       ticker: "AMZN",
       status: "available",
       uniswapRoutable: true,
+      uniswapCoverage: "market_observed",
       orchestrationReady: false,
     });
     expect(catalog.assets[1]?.reasons).toContain(
-      "No observed Uniswap V4 route",
+      "Not observed in the Uniswap Robinhood market",
     );
   });
 
@@ -87,6 +89,7 @@ describe("stock catalog", () => {
     const service = new StockCatalogService(loadConfig({}), {
       fetchFn,
       now: () => now,
+      uniswapMarket: observedMarket(),
     });
 
     await service.catalog();
@@ -99,6 +102,7 @@ describe("stock catalog", () => {
     const service = new StockCatalogService(loadConfig({}), {
       fetchFn: fixtureFetch(),
       now: () => now,
+      uniswapMarket: observedMarket(),
       uniswap: {
         ready: () => true,
         quote: vi.fn().mockResolvedValue({
@@ -119,6 +123,7 @@ describe("stock catalog", () => {
       uniswapImpliedPrice: 100,
       deviationBps: 0,
       orchestrationReady: true,
+      uniswapCoverage: "quote_verified",
       graphEvidence: {
         source: "the-graph-substreams",
         healthy: true,
@@ -131,6 +136,7 @@ describe("stock catalog", () => {
     const service = new StockCatalogService(loadConfig({}), {
       fetchFn: fixtureFetch(),
       now: () => now,
+      uniswapMarket: observedMarket(),
       uniswap: {
         ready: () => true,
         quote: vi.fn().mockRejectedValue(new Error("unavailable")),
@@ -159,6 +165,7 @@ describe("stock catalog", () => {
     const service = new StockCatalogService(loadConfig({}), {
       fetchFn: fixtureFetch(),
       now: () => now,
+      uniswapMarket: observedMarket(),
       uniswap: {
         ready: () => true,
         quote: vi.fn().mockResolvedValue({
@@ -187,6 +194,7 @@ describe("stock catalog", () => {
     const service = new StockCatalogService(loadConfig({}), {
       fetchFn: fixtureFetch(),
       now: () => now,
+      uniswapMarket: observedMarket(),
       uniswap: {
         ready: () => true,
         quote: vi.fn().mockResolvedValue({
@@ -218,6 +226,23 @@ function fixtureFetch() {
     const url = String(input);
     return Response.json(url.endsWith("/assets") ? assets : prices);
   });
+}
+
+function observedMarket() {
+  return {
+    coverage: vi.fn(async () => ({
+      source: "uniswap-rwa-market" as const,
+      chainId: 4663 as const,
+      observedAt: "2026-07-25T11:59:45.000Z",
+      assets: [
+        {
+          ticker: "AMZN.MARKET",
+          tokenAddress:
+            "0x12f190a9F9d7D37a250758b26824B97CE941bF54" as const,
+        },
+      ],
+    })),
+  };
 }
 
 function healthyGraph() {

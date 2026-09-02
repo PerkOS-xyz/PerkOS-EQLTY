@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { keccak256, stringToHex } from "viem";
+import { buildDecisionReceipt } from "./decision-receipt.js";
 import type { EnsControlPlaneService } from "./ens-control-plane.js";
 import { EnsControlPlaneService as ControlPlane } from "./ens-control-plane.js";
 import type { FleetAgent } from "./fleet-types.js";
@@ -167,6 +167,7 @@ export class OpportunityAnalysisService {
       }
     }
 
+    const analysisId = this.id();
     const evaluatedAt = this.now().toISOString();
     const decisionStatus = selected
       ? "agent_verified"
@@ -174,33 +175,27 @@ export class OpportunityAnalysisService {
         ? "rules_only"
         : "insufficient_evidence";
     const outcomes = decisionOutcomes(candidates, winner, readiness);
-    const proofInput = {
+    const receipt = buildDecisionReceipt({
+      analysisId,
+      issuedAt: evaluatedAt,
       goal: input.goal,
+      profile: input.profile,
       amountIn: input.amountIn,
-      readiness,
       decisionStatus,
-      outcomes,
-      policyManifestHash: controlPlane.manifestHash,
-      evaluatedAt,
-      candidates: candidates.map((candidate) => ({
-        ticker: candidate.ticker,
-        status: candidate.status,
-        score: candidate.score,
-        deviationBps: candidate.deviationBps,
-        uniswapRequestId: candidate.uniswapRequestId,
-      })),
-      consultation: {
-        status: consultation.status,
-        selectedTicker: consultation.selectedTicker,
-        scoutResponseHash: consultation.scout.responseHash,
-        riskResponseHash: consultation.risk.responseHash,
-        traderResponseHash: consultation.trader.responseHash,
-        auditorResponseHash: consultation.auditor.responseHash,
+      readiness,
+      selection: winner,
+      policy: {
+        rootName: controlPlane.rootName,
+        version: manifest.version,
+        manifestHash: controlPlane.manifestHash,
       },
-    };
+      consultation,
+      candidates,
+      outcomes,
+    });
 
     return {
-      id: this.id(),
+      id: analysisId,
       goal: input.goal,
       amountIn: input.amountIn,
       mode: "analysis",
@@ -219,7 +214,8 @@ export class OpportunityAnalysisService {
       candidates,
       outcomes,
       consultation,
-      proofRoot: keccak256(stringToHex(JSON.stringify(proofInput))),
+      receipt,
+      proofRoot: receipt.root,
     };
   }
 }

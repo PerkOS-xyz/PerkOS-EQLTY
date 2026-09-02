@@ -210,6 +210,7 @@ export function buildAuditRecord(
         poolId.toLowerCase() === market.poolIdentifier.toLowerCase(),
     },
     proofs: {
+      decisionReceipt: run.decisionReceipt,
       proofBundleRoot: run.proofBundleRoot,
       signalHash: trade.signalHash,
       quoteHash: trade.quoteHash,

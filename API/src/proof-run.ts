@@ -9,6 +9,7 @@ import type {
 } from "./execution-types.js";
 import type { EvmAddress, StockCatalogAsset } from "./market-types.js";
 import type { GoalExecutionAuthorization } from "./goal-types.js";
+import { verifyDecisionReceipt } from "./decision-receipt.js";
 import type { OneClawGate } from "./oneclaw-policy.js";
 import { createHandoff, hashPayload } from "./proof-handoff.js";
 import type { StockCatalogService } from "./stock-catalog.js";
@@ -79,6 +80,50 @@ export class ProofRunService {
         "The strategy does not match the paid decision proof",
       );
     }
+    const decisionReceipt = input.authorization.decisionReceipt;
+    if (
+      !verifyDecisionReceipt(decisionReceipt) ||
+      decisionReceipt.root !== input.authorization.proofRoot
+    ) {
+      return this.reject(run, "Decision receipt integrity check failed");
+    }
+    if (
+      decisionReceipt.decisionStatus !== "agent_verified" ||
+      decisionReceipt.amountIn !== input.amountIn ||
+      decisionReceipt.selection?.ticker !== strategy.ticker ||
+      decisionReceipt.selection.tokenAddress?.toLowerCase() !==
+        strategy.outputToken.toLowerCase() ||
+      decisionReceipt.policy.manifestHash !==
+        input.authorization.policyManifestHash ||
+      !Object.values(decisionReceipt.agents).every(
+        (agent) => agent.status === "verified" && agent.responseHash,
+      )
+    ) {
+      return this.reject(
+        run,
+        "Decision receipt does not contain a verified executable consultation",
+      );
+    }
+    run.decisionReceipt = decisionReceipt;
+    run.handoffs.push(
+      createHandoff({
+        from: "auditor",
+        to: "trader",
+        kind: "decision-receipt",
+        mode: input.authorization.payment.mode,
+        payload: decisionReceipt,
+        at: this.timestamp(),
+      }),
+    );
+    this.step(
+      run,
+      "receipt",
+      "Decision receipt",
+      "passed",
+      input.authorization.payment.mode,
+      "Continuing the exact four-agent consultation sealed before payment.",
+      decisionReceipt.root,
+    );
     if (strategy.status !== "active") {
       return this.reject(run, `Strategy is ${strategy.status}`);
     }
@@ -116,8 +161,8 @@ export class ProofRunService {
     run.handoffs.push(
       createHandoff({
         from: "ens",
-        to: "scout",
-        kind: "fleet-policy",
+        to: "trader",
+        kind: "policy-revalidation",
         mode: "live",
         payload: {
           manifestHash: controlPlane.manifestHash,
@@ -174,38 +219,29 @@ export class ProofRunService {
     run.signal = {
       goalId: input.authorization.goalId,
       decisionProofRoot: input.authorization.proofRoot,
+      decisionReceiptRoot: decisionReceipt.root,
+      agentResponseHashes: Object.fromEntries(
+        Object.entries(decisionReceipt.agents)
+          .filter(([, agent]) => Boolean(agent.responseHash))
+          .map(([role, agent]) => [role, agent.responseHash]),
+      ),
       policyManifestHash: input.authorization.policyManifestHash,
-      sourceAgent: "scout",
+      sourceAgent:
+        decisionReceipt.agents.scout.agentId ??
+        decisionReceipt.agents.scout.agentName ??
+        "scout",
       side: "buy",
       confidence: Math.max(
         0,
         Math.min(1, 1 - (asset.deviationBps ?? 10_000) / 10_000),
       ),
       rationale:
+        `${decisionReceipt.selection.rationale} Current revalidation: ` +
         `${strategy.ticker} is allowed by ENS policy v${manifest.version}; ` +
         `Substreams block ${graph.blockNumber} reports $${graph.liquidityUsd} liquidity with ${graph.lagBlocks} blocks of lag, ` +
         `and Uniswap ${asset.uniswapRouting} deviates ${asset.deviationBps} bps from the Robinhood reference.`,
       payment: input.authorization.payment,
     };
-    run.handoffs.push(
-      createHandoff({
-        from: "scout",
-        to: "risk",
-        kind: "paid-signal",
-        mode: input.authorization.payment.mode,
-        payload: run.signal,
-        at: this.timestamp(),
-      }),
-    );
-    this.step(
-      run,
-      "scout",
-      "Scout recommendation",
-      "passed",
-      input.authorization.payment.mode,
-      `Candidate evidence is bound to goal ${input.authorization.goalId}.`,
-      input.authorization.proofRoot,
-    );
 
     run.market = {
       liquidityUsd: graph.liquidityUsd,
@@ -228,24 +264,10 @@ export class ProofRunService {
       eventTopic: graph.topic,
       capturedAt: graph.capturedAt,
     };
-    run.handoffs.push(
-      createHandoff({
-        from: "risk",
-        to: "trader",
-        kind: "risk-decision",
-        mode: "live",
-        payload: {
-          market: run.market,
-          deviationBps: asset.deviationBps,
-          graphTransactionHash: graph.transactionHash,
-        },
-        at: this.timestamp(),
-      }),
-    );
     this.step(
       run,
-      "risk",
-      "Graph risk gate",
+      "market",
+      "Current market recheck",
       "passed",
       "live",
       `Block ${graph.blockNumber} · liquidity $${graph.liquidityUsd.toLocaleString()} · lag ${graph.lagBlocks}.`,

@@ -4,6 +4,7 @@ import type {
 } from "./execution-types.js";
 import type { EvmAddress } from "./market-types.js";
 import type { OneClawGate } from "./oneclaw-policy.js";
+import type { DecisionReceipt } from "./goal-types.js";
 
 export type PurchaseAuditBundle = {
   schema: "urn:eqlty:purchase-audit:v1";
@@ -68,6 +69,7 @@ export type PurchaseAuditBundle = {
     poolMatchedGraphEvidence: boolean;
   };
   proofs: {
+    decisionReceipt?: DecisionReceipt;
     proofBundleRoot?: `0x${string}`;
     signalHash: `0x${string}`;
     quoteHash: `0x${string}`;

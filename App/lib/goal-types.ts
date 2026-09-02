@@ -27,6 +27,42 @@ export type DecisionOutcome = {
   reasons: string[];
 };
 
+export type DecisionReceipt = {
+  schema: "urn:eqlty:decision-receipt:v1";
+  id: string;
+  analysisId: string;
+  issuedAt: string;
+  goal: string;
+  profile?: FinancialGoalProfile;
+  amountIn: string;
+  decisionStatus: OpportunityAnalysis["decisionStatus"];
+  readiness: GoalReadiness;
+  selection?: {
+    ticker: string;
+    tokenAddress?: `0x${string}`;
+    score: number;
+    rationale: string;
+  };
+  policy: {
+    rootName: string;
+    version: number;
+    manifestHash: `0x${string}`;
+  };
+  evidence?: {
+    graph?: OpportunityCandidate["graphEvidence"];
+    uniswap?: {
+      requestId: string;
+      routing: string;
+      quotedAmountOut?: string;
+      deviationBps?: number;
+    };
+  };
+  agents: Record<AgentRole, ConsultationStep>;
+  candidates: OpportunityCandidate[];
+  outcomes: DecisionOutcome[];
+  root: `0x${string}`;
+};
+
 export type OpportunityCandidate = {
   ticker: string;
   name: string;
@@ -104,6 +140,7 @@ export type OpportunityAnalysis = {
   candidates: OpportunityCandidate[];
   outcomes: DecisionOutcome[];
   consultation: AgentConsultation;
+  receipt: DecisionReceipt;
   proofRoot: `0x${string}`;
 };
 
@@ -123,6 +160,7 @@ export type GoalHistoryItem = {
   cycle: number;
   evaluatedAt: string;
   recommendedTicker?: string;
+  decisionReceiptId: string;
   proofRoot: `0x${string}`;
   policyManifestHash?: `0x${string}`;
 };
@@ -176,12 +214,14 @@ export type DecisionFee = {
   decimals: 6;
   symbol: "USDG";
   reason: string;
+  decisionReceiptRoot?: `0x${string}`;
   requirements?: DecisionFeeRequirements;
   receipt?: {
     payer: `0x${string}`;
     amount: string;
     asset: `0x${string}`;
     network: "eip155:4663";
+    decisionReceiptRoot?: `0x${string}`;
     authorizationNonce: `0x${string}`;
     transaction?: `0x${string}`;
     explorerUrl?: string;

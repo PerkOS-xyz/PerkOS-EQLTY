@@ -390,6 +390,36 @@
   line-height: 1.55;
 }
 
+.decisionReceiptSeal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #26342b;
+  color: #7f8b84;
+  font-size: 11px;
+}
+
+.decisionReceiptSeal span {
+  color: #75df98;
+  font: 500 11px "DM Mono", monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.decisionReceiptSeal code {
+  color: #b5c3ba;
+  font-size: 11px;
+}
+
+.decisionReceiptSeal small {
+  margin-left: auto;
+  color: #7f8b84;
+  font-size: 11px;
+}
+
 .goalProgress > header,
 .candidateResult > header,
 .candidateDecision {
@@ -483,6 +513,11 @@
   color: #7f8b84;
   font-size: 13px;
   line-height: 1.5;
+}
+
+.decisionFeeBinding {
+  color: #819087;
+  font: 500 11px "DM Mono", monospace;
 }
 
 .decisionFee button {

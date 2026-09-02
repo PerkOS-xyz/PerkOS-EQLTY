@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { loadConfig } from "./config.js";
+import { buildDecisionReceipt } from "./decision-receipt.js";
 import type { EnsControlPlane } from "./ens-types.js";
 import type { StockCatalogAsset } from "./market-types.js";
 import { ProofRunService } from "./proof-run.js";
@@ -18,17 +19,16 @@ describe("proof runs", () => {
     expect(run.status).toBe("approved");
     expect(run.executeRequested).toBe(false);
     expect(run.steps.map((step) => step.id)).toEqual([
+      "receipt",
       "strategy",
       "ens",
-      "scout",
-      "risk",
+      "market",
       "quote",
       "execute",
     ]);
     expect(run.handoffs.map((handoff) => handoff.kind)).toEqual([
-      "fleet-policy",
-      "paid-signal",
-      "risk-decision",
+      "decision-receipt",
+      "policy-revalidation",
       "execution-intent",
       "audit-bundle",
     ]);
@@ -54,8 +54,14 @@ describe("proof runs", () => {
     );
     expect(run.signal).toMatchObject({
       goalId: "goal-1",
-      decisionProofRoot: `0x${"77".repeat(32)}`,
+      decisionProofRoot: decisionAuthorization().proofRoot,
+      decisionReceiptRoot: decisionAuthorization().proofRoot,
       policyManifestHash: `0x${"aa".repeat(32)}`,
+    });
+    expect(run.signal?.agentResponseHashes).toMatchObject({
+      scout: decisionAuthorization().decisionReceipt.agents.scout.responseHash,
+      auditor:
+        decisionAuthorization().decisionReceipt.agents.auditor.responseHash,
     });
     expect(run.proofBundleRoot).toMatch(/^0x[0-9a-f]{64}$/);
     expect(run.transactionHash).toBeUndefined();
@@ -87,6 +93,29 @@ describe("proof runs", () => {
 
     expect(run.status).toBe("rejected");
     expect(run.rejectionReason).toContain("ENS policy changed");
+  });
+
+  it("rejects a modified decision receipt before market execution", async () => {
+    const execute = vi.fn();
+    const { service, strategyId } = setup({
+      executor: {
+        ready: () => true,
+        prepare: vi.fn(),
+        execute,
+      },
+    });
+    const authorization = decisionAuthorization();
+    authorization.decisionReceipt.selection!.ticker = "AMZN";
+
+    const run = await service.run({
+      ...runInput(strategyId),
+      execute: true,
+      authorization,
+    });
+
+    expect(run.status).toBe("rejected");
+    expect(run.rejectionReason).toContain("receipt integrity");
+    expect(execute).not.toHaveBeenCalled();
   });
 
   it("executes a wallet-authorized purchase below the 1Claw lock", async () => {
@@ -151,8 +180,7 @@ describe("proof runs", () => {
         executionAuthorized: true,
       },
       authorization: {
-        ...decisionAuthorization(),
-        amountIn: "3000000",
+        ...decisionAuthorization("3000000"),
       },
     });
 
@@ -213,8 +241,7 @@ describe("proof runs", () => {
         executionAuthorized: false,
       },
       authorization: {
-        ...decisionAuthorization(),
-        amountIn: "3000000",
+        ...decisionAuthorization("3000000"),
       },
     });
 
@@ -311,13 +338,15 @@ function runInput(strategyId: string) {
   };
 }
 
-function decisionAuthorization() {
+function decisionAuthorization(amountIn = "1000000") {
+  const decisionReceipt = testDecisionReceipt(amountIn);
   return {
     goalId: "goal-1",
-    amountIn: "1000000",
+    amountIn,
     ticker: "NVDA",
-    proofRoot: `0x${"77".repeat(32)}` as `0x${string}`,
+    proofRoot: decisionReceipt.root,
     policyManifestHash: `0x${"aa".repeat(32)}` as `0x${string}`,
+    decisionReceipt,
     payment: {
       mode: "live" as const,
       status: "settled" as const,
@@ -325,6 +354,53 @@ function decisionAuthorization() {
       transaction: `0x${"99".repeat(32)}` as `0x${string}`,
     },
   };
+}
+
+function testDecisionReceipt(amountIn = "1000000") {
+  const step = (role: "scout" | "risk" | "trader" | "auditor") => ({
+    role,
+    status: "verified" as const,
+    ticker: "NVDA",
+    responseHash: `0x${role.charCodeAt(0).toString(16).padStart(2, "0").repeat(32)}` as `0x${string}`,
+    facts: [],
+  });
+  return buildDecisionReceipt({
+    analysisId: "analysis-1",
+    issuedAt: now.toISOString(),
+    goal: "Find a policy-compatible opportunity",
+    amountIn,
+    decisionStatus: "agent_verified",
+    readiness: {
+      status: "ready_to_compare",
+      summary: "Ready to compare",
+      reasons: [],
+    },
+    selection: {
+      ticker: "NVDA",
+      name: "NVIDIA",
+      tokenAddress: "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+      status: "recommended",
+      score: 90,
+      reason: "Verified by the four-agent consultation.",
+      orchestrationReady: true,
+    },
+    policy: {
+      rootName: "u-12345678.demo.eth",
+      version: 1,
+      manifestHash: `0x${"aa".repeat(32)}`,
+    },
+    consultation: {
+      mode: "hermes-a2a",
+      status: "verified",
+      selectedTicker: "NVDA",
+      scout: step("scout"),
+      risk: step("risk"),
+      trader: step("trader"),
+      auditor: step("auditor"),
+    },
+    candidates: [],
+    outcomes: [],
+  });
 }
 
 function controlPlane(

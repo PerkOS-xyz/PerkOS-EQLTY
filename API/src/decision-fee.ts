@@ -8,6 +8,7 @@ import type {
   DecisionFeeRequirements,
 } from "./decision-fee-types.js";
 import type { OpportunityAnalysis } from "./goal-types.js";
+import { verifyDecisionReceipt } from "./decision-receipt.js";
 import type { EvmAddress } from "./market-types.js";
 
 const usdG =
@@ -42,12 +43,15 @@ export class DecisionFeeService {
       analysis.consultation.risk,
       analysis.consultation.trader,
       analysis.consultation.auditor,
-    ].every((step) => step.status === "verified");
+    ].every((step) => step.status === "verified") &&
+      verifyDecisionReceipt(analysis.receipt) &&
+      analysis.proofRoot === analysis.receipt.root;
 
     if (!verified || analysis.consultation.status !== "verified") {
       return this.base({
         amount: "0",
         status: "waived",
+        decisionReceiptRoot: analysis.receipt?.root,
         reason:
           "No fee: the four-agent consultation did not produce a fully verified proof.",
       });
@@ -62,13 +66,19 @@ export class DecisionFeeService {
       : "Verified four-agent consultation with no candidate advancing.";
 
     if (this.config.EQLTY_DECISION_FEE_MODE === "preview") {
-      return this.base({ amount, status: "preview", reason });
+      return this.base({
+        amount,
+        status: "preview",
+        reason,
+        decisionReceiptRoot: analysis.receipt.root,
+      });
     }
 
     return this.base({
       amount,
       status: "payment-required",
       reason,
+      decisionReceiptRoot: analysis.receipt.root,
       requirements: this.requirements(amount),
     });
   }
@@ -86,6 +96,10 @@ export class DecisionFeeService {
       throw new Error("This decision does not require payment");
     }
     const requirements = input.fee.requirements;
+    const decisionReceiptRoot = input.fee.decisionReceiptRoot;
+    if (!decisionReceiptRoot) {
+      throw new Error("Start a new consultation to create a decision receipt");
+    }
     this.validateAuthorization(input.owner, requirements, input.payment);
     const paymentPayload: DecisionFeePaymentPayload = {
       ...input.payment,
@@ -95,7 +109,7 @@ export class DecisionFeeService {
           `/api/goals/${encodeURIComponent(input.goalId)}/decision-fee`,
           this.config.EQLTY_PUBLIC_API_URL,
         ).toString(),
-        description: "EQLTY verified agent decision",
+        description: `EQLTY decision ${decisionReceiptRoot}`,
         mimeType: "application/json",
       },
       extensions: {},
@@ -135,6 +149,7 @@ export class DecisionFeeService {
       amount: requirements.amount,
       asset: requirements.asset,
       network: requirements.network,
+      decisionReceiptRoot,
       authorizationNonce:
         input.payment.payload.authorization.nonce,
       transaction:
@@ -172,6 +187,7 @@ export class DecisionFeeService {
     amount: string;
     status: DecisionFee["status"];
     reason: string;
+    decisionReceiptRoot?: `0x${string}`;
     requirements?: DecisionFeeRequirements;
   }): DecisionFee {
     return {

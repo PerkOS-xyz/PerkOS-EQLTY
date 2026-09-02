@@ -3,6 +3,7 @@ import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "./app.js";
 import { loadConfig } from "./config.js";
+import { buildDecisionReceipt } from "./decision-receipt.js";
 import type { EnsPolicyPreparationService } from "./ens-policy-preparation.js";
 import type { ExecutionStrategy } from "./execution-types.js";
 import type { AutonomousGoal } from "./goal-types.js";
@@ -852,6 +853,7 @@ describe("API foundation", () => {
         decimals: 6,
         symbol: "USDG",
         reason: "Verified decision",
+        decisionReceiptRoot: `0x${"77".repeat(32)}`,
       },
     } satisfies AutonomousGoal;
     const settleFee = vi.fn(async () => settled);
@@ -1186,12 +1188,14 @@ describe("API foundation", () => {
 
   it("runs the authenticated four-agent proof path", async () => {
     const session = testSession();
+    const decisionReceipt = testDecisionReceipt();
     const authorization = {
       goalId: "goal-1",
       amountIn: "1000000",
       ticker: "NVDA",
-      proofRoot: `0x${"77".repeat(32)}` as const,
+      proofRoot: decisionReceipt.root,
       policyManifestHash: `0x${"aa".repeat(32)}` as const,
+      decisionReceipt,
       payment: {
         mode: "live" as const,
         status: "settled" as const,
@@ -1619,6 +1623,53 @@ function testOwnerAuth(session: ReturnType<typeof testSession>) {
     perkosIdToken: () => "firebase-token",
     logout: () => undefined,
   };
+}
+
+function testDecisionReceipt() {
+  const step = (role: "scout" | "risk" | "trader" | "auditor") => ({
+    role,
+    status: "verified" as const,
+    ticker: "NVDA",
+    responseHash: `0x${role.charCodeAt(0).toString(16).padStart(2, "0").repeat(32)}` as `0x${string}`,
+    facts: [],
+  });
+  return buildDecisionReceipt({
+    analysisId: "analysis-1",
+    issuedAt: "2026-07-25T12:00:00.000Z",
+    goal: "Find a policy-compatible opportunity",
+    amountIn: "1000000",
+    decisionStatus: "agent_verified",
+    readiness: {
+      status: "ready_to_compare",
+      summary: "Ready to compare",
+      reasons: [],
+    },
+    selection: {
+      ticker: "NVDA",
+      name: "NVIDIA",
+      tokenAddress: "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+      status: "recommended",
+      score: 90,
+      reason: "Verified",
+      orchestrationReady: true,
+    },
+    policy: {
+      rootName: "u-12345678.demo.eth",
+      version: 1,
+      manifestHash: `0x${"aa".repeat(32)}`,
+    },
+    consultation: {
+      mode: "hermes-a2a",
+      status: "verified",
+      selectedTicker: "NVDA",
+      scout: step("scout"),
+      risk: step("risk"),
+      trader: step("trader"),
+      auditor: step("auditor"),
+    },
+    candidates: [],
+    outcomes: [],
+  });
 }
 
 async function request(

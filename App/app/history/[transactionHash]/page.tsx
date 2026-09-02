@@ -290,6 +290,18 @@ function PurchaseAudit({ bundle }: { bundle: PurchaseAuditBundle }) {
         />
         <div className="proofCommitments">
           <EvidenceRow label="Audit bundle" value={bundle.bundleHash} />
+          {bundle.proofs.decisionReceipt && (
+            <>
+              <EvidenceRow
+                label="Decision receipt"
+                value={bundle.proofs.decisionReceipt.id}
+              />
+              <EvidenceRow
+                label="Decision root"
+                value={bundle.proofs.decisionReceipt.root}
+              />
+            </>
+          )}
           <EvidenceRow label="Proof root" value={bundle.proofs.proofBundleRoot ?? "—"} />
           <EvidenceRow label="Signal hash" value={bundle.proofs.signalHash} />
           <EvidenceRow label="Quote hash" value={bundle.proofs.quoteHash} />

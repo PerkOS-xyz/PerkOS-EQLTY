@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { loadConfig } from "./config.js";
 import { DecisionFeeService } from "./decision-fee.js";
+import { buildDecisionReceipt } from "./decision-receipt.js";
 import type {
   DecisionFee,
   DecisionFeePaymentPayload,
@@ -34,6 +35,28 @@ describe("decision fees", () => {
     value.consultation.auditor.status = "unavailable";
 
     expect(service.quote(value)).toMatchObject({
+      status: "waived",
+      amount: "0",
+    });
+  });
+
+  it("waives the fee when the canonical receipt was modified", () => {
+    const service = new DecisionFeeService(loadConfig({}));
+    const value = analysis(true);
+    value.receipt.selection!.ticker = "NVDA";
+
+    expect(service.quote(value)).toMatchObject({
+      status: "waived",
+      amount: "0",
+    });
+  });
+
+  it("waives a stored legacy analysis without crashing", () => {
+    const service = new DecisionFeeService(loadConfig({}));
+    const value = { ...analysis(true) } as unknown as Record<string, unknown>;
+    delete value.receipt;
+
+    expect(service.quote(value as unknown as OpportunityAnalysis)).toMatchObject({
       status: "waived",
       amount: "0",
     });
@@ -91,6 +114,7 @@ describe("decision fees", () => {
       receipt: {
         payer: owner,
         amount: "200000",
+        decisionReceiptRoot: fee.decisionReceiptRoot,
         requestId: "x402-request-1",
         transaction: `0x${"ab".repeat(32)}`,
       },
@@ -109,6 +133,7 @@ describe("decision fees", () => {
         amount: "200000",
       },
     });
+    expect(JSON.stringify(body)).toContain(fee.decisionReceiptRoot);
   });
 
   it("rejects an authorization for a different payer or amount", async () => {
@@ -171,7 +196,50 @@ function analysis(recommended: boolean): OpportunityAnalysis {
   const step = (role: "scout" | "risk" | "trader" | "auditor") => ({
     role,
     status: "verified" as const,
+    responseHash: `0x${role.charCodeAt(0).toString(16).padStart(2, "0").repeat(32)}` as `0x${string}`,
     facts: [],
+  });
+  const readiness = {
+    status: "ready_to_compare" as const,
+    summary: "Ready to compare",
+    reasons: [],
+  };
+  const consultation = {
+    mode: "hermes-a2a" as const,
+    status: "verified" as const,
+    selectedTicker: recommended ? "AMZN" : undefined,
+    scout: step("scout"),
+    risk: step("risk"),
+    trader: step("trader"),
+    auditor: step("auditor"),
+  };
+  const receipt = buildDecisionReceipt({
+    analysisId: "analysis-1",
+    issuedAt: "2026-07-30T14:00:00.000Z",
+    goal: "Find a policy-compatible stock-token opportunity",
+    amountIn: "1000000",
+    decisionStatus: recommended
+      ? "agent_verified"
+      : "insufficient_evidence",
+    readiness,
+    selection: recommended
+      ? {
+          ticker: "AMZN",
+          name: "Amazon",
+          status: "recommended",
+          score: 90,
+          reason: "Verified",
+          orchestrationReady: true,
+        }
+      : undefined,
+    policy: {
+      rootName: "u-123.demo.eth",
+      version: 1,
+      manifestHash: `0x${"aa".repeat(32)}`,
+    },
+    consultation,
+    candidates: [],
+    outcomes: [],
   });
   return {
     id: "analysis-1",
@@ -190,23 +258,12 @@ function analysis(recommended: boolean): OpportunityAnalysis {
     decisionStatus: recommended
       ? "agent_verified"
       : "insufficient_evidence",
-    readiness: {
-      status: "ready_to_compare",
-      summary: "Ready to compare",
-      reasons: [],
-    },
+    readiness,
     recommendedTicker: recommended ? "AMZN" : undefined,
     candidates: [],
     outcomes: [],
-    consultation: {
-      mode: "hermes-a2a",
-      status: "verified",
-      selectedTicker: recommended ? "AMZN" : undefined,
-      scout: step("scout"),
-      risk: step("risk"),
-      trader: step("trader"),
-      auditor: step("auditor"),
-    },
-    proofRoot: `0x${"bb".repeat(32)}`,
+    consultation,
+    receipt,
+    proofRoot: receipt.root,
   };
 }

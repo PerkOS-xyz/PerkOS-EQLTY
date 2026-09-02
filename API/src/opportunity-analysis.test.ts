@@ -50,6 +50,16 @@ describe("opportunity analysis", () => {
     });
     expect(result.candidates[0]?.uniswapRouting).toBe("V4");
     expect(result.proofRoot).toMatch(/^0x[0-9a-f]{64}$/);
+    expect(result.receipt).toMatchObject({
+      schema: "urn:eqlty:decision-receipt:v1",
+      analysisId: result.id,
+      root: result.proofRoot,
+      selection: { ticker: "AMZN" },
+      evidence: {
+        graph: { blockNumber: "1000" },
+        uniswap: { requestId: "quote-AMZN", routing: "V4" },
+      },
+    });
   });
 
   it("applies the ENS pause and budget before market calls", async () => {
@@ -146,6 +156,7 @@ describe("opportunity analysis", () => {
           "The indexed route best matches the requested objective.",
       });
     expect(result.consultation.mode).toBe("hermes-a2a");
+    expect(result.receipt.agents.scout.status).toBe("verified");
   });
 
   it("does not present deterministic fallback as an agent recommendation", async () => {

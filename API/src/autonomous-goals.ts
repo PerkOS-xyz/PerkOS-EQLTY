@@ -189,19 +189,29 @@ export class AutonomousGoalService {
     const analysis = goal.latest;
     const ticker = analysis?.recommendedTicker;
     const manifestHash = analysis?.policy.manifestHash;
-    if (!analysis || !ticker || !manifestHash) {
+    if (!analysis || !ticker || !manifestHash || !analysis.receipt) {
       throw new Error("The goal has no executable recommendation");
     }
     if (goal.status !== "completed" || !goal.decisionFee) {
       throw new Error("The decision proof is not complete");
     }
     const fee = goal.decisionFee;
+    if (
+      fee.decisionReceiptRoot !== analysis.receipt.root ||
+      analysis.proofRoot !== analysis.receipt.root
+    ) {
+      throw new Error("The x402 payment is not bound to this decision receipt");
+    }
     if (fee.status === "settled" && fee.receipt) {
+      if (fee.receipt.decisionReceiptRoot !== analysis.receipt.root) {
+        throw new Error("The x402 receipt does not match the decision receipt");
+      }
       return {
         goalId: goal.id,
         amountIn: goal.amountIn,
         ticker,
         proofRoot: analysis.proofRoot,
+        decisionReceipt: analysis.receipt,
         policyManifestHash: manifestHash,
         payment: {
           mode: "live",
@@ -217,6 +227,7 @@ export class AutonomousGoalService {
         amountIn: goal.amountIn,
         ticker,
         proofRoot: analysis.proofRoot,
+        decisionReceipt: analysis.receipt,
         policyManifestHash: manifestHash,
         payment: { mode: "preview", status: "preview" },
       };
@@ -313,6 +324,7 @@ export class AutonomousGoalService {
       cycle: goal.cyclesCompleted,
       evaluatedAt: analysis.evaluatedAt,
       recommendedTicker: analysis.recommendedTicker,
+      decisionReceiptId: analysis.receipt.id,
       proofRoot: analysis.proofRoot,
       policyManifestHash: analysis.policy.manifestHash,
     });

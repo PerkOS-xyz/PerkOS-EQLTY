@@ -18,6 +18,69 @@ export type DecisionOutcome = {
   reasons: string[];
 };
 
+export type DecisionReceipt = {
+  schema: "urn:eqlty:decision-receipt:v1";
+  id: string;
+  analysisId: string;
+  issuedAt: string;
+  goal: string;
+  profile?: FinancialGoalProfile;
+  amountIn: string;
+  decisionStatus:
+    | "agent_verified"
+    | "rules_only"
+    | "insufficient_evidence";
+  readiness: GoalReadiness;
+  selection?: {
+    ticker: string;
+    tokenAddress?: EvmAddress;
+    score: number;
+    rationale: string;
+  };
+  policy: {
+    rootName: string;
+    version: number;
+    manifestHash: `0x${string}`;
+  };
+  evidence?: {
+    graph?: {
+      blockNumber: string;
+      transactionHash: `0x${string}`;
+      poolIdentifier: string;
+      poolAddress: EvmAddress;
+      capturedAt: string;
+      liquidityUsd: number;
+    };
+    uniswap?: {
+      requestId: string;
+      routing: string;
+      quotedAmountOut?: string;
+      deviationBps?: number;
+    };
+  };
+  agents: Record<
+    FleetRole,
+    {
+      role: FleetRole;
+      agentId?: string;
+      agentName?: string;
+      status: "verified" | "invalid" | "unavailable" | "skipped";
+      ticker?: string;
+      summary?: string;
+      responseHash?: `0x${string}`;
+      facts: Array<{
+        source: "ens" | "the-graph" | "uniswap";
+        label: string;
+        value: string;
+      }>;
+      detail?: string;
+    }
+  >;
+  candidates: OpportunityCandidate[];
+  outcomes: DecisionOutcome[];
+  root: `0x${string}`;
+};
+
 export type OpportunityCandidate = {
   ticker: string;
   name: string;
@@ -65,6 +128,7 @@ export type OpportunityAnalysis = {
   candidates: OpportunityCandidate[];
   outcomes: DecisionOutcome[];
   consultation: AgentConsultation;
+  receipt: DecisionReceipt;
   proofRoot: `0x${string}`;
 };
 
@@ -96,6 +160,7 @@ export type AutonomousGoal = {
     cycle: number;
     evaluatedAt: string;
     recommendedTicker?: string;
+    decisionReceiptId: string;
     proofRoot: `0x${string}`;
     policyManifestHash?: `0x${string}`;
   }>;
@@ -131,6 +196,7 @@ export type GoalExecutionAuthorization = {
   amountIn: string;
   ticker: string;
   proofRoot: `0x${string}`;
+  decisionReceipt: DecisionReceipt;
   policyManifestHash: `0x${string}`;
   payment:
     | {

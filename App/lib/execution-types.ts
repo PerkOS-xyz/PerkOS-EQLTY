@@ -46,6 +46,8 @@ export type AgentHandoff = {
   from: "ens" | "scout" | "risk" | "trader" | "auditor";
   to: "scout" | "risk" | "trader" | "auditor";
   kind:
+    | "decision-receipt"
+    | "policy-revalidation"
     | "fleet-policy"
     | "paid-signal"
     | "risk-decision"
@@ -73,12 +75,17 @@ export type TradeRun = {
     minimumAmount: string;
     executionAuthorized: boolean;
   };
+  decisionReceipt?: import("./goal-types").DecisionReceipt;
   proofBundleRoot?: `0x${string}`;
   rejectionReason?: string;
   transactionHash?: `0x${string}`;
   signal?: {
     goalId: string;
     decisionProofRoot: `0x${string}`;
+    decisionReceiptRoot: `0x${string}`;
+    agentResponseHashes: Partial<
+      Record<"scout" | "risk" | "trader" | "auditor", `0x${string}`>
+    >;
     policyManifestHash: `0x${string}`;
     sourceAgent: string;
     side: string;

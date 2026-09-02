@@ -37,6 +37,7 @@ export class EnsControlPlaneService {
   async resolve(input: {
     userId: string;
     owner: EvmAddress;
+    allowExpired?: boolean;
   }): Promise<EnsControlPlane> {
     const resolvedAt = this.now().toISOString();
     if (!this.config.ENS_ROOT_NAME || !this.reader.ready()) {
@@ -80,6 +81,7 @@ export class EnsControlPlaneService {
         this.config.ROBINHOOD_CHAIN_ID,
         this.config.ENS_POLICY_TTL_SECONDS,
         this.now(),
+        input.allowExpired ?? false,
       );
       if (!manifest.agentSettings) {
         throw new Error("The fleet manifest has no agent settings hashes");

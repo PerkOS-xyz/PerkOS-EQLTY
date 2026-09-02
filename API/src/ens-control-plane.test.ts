@@ -102,6 +102,33 @@ describe("ENS control plane", () => {
     expect(control.status).toBe("unavailable");
     expect(control.error).toContain("not configured");
   });
+
+  it("can verify an expired manifest only for a controlled renewal", async () => {
+    const service = new EnsControlPlaneService(config(), {
+      reader: fixtureReader(),
+      now: () => new Date("2026-07-27T12:00:00.000Z"),
+    });
+
+    const blocked = await service.resolve({
+      userId: "u-12345678",
+      owner,
+    });
+    const renewable = await service.resolve({
+      userId: "u-12345678",
+      owner,
+      allowExpired: true,
+    });
+
+    expect(blocked).toMatchObject({
+      status: "invalid",
+      error: "ENS manifest has expired",
+    });
+    expect(renewable).toMatchObject({
+      status: "active",
+      rootName: root,
+      owner,
+    });
+  });
 });
 
 function config() {

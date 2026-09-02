@@ -3,6 +3,7 @@ import type { DurinFleetProvisioner } from "./durin-provisioner.js";
 import { DurinFleetProvisioner as FleetProvisioner } from "./durin-provisioner.js";
 import type { EnsControlPlaneService } from "./ens-control-plane.js";
 import { EnsControlPlaneService as ControlPlane } from "./ens-control-plane.js";
+import type { EnsPolicyPreparationService } from "./ens-policy-preparation.js";
 import { fleetNames } from "./ens-names.js";
 import type {
   EnsControlPlane,
@@ -20,6 +21,7 @@ type Dependencies = {
   perkos?: Pick<PerkosFleetService, "activate">;
   controlPlane?: Pick<EnsControlPlaneService, "resolve">;
   provisioner?: Pick<DurinFleetProvisioner, "provision">;
+  renewer?: Pick<EnsPolicyPreparationService, "renew">;
   ensResolveTimeoutMs?: number;
 };
 
@@ -55,6 +57,7 @@ export class FleetActivationService {
   private readonly controlPlane: Pick<EnsControlPlaneService, "resolve">;
   private readonly provisioner: Pick<DurinFleetProvisioner, "provision">;
   private readonly ensResolveTimeoutMs: number;
+  private readonly renewer?: Pick<EnsPolicyPreparationService, "renew">;
 
   constructor(
     private readonly config: ApiConfig,
@@ -65,6 +68,7 @@ export class FleetActivationService {
       dependencies.controlPlane ?? new ControlPlane(config);
     this.provisioner =
       dependencies.provisioner ?? new FleetProvisioner(config);
+    this.renewer = dependencies.renewer;
     this.ensResolveTimeoutMs =
       dependencies.ensResolveTimeoutMs ?? defaultEnsResolveTimeoutMs;
   }
@@ -103,12 +107,28 @@ export class FleetActivationService {
       };
     }
 
-    const existing = await this.resolveControlPlane({
+    let existing = await this.resolveControlPlane({
       userId: input.userId,
       owner: input.owner,
     });
     if (!existing) {
       return this.pendingActivation(input, names.user, runtime);
+    }
+    let renewalTransactions: `0x${string}`[] = [];
+    if (
+      existing.status === "invalid" &&
+      existing.error === "ENS manifest has expired" &&
+      this.renewer
+    ) {
+      const renewed = await this.renewer.renew({
+        userId: input.userId,
+        owner: input.owner,
+      });
+      renewalTransactions = renewed.transactions;
+      existing = await this.controlPlane.resolve({
+        userId: input.userId,
+        owner: input.owner,
+      });
     }
     if (existing.status === "invalid") {
       throw new Error(
@@ -127,7 +147,7 @@ export class FleetActivationService {
         rootName: existing.rootName,
         agents: settingsAgentIds(existing.agentSettings, agentIds),
         manifestHash: existing.manifestHash,
-        transactions: [],
+        transactions: renewalTransactions,
         verified: true,
         runtime,
       };

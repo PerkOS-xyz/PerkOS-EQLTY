@@ -3,6 +3,7 @@ import { loadConfig } from "./config.js";
 import { buildEnsFleetBundle } from "./ens-policy-builder.js";
 import { EnsPolicyPreparationService } from "./ens-policy-preparation.js";
 import { hashEnsRecord, parseManifest } from "./ens-policy.js";
+import type { EnsAgentSettings } from "./ens-types.js";
 
 const owner = "0x1234567890abcdef1234567890abcdef12345678" as const;
 const currentTime = new Date("2026-07-25T12:00:00.000Z");
@@ -113,6 +114,55 @@ describe("ENS policy preparation", () => {
     expect(prepared.diff).toEqual([
       { field: "paused", before: false, after: true },
     ]);
+  });
+
+  it("refreshes retired Chainlink capabilities on the next publication", async () => {
+    const { config, bundle } = fixture();
+    const legacyRisk = {
+      ...bundle.agents.risk.settings,
+      behavior: {
+        objective: "Check Chainlink data before approving a candidate.",
+        inputs: ["ens", "chainlink-data-streams", "the-graph-substreams"],
+        actions: ["risk-gate"],
+      },
+    } as EnsAgentSettings;
+    const service = new EnsPolicyPreparationService(config, {
+      controlPlane: {
+        resolve: async () => ({
+          source: "durin",
+          mode: "live",
+          status: "active",
+          rootName: bundle.names.user,
+          manifestHash: bundle.manifestHash,
+          resolvedAt: currentTime.toISOString(),
+          owner,
+          manifest: bundle.manifest,
+          agentSettings: {
+            ...settingsFor(bundle),
+            risk: legacyRisk,
+          },
+        }),
+      },
+      now: () => preparedTime,
+    });
+
+    const prepared = await service.prepare({
+      userId: "u-12345678",
+      owner,
+      change: {
+        paused: true,
+        ...bundle.manifest.policy,
+      },
+    });
+
+    expect(prepared.agentRecords.risk.settings.behavior.inputs).toEqual([
+      "ens",
+      "the-graph-substreams",
+      "x401",
+    ]);
+    expect(
+      prepared.agentRecords.risk.settings.behavior.objective,
+    ).not.toContain("Chainlink");
   });
 
   it("publishes role records before the manifest and verifies the result", async () => {

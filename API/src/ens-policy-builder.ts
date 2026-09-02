@@ -52,7 +52,7 @@ export function buildEnsFleetBundle(
       role,
       perkosAgentId: input.agentIds[role],
       ensName: names.agents[role],
-      behavior: roleBehavior(role),
+      behavior: agentBehaviorForRole(role),
       security: {
         provider: "1claw",
         enforcement: "required-before-spend",
@@ -106,7 +106,7 @@ export function buildEnsFleetBundle(
   };
 }
 
-function roleBehavior(
+export function agentBehaviorForRole(
   role: FleetRole,
 ): EnsAgentSettings["behavior"] {
   const behavior: Record<FleetRole, EnsAgentSettings["behavior"]> = {

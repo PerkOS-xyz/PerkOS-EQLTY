@@ -1,4 +1,5 @@
 import type { ApiConfig } from "./config.js";
+import { agentBehaviorForRole } from "./ens-policy-builder.js";
 import type { EnsControlPlaneService } from "./ens-control-plane.js";
 import type { DurinReader } from "./durin-reader.js";
 import { ViemDurinReader } from "./durin-reader.js";
@@ -178,6 +179,11 @@ export class EnsPolicyPreparationService {
       const settings = agentSettingsSchema.parse({
         ...existing,
         version,
+        behavior: existing.behavior.inputs.includes(
+          "chainlink-data-streams",
+        )
+          ? agentBehaviorForRole(role)
+          : existing.behavior,
       }) as EnsAgentSettings;
       const settingsJson = stableJson(settings);
       const settingsHash = hashEnsRecord(settingsJson);

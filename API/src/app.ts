@@ -24,6 +24,7 @@ import { oneClawGate } from "./oneclaw-policy.js";
 import { PortfolioService } from "./portfolio.js";
 import { ProofRunService } from "./proof-run.js";
 import { publicConfig } from "./public-config.js";
+import { publicErrorMessage } from "./public-error.js";
 import { PurchaseAuditService } from "./purchase-audit.js";
 import { PurchaseHistoryService } from "./purchase-history.js";
 import {
@@ -1498,7 +1499,7 @@ export function createApp(
 }
 
 function safeMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "Authentication failed";
+  return publicErrorMessage(error, "Request failed");
 }
 
 export default createApp(loadConfig());

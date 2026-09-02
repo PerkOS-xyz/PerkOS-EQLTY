@@ -271,6 +271,83 @@ describe("ENS policy preparation", () => {
     ).toBe(true);
   });
 
+  it("renews an expired policy without changing its behavior", async () => {
+    const { config, bundle } = fixture();
+    const renewalTime = new Date("2026-07-25T14:00:00.000Z");
+    const writes: Array<{ name: string; key: string; value: string }> = [];
+    let resolveCount = 0;
+    const service = new EnsPolicyPreparationService(config, {
+      controlPlane: {
+        resolve: async () => {
+          resolveCount += 1;
+          if (resolveCount === 1) {
+            return {
+              source: "durin",
+              mode: "live",
+              status: "active",
+              rootName: bundle.names.user,
+              manifestHash: bundle.manifestHash,
+              resolvedAt: renewalTime.toISOString(),
+              owner,
+              manifest: bundle.manifest,
+              agentSettings: settingsFor(bundle),
+            };
+          }
+          const manifestJson = writes.at(-1)?.value ?? "";
+          return {
+            source: "durin",
+            mode: "live",
+            status: "active",
+            rootName: bundle.names.user,
+            manifestHash: hashEnsRecord(manifestJson),
+            resolvedAt: renewalTime.toISOString(),
+            owner,
+            manifest: JSON.parse(manifestJson),
+            agentSettings: settingsFor(bundle),
+          };
+        },
+      },
+      writer: {
+        ready: () => true,
+        setText: async (name, key, value) => {
+          writes.push({ name, key, value });
+          return `0x${writes.length.toString(16).padStart(64, "0")}`;
+        },
+      },
+      reader: {
+        ready: () => true,
+        text: async (name, key) => {
+          const written = [...writes]
+            .reverse()
+            .find((record) => record.name === name && record.key === key);
+          if (written) return written.value;
+          return name === bundle.names.user && key === "agent-context"
+            ? bundle.manifestJson
+            : "";
+        },
+      },
+      now: () => renewalTime,
+    });
+
+    const renewed = await service.renew({
+      userId: "u-12345678",
+      owner,
+    });
+
+    expect(renewed).toMatchObject({
+      verified: true,
+      diff: [],
+      manifest: {
+        version: 2,
+        paused: bundle.manifest.paused,
+        policy: bundle.manifest.policy,
+        updatedAt: "2026-07-25T14:00:00.000Z",
+        expiresAt: "2026-07-25T15:00:00.000Z",
+      },
+    });
+    expect(renewed.transactions).toHaveLength(5);
+  });
+
   it("does not commit over a concurrently changed manifest", async () => {
     const { config, bundle } = fixture();
     const writes: Array<{

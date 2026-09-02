@@ -13,6 +13,7 @@ import {
 import type {
   EnsAgentRecordKey,
   EnsAgentSettings,
+  EnsControlPlane,
   EnsOrchestrationManifest,
 } from "./ens-types.js";
 import type { FleetRole } from "./fleet-types.js";
@@ -55,6 +56,11 @@ export type PreparedEnsPolicyChange = {
   requiredAuthorization: ["owner-wallet"];
 };
 
+export type PublishedEnsPolicyChange = PreparedEnsPolicyChange & {
+  transactions: `0x${string}`[];
+  verified: true;
+};
+
 type Dependencies = {
   controlPlane: Pick<EnsControlPlaneService, "resolve">;
   reader?: Pick<DurinReader, "ready" | "text">;
@@ -85,6 +91,53 @@ export class EnsPolicyPreparationService {
       userId: input.userId,
       owner: input.owner,
     });
+    return this.build(current, input.change);
+  }
+
+  async publish(input: {
+    userId: string;
+    owner: EvmAddress;
+    change: EnsPolicyChange;
+  }): Promise<PublishedEnsPolicyChange> {
+    this.assertPublicationReady();
+    const prepared = await this.prepare(input);
+    return this.publishPrepared(input, prepared);
+  }
+
+  async renew(input: {
+    userId: string;
+    owner: EvmAddress;
+  }): Promise<PublishedEnsPolicyChange> {
+    this.assertPublicationReady();
+    const current = await this.dependencies.controlPlane.resolve({
+      ...input,
+      allowExpired: true,
+    });
+    if (
+      current.status !== "active" ||
+      !current.manifest ||
+      Date.parse(current.manifest.expiresAt) > this.now().getTime()
+    ) {
+      throw new Error(
+        current.error ?? "The ENS fleet policy does not require renewal",
+      );
+    }
+    const prepared = this.build(
+      current,
+      {
+        paused: current.manifest.paused,
+        ...current.manifest.policy,
+      },
+      true,
+    );
+    return this.publishPrepared(input, prepared);
+  }
+
+  private build(
+    current: EnsControlPlane,
+    change: EnsPolicyChange,
+    allowNoop = false,
+  ): PreparedEnsPolicyChange {
     if (
       current.status !== "active" ||
       !current.rootName ||
@@ -100,11 +153,10 @@ export class EnsPolicyPreparationService {
       throw new Error("The ENS policy version cannot be incremented");
     }
 
-    const diff = policyDiff(current.manifest, input.change);
-    if (diff.length === 0) {
+    const diff = policyDiff(current.manifest, change);
+    if (!allowNoop && diff.length === 0) {
       throw new Error("The ENS policy change has no behavioral effect");
     }
-
     const version = current.manifest.version + 1;
     const agentRecords = {} as PreparedEnsPolicyChange["agentRecords"];
     for (const { role } of fleetRoles) {
@@ -128,7 +180,7 @@ export class EnsPolicyPreparationService {
     }
 
     const updatedAt = this.now();
-    const { paused, ...policy } = input.change;
+    const { paused, ...policy } = change;
     const manifest = orchestrationManifestSchema.parse({
       ...current.manifest,
       version,
@@ -151,7 +203,6 @@ export class EnsPolicyPreparationService {
       policy,
     }) as EnsOrchestrationManifest;
     const manifestJson = stableJson(manifest);
-
     return {
       rootName: current.rootName,
       currentManifestHash: current.manifestHash,
@@ -165,23 +216,10 @@ export class EnsPolicyPreparationService {
     };
   }
 
-  async publish(input: {
-    userId: string;
-    owner: EvmAddress;
-    change: EnsPolicyChange;
-  }): Promise<
-    PreparedEnsPolicyChange & {
-      transactions: `0x${string}`[];
-      verified: true;
-    }
-  > {
-    if (!this.writer.ready()) {
-      throw new Error("ENS policy publisher is not configured");
-    }
-    if (!this.reader.ready()) {
-      throw new Error("ENS policy verifier is not configured");
-    }
-    const prepared = await this.prepare(input);
+  private async publishPrepared(
+    input: { userId: string; owner: EvmAddress },
+    prepared: PreparedEnsPolicyChange,
+  ): Promise<PublishedEnsPolicyChange> {
     const transactions: `0x${string}`[] = [];
     for (const { role } of fleetRoles) {
       const record = prepared.agentRecords[role];
@@ -244,6 +282,15 @@ export class EnsPolicyPreparationService {
       throw new Error("Published ENS policy did not verify");
     }
     return { ...prepared, transactions, verified: true };
+  }
+
+  private assertPublicationReady(): void {
+    if (!this.writer.ready()) {
+      throw new Error("ENS policy publisher is not configured");
+    }
+    if (!this.reader.ready()) {
+      throw new Error("ENS policy verifier is not configured");
+    }
   }
 }
 

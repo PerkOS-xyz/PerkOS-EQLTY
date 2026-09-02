@@ -139,6 +139,52 @@ describe("fleet activation", () => {
     });
     expect(resolve).toHaveBeenCalledTimes(2);
   });
+
+  it("renews an expired verified policy before reactivating", async () => {
+    const resolve = vi
+      .fn()
+      .mockResolvedValueOnce({
+        source: "durin",
+        mode: "live",
+        status: "invalid",
+        rootName: "u-12345678.demo.eth",
+        resolvedAt: "2026-09-02T12:00:00.000Z",
+        error: "ENS manifest has expired",
+      })
+      .mockResolvedValueOnce({
+        source: "durin",
+        mode: "live",
+        status: "active",
+        rootName: "u-12345678.demo.eth",
+        manifestHash: `0x${"cd".repeat(32)}`,
+        resolvedAt: "2026-09-02T12:00:01.000Z",
+      });
+    const renew = vi.fn().mockResolvedValue({
+      transactions: [`0x${"ef".repeat(32)}`],
+    });
+    const service = new FleetActivationService(config(), {
+      perkos: { activate: async () => runtime(true) },
+      controlPlane: { resolve },
+      provisioner: { provision: vi.fn() },
+      renewer: { renew },
+    });
+
+    const activation = await service.activate({
+      userId: "u-12345678",
+      owner,
+      perkosIdToken: "firebase-token",
+    });
+
+    expect(renew).toHaveBeenCalledWith({
+      userId: "u-12345678",
+      owner,
+    });
+    expect(activation).toMatchObject({
+      status: "reactivated",
+      verified: true,
+      transactions: [`0x${"ef".repeat(32)}`],
+    });
+  });
 });
 
 function config() {

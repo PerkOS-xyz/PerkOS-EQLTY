@@ -122,6 +122,7 @@ export function parseManifest(
   expectedChainId: number,
   maxTtlSeconds: number,
   now = new Date(),
+  allowExpired = false,
 ): EnsOrchestrationManifest {
   const manifest = orchestrationManifestSchema.parse(parseJson(raw));
   if (manifest.network !== `eip155:${expectedChainId}`) {
@@ -158,7 +159,7 @@ export function parseManifest(
   if (updatedAt > now.getTime() + 300_000) {
     throw new Error("ENS manifest updatedAt is in the future");
   }
-  if (expiresAt <= now.getTime()) {
+  if (!allowExpired && expiresAt <= now.getTime()) {
     throw new Error("ENS manifest has expired");
   }
   if (expiresAt - updatedAt > maxTtlSeconds * 1_000) {

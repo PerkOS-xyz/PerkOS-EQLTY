@@ -285,7 +285,7 @@ type AppDependencies = {
     Partial<Pick<OwnerAuth, "perkosIdToken">>;
   ensControlPlane?: Pick<EnsControlPlaneService, "resolve">;
   ensPolicyPreparation?: Pick<EnsPolicyPreparationService, "prepare"> &
-    Partial<Pick<EnsPolicyPreparationService, "publish">>;
+    Partial<Pick<EnsPolicyPreparationService, "publish" | "renew">>;
   fleetActivation?: Pick<FleetActivationService, "activate">;
   oneclawFleet?: Pick<OneClawFleetProvisioner, "provision" | "ready"> &
     Partial<Pick<OneClawFleetProvisioner, "authorization" | "status">>;
@@ -337,7 +337,12 @@ export function createApp(
     });
   const fleetActivation =
     dependencies.fleetActivation ??
-    new FleetActivationService(config, { controlPlane: ensControlPlane });
+    new FleetActivationService(config, {
+      controlPlane: ensControlPlane,
+      renewer: ensPolicyPreparation.renew
+        ? { renew: ensPolicyPreparation.renew.bind(ensPolicyPreparation) }
+        : undefined,
+    });
   const oneclawFleet =
     dependencies.oneclawFleet ?? new OneClawFleetProvisioner(config);
   const confirmedOneClawRoles = async (

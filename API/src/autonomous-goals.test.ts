@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { AutonomousGoalService } from "./autonomous-goals.js";
+import { buildDecisionReceipt } from "./decision-receipt.js";
 import type {
   GoalStore,
   PersistedGoal,
@@ -151,7 +152,9 @@ describe("autonomous goals", () => {
 
   it("seals a paid decision until its x402 receipt is stored", async () => {
     const now = Date.parse("2026-07-25T12:00:00.000Z");
-    const quote = vi.fn(() => payableFee());
+    const quote = vi.fn((value: OpportunityAnalysis) =>
+      payableFee(value.receipt.root),
+    );
     const settle = vi.fn(async ({ fee }: { fee: DecisionFee }) => ({
       ...fee,
       status: "settled" as const,
@@ -161,6 +164,7 @@ describe("autonomous goals", () => {
         asset:
           "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168" as const,
         network: "eip155:4663" as const,
+        decisionReceiptRoot: fee.decisionReceiptRoot,
         authorizationNonce:
           `0x${"22".repeat(32)}` as `0x${string}`,
         transaction: `0x${"dd".repeat(32)}` as `0x${string}`,
@@ -206,6 +210,9 @@ describe("autonomous goals", () => {
       goalId: "goal-paid",
       amountIn: "1000000",
       ticker: "AMZN",
+      decisionReceipt: {
+        schema: "urn:eqlty:decision-receipt:v1",
+      },
       payment: {
         mode: "live",
         status: "settled",
@@ -215,7 +222,9 @@ describe("autonomous goals", () => {
   });
 });
 
-function payableFee(): DecisionFee {
+function payableFee(
+  decisionReceiptRoot = `0x${"bb".repeat(32)}` as `0x${string}`,
+): DecisionFee {
   return {
     mode: "live",
     status: "payment-required",
@@ -225,6 +234,7 @@ function payableFee(): DecisionFee {
     decimals: 6,
     symbol: "USDG",
     reason: "Verified decision",
+    decisionReceiptRoot,
     requirements: {
       scheme: "exact",
       network: "eip155:4663",
@@ -280,6 +290,52 @@ function identity() {
 
 function analysis(timestamp: number): OpportunityAnalysis {
   const evaluatedAt = new Date(timestamp).toISOString();
+  const step = (role: "scout" | "risk" | "trader" | "auditor") => ({
+    role,
+    status: "verified" as const,
+    ticker: "AMZN",
+    responseHash: `0x${role.charCodeAt(0).toString(16).padStart(2, "0").repeat(32)}` as `0x${string}`,
+    facts: [],
+  });
+  const readiness = {
+    status: "ready_to_compare" as const,
+    summary: "Ready to compare",
+    reasons: [],
+  };
+  const consultation = {
+    mode: "hermes-a2a" as const,
+    status: "verified" as const,
+    selectedTicker: "AMZN",
+    scout: step("scout"),
+    risk: step("risk"),
+    trader: step("trader"),
+    auditor: step("auditor"),
+  };
+  const receipt = buildDecisionReceipt({
+    analysisId: `analysis-${timestamp}`,
+    issuedAt: evaluatedAt,
+    goal: "test",
+    amountIn: "1000000",
+    decisionStatus: "agent_verified",
+    readiness,
+    selection: {
+      ticker: "AMZN",
+      name: "Amazon",
+      tokenAddress: "0x2222222222222222222222222222222222222222",
+      status: "recommended",
+      score: 90,
+      reason: "Verified",
+      orchestrationReady: true,
+    },
+    policy: {
+      rootName: "u-12345678.demo.eth",
+      version: 1,
+      manifestHash: `0x${"aa".repeat(32)}`,
+    },
+    consultation,
+    candidates: [],
+    outcomes: [],
+  });
   return {
     id: `analysis-${timestamp}`,
     goal: "test",
@@ -295,38 +351,12 @@ function analysis(timestamp: number): OpportunityAnalysis {
     },
     evaluatedAt,
     decisionStatus: "agent_verified",
-    readiness: {
-      status: "ready_to_compare",
-      summary: "Ready to compare",
-      reasons: [],
-    },
+    readiness,
     recommendedTicker: "AMZN",
     candidates: [],
     outcomes: [],
-    consultation: {
-      mode: "deterministic-fallback",
-      status: "unavailable",
-      scout: {
-        role: "scout",
-        status: "unavailable",
-        facts: [],
-      },
-      risk: {
-        role: "risk",
-        status: "unavailable",
-        facts: [],
-      },
-      trader: {
-        role: "trader",
-        status: "unavailable",
-        facts: [],
-      },
-      auditor: {
-        role: "auditor",
-        status: "unavailable",
-        facts: [],
-      },
-    },
-    proofRoot: `0x${"bb".repeat(32)}`,
+    consultation,
+    receipt,
+    proofRoot: receipt.root,
   };
 }

@@ -49,6 +49,7 @@ export type DecisionFeeReceipt = {
   amount: string;
   asset: EvmAddress;
   network: "eip155:4663";
+  decisionReceiptRoot?: `0x${string}`;
   authorizationNonce: `0x${string}`;
   transaction?: `0x${string}`;
   explorerUrl?: string;
@@ -65,6 +66,7 @@ export type DecisionFee = {
   decimals: 6;
   symbol: "USDG";
   reason: string;
+  decisionReceiptRoot?: `0x${string}`;
   requirements?: DecisionFeeRequirements;
   receipt?: DecisionFeeReceipt;
   error?: string;

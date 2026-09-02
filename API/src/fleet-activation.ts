@@ -81,12 +81,38 @@ export class FleetActivationService {
     if (!this.config.ENS_ROOT_NAME) {
       throw new Error("ENS root name is not configured");
     }
+    const names = fleetNames(input.userId, this.config.ENS_ROOT_NAME);
+    let existing = await this.resolveControlPlane({
+      userId: input.userId,
+      owner: input.owner,
+    });
+    let renewalTransactions: `0x${string}`[] = [];
+    if (
+      existing?.status === "invalid" &&
+      existing.error === "ENS manifest has expired" &&
+      this.renewer
+    ) {
+      const renewed = await this.renewer.renew({
+        userId: input.userId,
+        owner: input.owner,
+      });
+      renewalTransactions = renewed.transactions;
+      existing = await this.controlPlane.resolve({
+        userId: input.userId,
+        owner: input.owner,
+      });
+    }
+    if (existing?.status === "invalid") {
+      throw new Error(
+        existing.error ?? "ENS fleet records failed verification",
+      );
+    }
+
     const runtime = await this.perkos.activate({
       owner: input.owner,
       userId: input.userId,
       idToken: input.perkosIdToken,
     });
-    const names = fleetNames(input.userId, this.config.ENS_ROOT_NAME);
     const runtimeAgents = Object.fromEntries(
       runtime.agents.map((agent) => [
         agent.role,
@@ -107,33 +133,8 @@ export class FleetActivationService {
       };
     }
 
-    let existing = await this.resolveControlPlane({
-      userId: input.userId,
-      owner: input.owner,
-    });
     if (!existing) {
       return this.pendingActivation(input, names.user, runtime);
-    }
-    let renewalTransactions: `0x${string}`[] = [];
-    if (
-      existing.status === "invalid" &&
-      existing.error === "ENS manifest has expired" &&
-      this.renewer
-    ) {
-      const renewed = await this.renewer.renew({
-        userId: input.userId,
-        owner: input.owner,
-      });
-      renewalTransactions = renewed.transactions;
-      existing = await this.controlPlane.resolve({
-        userId: input.userId,
-        owner: input.owner,
-      });
-    }
-    if (existing.status === "invalid") {
-      throw new Error(
-        existing.error ?? "ENS fleet records failed verification",
-      );
     }
     if (
       existing.status === "active" &&

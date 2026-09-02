@@ -96,6 +96,13 @@ export default function PortfolioPage() {
             title="Loading portfolio"
           />
         )}
+        {state.phase === "authenticating" && (
+          <PortfolioState
+            busy
+            copy="Confirm the EQLTY ownership message in your wallet. This does not move funds."
+            title="Confirm wallet ownership"
+          />
+        )}
         {state.phase === "error" && (
           <PortfolioState
             action={state.refresh}

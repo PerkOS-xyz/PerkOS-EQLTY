@@ -3,6 +3,7 @@ import { loadConfig } from "./config.js";
 import { buildEnsFleetBundle } from "./ens-policy-builder.js";
 import { EnsPolicyPreparationService } from "./ens-policy-preparation.js";
 import { hashEnsRecord, parseManifest } from "./ens-policy.js";
+import type { EnsAgentSettings } from "./ens-types.js";
 
 const owner = "0x1234567890abcdef1234567890abcdef12345678" as const;
 const currentTime = new Date("2026-07-25T12:00:00.000Z");
@@ -115,6 +116,55 @@ describe("ENS policy preparation", () => {
     ]);
   });
 
+  it("refreshes retired Chainlink capabilities on the next publication", async () => {
+    const { config, bundle } = fixture();
+    const legacyRisk = {
+      ...bundle.agents.risk.settings,
+      behavior: {
+        objective: "Check Chainlink data before approving a candidate.",
+        inputs: ["ens", "chainlink-data-streams", "the-graph-substreams"],
+        actions: ["risk-gate"],
+      },
+    } as EnsAgentSettings;
+    const service = new EnsPolicyPreparationService(config, {
+      controlPlane: {
+        resolve: async () => ({
+          source: "durin",
+          mode: "live",
+          status: "active",
+          rootName: bundle.names.user,
+          manifestHash: bundle.manifestHash,
+          resolvedAt: currentTime.toISOString(),
+          owner,
+          manifest: bundle.manifest,
+          agentSettings: {
+            ...settingsFor(bundle),
+            risk: legacyRisk,
+          },
+        }),
+      },
+      now: () => preparedTime,
+    });
+
+    const prepared = await service.prepare({
+      userId: "u-12345678",
+      owner,
+      change: {
+        paused: true,
+        ...bundle.manifest.policy,
+      },
+    });
+
+    expect(prepared.agentRecords.risk.settings.behavior.inputs).toEqual([
+      "ens",
+      "the-graph-substreams",
+      "x401",
+    ]);
+    expect(
+      prepared.agentRecords.risk.settings.behavior.objective,
+    ).not.toContain("Chainlink");
+  });
+
   it("publishes role records before the manifest and verifies the result", async () => {
     const { config, bundle } = fixture();
     const writes: Array<{
@@ -210,6 +260,96 @@ describe("ENS policy preparation", () => {
       value: published.manifestJson,
     });
     expect(published.transactions).toHaveLength(5);
+    expect(published.verified).toBe(true);
+  });
+
+  it("reconciles a record that settles after a nonce collision", async () => {
+    const { config, bundle } = fixture();
+    const writes: Array<{
+      name: string;
+      key: string;
+      value: string;
+    }> = [];
+    let pending:
+      | { name: string; key: string; value: string }
+      | undefined;
+    let resolveCount = 0;
+    let attempts = 0;
+    const service = new EnsPolicyPreparationService(config, {
+      controlPlane: {
+        resolve: async () => {
+          resolveCount += 1;
+          if (resolveCount === 1) {
+            return {
+              source: "durin",
+              mode: "live",
+              status: "active",
+              rootName: bundle.names.user,
+              manifestHash: bundle.manifestHash,
+              resolvedAt: currentTime.toISOString(),
+              owner,
+              manifest: bundle.manifest,
+              agentSettings: settingsFor(bundle),
+            };
+          }
+          const manifestJson = writes.at(-1)?.value ?? "";
+          return {
+            source: "durin",
+            mode: "live",
+            status: "active",
+            rootName: bundle.names.user,
+            manifestHash: hashEnsRecord(manifestJson),
+            resolvedAt: preparedTime.toISOString(),
+            owner,
+            manifest: JSON.parse(manifestJson),
+            agentSettings: settingsFor(bundle),
+          };
+        },
+      },
+      writer: {
+        ready: () => true,
+        setText: async (name, key, value) => {
+          attempts += 1;
+          if (attempts === 1) {
+            pending = { name, key, value };
+            throw new Error("replacement transaction underpriced");
+          }
+          writes.push({ name, key, value });
+          return `0x${attempts.toString(16).padStart(64, "0")}`;
+        },
+      },
+      reader: {
+        ready: () => true,
+        text: async (name, key) => {
+          const written = [...writes]
+            .reverse()
+            .find(
+              (record) =>
+                record.name === name && record.key === key,
+            );
+          if (written) return written.value;
+          if (pending?.name === name && pending.key === key) {
+            return pending.value;
+          }
+          return name === bundle.names.user && key === "agent-context"
+            ? bundle.manifestJson
+            : "";
+        },
+      },
+      now: () => preparedTime,
+      settlementPollAttempts: 1,
+      settlementPollMs: 0,
+    });
+
+    const published = await service.publish({
+      userId: "u-12345678",
+      owner,
+      change: { paused: true, ...bundle.manifest.policy },
+    });
+
+    expect(attempts).toBe(5);
+    expect(writes).toHaveLength(4);
+    expect(published.transactions).toHaveLength(4);
     expect(published.verified).toBe(true);
   });
 

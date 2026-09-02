@@ -146,9 +146,12 @@ export function fleetMetadataUrl(role: AgentRole): string {
 }
 
 export function ensManagerUrl(name: string): string {
-  const baseUrl =
+  const configured =
     process.env.NEXT_PUBLIC_EQLTY_ENS_APP_URL?.trim() ||
     fallbackEnsAppUrl;
+  const baseUrl = configured.includes("sepolia.app.ens.domains")
+    ? fallbackEnsAppUrl
+    : configured;
   return `${baseUrl.replace(/\/$/, "")}/${encodeURIComponent(name)}`;
 }
 

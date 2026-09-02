@@ -8,6 +8,32 @@ const owner =
 const roles: FleetRole[] = ["scout", "risk", "trader", "auditor"];
 
 describe("fleet activation", () => {
+  it("does not wake compute when ENS fails closed", async () => {
+    const activate = vi.fn(async () => runtime(true));
+    const service = new FleetActivationService(config(), {
+      perkos: { activate },
+      controlPlane: {
+        resolve: async () => ({
+          source: "durin",
+          mode: "live",
+          status: "invalid",
+          resolvedAt: "2026-09-02T12:00:00.000Z",
+          error: "The scout settings hash does not match",
+        }),
+      },
+      provisioner: { provision: vi.fn() },
+    });
+
+    await expect(
+      service.activate({
+        userId: "u-12345678",
+        owner,
+        perkosIdToken: "firebase-token",
+      }),
+    ).rejects.toThrow("The scout settings hash does not match");
+    expect(activate).not.toHaveBeenCalled();
+  });
+
   it("waits for real PerkOS agent ids before writing ENS", async () => {
     const provision = vi.fn();
     const service = new FleetActivationService(config(), {

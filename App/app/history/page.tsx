@@ -72,6 +72,13 @@ export default function HistoryPage() {
             title="Loading trade records"
           />
         )}
+        {state.phase === "authenticating" && (
+          <AuditState
+            busy
+            copy="Confirm the EQLTY ownership message in your wallet. This does not move funds."
+            title="Confirm wallet ownership"
+          />
+        )}
         {state.phase === "error" && (
           <AuditState
             action={state.refresh}

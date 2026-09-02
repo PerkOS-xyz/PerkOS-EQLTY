@@ -395,8 +395,11 @@ export function FleetPanel({
       {state.error && (
         <div className="fleetError">
           <span>{state.error}</span>
-          <button onClick={state.retry} type="button">
-            Try again
+          <button
+            onClick={goal.workflowError ? goal.analyze : state.retry}
+            type="button"
+          >
+            {goal.workflowError ? "Restart consultation" : "Try again"}
           </button>
         </div>
       )}

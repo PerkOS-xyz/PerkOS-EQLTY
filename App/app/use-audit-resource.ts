@@ -10,7 +10,12 @@ import { useWalletAccess } from "./wallet-access-context";
 
 export type AuditResource<T> = {
   data?: T;
-  phase: "disconnected" | "loading" | "ready" | "error";
+  phase:
+    | "disconnected"
+    | "authenticating"
+    | "loading"
+    | "ready"
+    | "error";
   error?: string;
   refresh: () => void;
 };
@@ -49,6 +54,7 @@ export function useAuditResource<T>(
         session.walletAddress.toLowerCase() !==
           wallet.address!.toLowerCase()
       ) {
+        setPhase("authenticating");
         const challenge = await requestFleetChallenge(wallet.address!);
         const signature = await walletRef.current.signMessage(
           challenge.message,
@@ -58,6 +64,7 @@ export function useAuditResource<T>(
           challenge.nonce,
           signature,
         );
+        if (!controller.signal.aborted) setPhase("loading");
       }
       return loader(controller.signal);
     };

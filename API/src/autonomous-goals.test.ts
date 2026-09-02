@@ -294,8 +294,15 @@ function analysis(timestamp: number): OpportunityAnalysis {
       paused: false,
     },
     evaluatedAt,
+    decisionStatus: "agent_verified",
+    readiness: {
+      status: "ready_to_compare",
+      summary: "Ready to compare",
+      reasons: [],
+    },
     recommendedTicker: "AMZN",
     candidates: [],
+    outcomes: [],
     consultation: {
       mode: "deterministic-fallback",
       status: "unavailable",

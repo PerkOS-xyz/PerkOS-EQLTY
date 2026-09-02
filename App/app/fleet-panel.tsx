@@ -36,13 +36,18 @@ import {
 } from "./fleet-workflow";
 import type { GoalAnalysisState } from "./use-goal-analysis";
 import { useWalletAccess } from "./wallet-access-context";
-import { useFleetActivation } from "./use-fleet-activation";
+import type { FleetActivationState } from "./use-fleet-activation";
 
 const steps = ["Locate", "Create", "Provision", "Wake"];
 
-export function FleetPanel({ goal }: { goal: GoalAnalysisState }) {
+export function FleetPanel({
+  fleet: state,
+  goal,
+}: {
+  fleet: FleetActivationState;
+  goal: GoalAnalysisState;
+}) {
   const wallet = useWalletAccess();
-  const state = useFleetActivation();
   const workflow = workflowFromGoal(goal);
   const runtime = state.activation?.runtime;
   const suffix = (
@@ -169,6 +174,8 @@ export function FleetPanel({ goal }: { goal: GoalAnalysisState }) {
         <b className={`fleetCount ${displayState}`}>
           {displayState === "ready"
             ? "4/4 ready"
+            : displayState === "idle" && wallet.connected
+              ? "Asleep · wakes on demand"
             : `${readyCount}/4 online`}
         </b>
       </header>
@@ -377,7 +384,7 @@ export function FleetPanel({ goal }: { goal: GoalAnalysisState }) {
       )}
       {state.busy && (
         <p className="fleetNote">
-          Keep this tab open while managed runtime health is checked.
+          Keep this tab open while the private fleet wakes for this consultation.
         </p>
       )}
       {runtime && runtime.mode !== "live" && (
@@ -886,7 +893,7 @@ function stepProgress(phase: FleetPhase): number {
 function fleetHeadline(phase: FleetPhase, connected: boolean): string {
   if (!connected) return "Connect your wallet to begin";
   return {
-    idle: "Preparing fleet activation",
+    idle: "No compute is running. Start a consultation to wake the fleet.",
     locating: "Looking for your existing agents",
     creating: "Creating missing agent identities",
     provisioning: "Provisioning isolated Hermes runtimes",

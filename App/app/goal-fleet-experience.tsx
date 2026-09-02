@@ -2,15 +2,17 @@
 
 import { FleetPanel } from "./fleet-panel";
 import { GoalAnalyzer } from "./goal-analyzer";
+import { useFleetActivation } from "./use-fleet-activation";
 import { useGoalAnalysis } from "./use-goal-analysis";
 
 export function GoalFleetExperience() {
-  const goal = useGoalAnalysis();
+  const fleet = useFleetActivation();
+  const goal = useGoalAnalysis(fleet.activate);
 
   return (
     <div className="goalFleetExperience">
       <GoalAnalyzer state={goal} />
-      <FleetPanel goal={goal} />
+      <FleetPanel fleet={fleet} goal={goal} />
     </div>
   );
 }

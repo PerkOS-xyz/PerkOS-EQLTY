@@ -16,6 +16,11 @@ import type {
 import type { StockCatalogService } from "./stock-catalog.js";
 import { StockCatalogService as Catalog } from "./stock-catalog.js";
 import type { ApiConfig } from "./config.js";
+import {
+  evaluateGoalReadiness,
+  type FinancialGoalProfile,
+} from "./financial-goal.js";
+import type { DecisionOutcome } from "./goal-types.js";
 
 type Dependencies = {
   catalog?: Pick<StockCatalogService, "assessTicker">;
@@ -47,6 +52,7 @@ export class OpportunityAnalysisService {
 
   async analyze(input: {
     goal: string;
+    profile?: FinancialGoalProfile;
     amountIn: string;
     maxCandidates: number;
     candidateTickers?: string[];
@@ -133,16 +139,20 @@ export class OpportunityAnalysisService {
       agents: input.fleetAgents,
       idToken: input.perkosIdToken,
     });
-    const winner =
+    const readiness = evaluateGoalReadiness(input.profile);
+    const selected =
       consultation.status === "verified"
         ? candidates.find(
             (candidate) =>
               candidate.ticker === consultation.selectedTicker &&
               candidate.status === "eligible",
           )
-        : candidates.find(
-            (candidate) => candidate.status === "eligible",
-          );
+        : undefined;
+    const winner = ["ready_to_compare", "limited_position"].includes(
+      readiness.status,
+    )
+      ? selected
+      : undefined;
     if (winner) {
       winner.status = "recommended";
       winner.reason =
@@ -158,9 +168,18 @@ export class OpportunityAnalysisService {
     }
 
     const evaluatedAt = this.now().toISOString();
+    const decisionStatus = selected
+      ? "agent_verified"
+      : candidates.some((candidate) => candidate.status === "eligible")
+        ? "rules_only"
+        : "insufficient_evidence";
+    const outcomes = decisionOutcomes(candidates, winner, readiness);
     const proofInput = {
       goal: input.goal,
       amountIn: input.amountIn,
+      readiness,
+      decisionStatus,
+      outcomes,
       policyManifestHash: controlPlane.manifestHash,
       evaluatedAt,
       candidates: candidates.map((candidate) => ({
@@ -194,12 +213,65 @@ export class OpportunityAnalysisService {
         paused: manifest.paused,
       },
       evaluatedAt,
+      decisionStatus,
+      readiness,
       recommendedTicker: winner?.ticker,
       candidates,
+      outcomes,
       consultation,
       proofRoot: keccak256(stringToHex(JSON.stringify(proofInput))),
     };
   }
+}
+
+function decisionOutcomes(
+  candidates: OpportunityCandidate[],
+  winner: OpportunityCandidate | undefined,
+  readiness: ReturnType<typeof evaluateGoalReadiness>,
+): DecisionOutcome[] {
+  const eligible = candidates.filter(
+    (candidate) => candidate.status !== "rejected",
+  );
+  const outcomes: DecisionOutcome[] = [];
+  if (winner) {
+    outcomes.push({
+      kind: "primary",
+      ticker: winner.ticker,
+      title: `${winner.ticker} best fits the verified comparison`,
+      summary: winner.reason,
+      reasons: [
+        `Readiness: ${readiness.status.replaceAll("_", " ")}`,
+        "The four-agent consultation was verified against sealed evidence.",
+      ],
+    });
+  }
+  const alternative = eligible.find(
+    (candidate) => candidate.ticker !== winner?.ticker,
+  );
+  if (alternative) {
+    outcomes.push({
+      kind: "alternative",
+      ticker: alternative.ticker,
+      title: `${alternative.ticker} is an evidence-backed alternative`,
+      summary: alternative.reason,
+      reasons: [
+        "It passed deterministic ENS, Uniswap and The Graph gates.",
+        winner
+          ? "It was not selected by the verified consultation."
+          : "Agent reasoning was unavailable, so this is not a recommendation.",
+      ],
+    });
+  }
+  outcomes.push({
+    kind: "no_action",
+    title: "Wait and keep the funds available",
+    summary:
+      readiness.status === "no_action"
+        ? readiness.summary
+        : "Execution is optional. Revisit the goal when evidence or circumstances change.",
+    reasons: readiness.reasons,
+  });
+  return outcomes;
 }
 
 function score(

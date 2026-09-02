@@ -65,8 +65,19 @@
 
 .goalForm {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
   gap: 18px;
+}
+
+.goalNarrative {
+  min-width: 0;
+}
+
+.goalProfileGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 14px;
 }
 
 .goalPresetActions {
@@ -277,6 +288,108 @@
   background: #0b110d;
 }
 
+.decisionSummary {
+  margin-bottom: 14px;
+  padding: 16px;
+  border: 1px solid #2c4134;
+  border-radius: 11px;
+  background: #0b120e;
+}
+
+.decisionSummary > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.decisionSummary > header > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.decisionSummary > header span,
+.decisionOutcome > span {
+  color: #72dd96;
+  font: 500 11px "DM Mono", monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.decisionSummary > header strong {
+  font-size: 17px;
+}
+
+.decisionSummary > ul,
+.decisionOutcome ul {
+  margin: 9px 0 0;
+  padding-left: 18px;
+  color: #87928b;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.decisionTrust {
+  padding: 7px 10px;
+  border: 1px solid #365a42;
+  border-radius: 999px;
+  color: #8bedaa;
+  font: 500 11px "DM Mono", monospace;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.decisionTrust.rules_only {
+  border-color: #695c38;
+  color: #efca77;
+}
+
+.decisionTrust.insufficient_evidence {
+  border-color: #69433d;
+  color: #ee998d;
+}
+
+.decisionOutcomes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 14px;
+}
+
+.decisionOutcome {
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid #26332b;
+  border-radius: 9px;
+  background: #0d1410;
+}
+
+.decisionOutcome.primary {
+  border-color: #386149;
+  background: #101b14;
+}
+
+.decisionOutcome.no_action {
+  border-color: #494b40;
+  background: #141511;
+}
+
+.decisionOutcome strong {
+  display: block;
+  margin-top: 7px;
+  color: #dce6df;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.decisionOutcome p {
+  margin: 7px 0 0;
+  color: #89948d;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
 .goalProgress > header,
 .candidateResult > header,
 .candidateDecision {
@@ -439,6 +552,10 @@
 
   .goalEvidenceGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .decisionOutcomes {
+    grid-template-columns: 1fr;
   }
 
   .decisionFee {

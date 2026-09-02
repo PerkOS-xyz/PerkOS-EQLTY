@@ -57,6 +57,15 @@ const uint256 = z
 const goalInput = z
   .object({
     goal: z.string().trim().min(10).max(500),
+    profile: z
+      .object({
+        purpose: z.enum(["learn", "long-term-growth", "planned-purchase"]),
+        horizonMonths: z.number().int().min(1).max(600),
+        liquidityNeed: z.enum(["may-need", "can-commit"]),
+        riskComfort: z.enum(["low", "medium", "high"]),
+      })
+      .strict()
+      .optional(),
     amountIn: uint256,
     windowMinutes: z.number().int().min(2).max(20),
     cadenceSeconds: z.number().int().min(15).max(120).default(30),

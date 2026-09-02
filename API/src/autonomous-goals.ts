@@ -264,6 +264,7 @@ export class AutonomousGoalService {
       }
       const analysis = await this.opportunities.analyze({
         goal: goal.goal,
+        profile: goal.input.profile,
         amountIn: goal.amountIn,
         maxCandidates: goal.input.maxCandidates,
         candidateTickers: goal.input.candidateTickers,

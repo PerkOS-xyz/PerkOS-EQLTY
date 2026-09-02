@@ -205,20 +205,28 @@ class ViemPortfolioBalanceReader implements PortfolioBalanceReader {
     const uniqueTokens = [
       ...new Map(tokens.map((token) => [token.toLowerCase(), token])).values(),
     ];
+    const balanceChunks: EvmAddress[][] = [];
+    for (let index = 0; index < uniqueTokens.length; index += 40) {
+      balanceChunks.push(uniqueTokens.slice(index, index + 40));
+    }
+    const chunkResults = await Promise.all(
+      balanceChunks.map(async (chunk) => ({
+        chunk,
+        results: await Promise.allSettled(
+          chunk.map((token) =>
+            client.readContract({
+              address: token,
+              abi: tokenAbi,
+              functionName: "balanceOf",
+              args: [owner],
+            }),
+          ),
+        ),
+      })),
+    );
     const held: Array<{ token: EvmAddress; rawBalance: bigint }> = [];
     let unreadableTokens = 0;
-    for (let index = 0; index < uniqueTokens.length; index += 40) {
-      const chunk = uniqueTokens.slice(index, index + 40);
-      const results = await Promise.allSettled(
-        chunk.map((token) =>
-          client.readContract({
-            address: token,
-            abi: tokenAbi,
-            functionName: "balanceOf",
-            args: [owner],
-          }),
-        ),
-      );
+    chunkResults.forEach(({ chunk, results }) => {
       results.forEach((result, resultIndex) => {
         const token = chunk[resultIndex];
         if (!token || result.status === "rejected") {
@@ -227,7 +235,7 @@ class ViemPortfolioBalanceReader implements PortfolioBalanceReader {
           held.push({ token, rawBalance: result.value });
         }
       });
-    }
+    });
 
     const balances: TokenBalance[] = [];
     for (let index = 0; index < held.length; index += 40) {

@@ -5,6 +5,18 @@ import type {
   DecisionFee,
   DecisionFeePaymentPayload,
 } from "./decision-fee-types.js";
+import type {
+  FinancialGoalProfile,
+  GoalReadiness,
+} from "./financial-goal.js";
+
+export type DecisionOutcome = {
+  kind: "primary" | "alternative" | "no_action";
+  ticker?: string;
+  title: string;
+  summary: string;
+  reasons: string[];
+};
 
 export type OpportunityCandidate = {
   ticker: string;
@@ -44,8 +56,14 @@ export type OpportunityAnalysis = {
     paused: boolean;
   };
   evaluatedAt: string;
+  decisionStatus:
+    | "agent_verified"
+    | "rules_only"
+    | "insufficient_evidence";
+  readiness: GoalReadiness;
   recommendedTicker?: string;
   candidates: OpportunityCandidate[];
+  outcomes: DecisionOutcome[];
   consultation: AgentConsultation;
   proofRoot: `0x${string}`;
 };
@@ -93,6 +111,7 @@ export type GoalIdentity = {
 
 export type GoalInput = GoalIdentity & {
   goal: string;
+  profile?: FinancialGoalProfile;
   amountIn: string;
   windowMinutes: number;
   cadenceSeconds: number;

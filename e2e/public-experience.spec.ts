@@ -4,24 +4,26 @@ test("explains the agent decision workflow", async ({ page }) => {
   await page.goto("/");
 
   await expect(
-    page.getByRole("heading", { name: /State the goal/ }),
+    page.getByRole("heading", { name: /Start with the goal/ }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Your Financial Assistant Fleet" }),
   ).toBeVisible();
-  await expect(page.getByText(/Follow ENS rules/)).toBeVisible();
-  await expect(page.getByText(/Approve optional Uniswap execution/)).toBeVisible();
-  await expect(page.getByText(/verify it with The Graph/)).toBeVisible();
+  await expect(page.getByText(/Share the purpose, time horizon/)).toBeVisible();
+  await expect(page.getByText(/test alternatives against live evidence/)).toBeVisible();
+  await expect(page.getByText(/the case for doing nothing/)).toBeVisible();
   await expect(
-    page.getByText(/Exact proof fee|decision fee is requested only/i),
+    page.getByText(/fee is requested only/i),
   ).toBeVisible();
 
   const objective = page.getByLabel("Investment objective");
-  await page.getByRole("button", { name: "Conservative income" }).click();
-  await expect(objective).toHaveValue(/lowest risk stock token/i);
+  await page.getByRole("button", { name: "Learn first" }).click();
+  await expect(objective).toHaveValue(/without preparing a purchase/i);
   await expect(
-    page.getByRole("button", { name: "Conservative income" }),
+    page.getByRole("button", { name: "Learn first" }),
   ).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByLabel("Financial goal purpose")).toHaveValue("learn");
+  await expect(page.getByLabel("Financial goal risk comfort")).toHaveValue("low");
 
   await page.getByRole("button", { name: "3 USDG", exact: true }).click();
   await expect(page.getByLabel("Goal budget in USDG")).toHaveValue("3");

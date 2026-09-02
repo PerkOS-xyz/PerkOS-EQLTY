@@ -149,10 +149,10 @@ export function DecisionRoom({
             )}
           </div>
           <footer>
-            <span>Cycle ID</span>
-            <code>{short(analysis.id)}</code>
-            <span>Proof root</span>
-            <code>{short(analysis.proofRoot)}</code>
+            <span>Decision receipt</span>
+            <code>{analysis.receipt.id}</code>
+            <span>Receipt root</span>
+            <code>{short(analysis.receipt.root)}</code>
           </footer>
         </aside>
       </div>
@@ -309,7 +309,7 @@ function decisionEvents(analysis: OpportunityAnalysis): DecisionEvent[] {
         ),
       fact: consultationFact(
         consultation.auditor,
-        `proof ${short(analysis.proofRoot)}`,
+        `receipt ${short(analysis.receipt.root)}`,
       ),
       links: [],
       graphEvidence:

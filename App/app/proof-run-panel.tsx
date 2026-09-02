@@ -22,10 +22,10 @@ export function ProofRunPanel({
     return (
       <div className="proofStart">
         <div>
-          <strong>Recheck the recommendation for execution</strong>
+          <strong>Continue the sealed decision to execution</strong>
           <small>
-            Resolve ENS again, refresh Graph evidence and seal a fresh
-            Uniswap quote without moving funds.
+            Verify the same four-agent receipt, resolve ENS again and refresh
+            market evidence without moving funds.
           </small>
         </div>
         <button
@@ -81,8 +81,10 @@ export function ProofRunPanel({
               {run.market?.blockNumber ?? "Pending"}
             </span>
             <span>
-              <b>Proof bundle</b>
-              {run.proofBundleRoot ? short(run.proofBundleRoot) : "Sealing"}
+              <b>Decision receipt</b>
+              {run.decisionReceipt
+                ? short(run.decisionReceipt.root)
+                : "Unavailable"}
             </span>
           </div>
           {run.market && <VerificationLogs run={run} />}
@@ -170,8 +172,8 @@ function VerificationLogs({ run }: { run: TradeRun }) {
               target="_blank"
             >
               <span>x402 decision payment</span>
-              <strong>Recommendation authorized</strong>
-              <code>{short(run.signal.payment.authorizationNonce)}</code>
+              <strong>Decision receipt authorized</strong>
+              <code>{short(run.signal.decisionReceiptRoot)}</code>
               <b>Verify payment ↗</b>
             </a>
           )}

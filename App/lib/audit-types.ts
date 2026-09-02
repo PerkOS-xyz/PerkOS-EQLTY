@@ -159,6 +159,7 @@ export type PurchaseAuditBundle = {
     poolMatchedGraphEvidence: boolean;
   };
   proofs: {
+    decisionReceipt?: import("./goal-types").DecisionReceipt;
     proofBundleRoot?: `0x${string}`;
     signalHash: `0x${string}`;
     quoteHash: `0x${string}`;

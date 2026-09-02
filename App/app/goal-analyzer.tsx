@@ -499,6 +499,17 @@ function DecisionSummary({
           />
         ))}
       </div>
+      <footer className="decisionReceiptSeal">
+        <span>Decision receipt</span>
+        <code>{analysis.receipt.id}</code>
+        <code>{short(analysis.receipt.root)}</code>
+        <small>
+          {Object.values(analysis.receipt.agents).filter(
+            (agent) => agent.responseHash,
+          ).length}
+          /4 agent outputs hash-bound
+        </small>
+      </footer>
     </section>
   );
 }
@@ -641,15 +652,15 @@ function goalEvidenceCards(
           : undefined,
     },
     {
-      title: "Audit",
-      value: short(analysis.proofRoot),
+      title: "Decision receipt",
+      value: short(analysis.receipt.root),
       detail:
         analysis.candidates.find(
           (candidate) => candidate.status === "recommended",
         )
-          ? "Cycle sealed with proof root"
+          ? "Hermes outputs, policy and evidence sealed together"
           : "Workflow ended without a winning recommendation",
-      state: analysis.proofRoot ? "ready" : "waiting",
+      state: analysis.receipt.root ? "ready" : "waiting",
     },
   ];
 }
@@ -680,6 +691,11 @@ function DecisionFeePanel({
           {exact} {fee.symbol} · x402 {fee.scheme}
         </strong>
         <small>{fee.reason}</small>
+        <code className="decisionFeeBinding">
+          {fee.decisionReceiptRoot
+            ? `receipt ${short(fee.decisionReceiptRoot)}`
+            : "Legacy decision · start a new consultation"}
+        </code>
       </div>
       {fee.status === "payment-required" && (
         <button disabled={busy} onClick={onPay} type="button">

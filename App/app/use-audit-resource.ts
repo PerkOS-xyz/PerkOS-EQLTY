@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   loadFleetSession,
   requestFleetChallenge,
@@ -19,6 +19,8 @@ export function useAuditResource<T>(
   loader: (signal: AbortSignal) => Promise<T>,
 ): AuditResource<T> {
   const wallet = useWalletAccess();
+  const walletRef = useRef(wallet);
+  walletRef.current = wallet;
   const [data, setData] = useState<T>();
   const [error, setError] = useState<string>();
   const [request, setRequest] = useState(0);
@@ -48,7 +50,9 @@ export function useAuditResource<T>(
           wallet.address!.toLowerCase()
       ) {
         const challenge = await requestFleetChallenge(wallet.address!);
-        const signature = await wallet.signMessage(challenge.message);
+        const signature = await walletRef.current.signMessage(
+          challenge.message,
+        );
         await verifyFleetOwner(
           wallet.address!,
           challenge.nonce,
@@ -80,7 +84,6 @@ export function useAuditResource<T>(
     wallet.address,
     wallet.connected,
     wallet.loaded,
-    wallet.signMessage,
   ]);
 
   const refresh = useCallback(() => {

@@ -126,14 +126,30 @@ export class ViemDurinWriter implements DurinWriter {
         args: [childNode, "agent-context", input.text],
       }),
     ];
+    const account = this.requiredAccount();
+    const args = [input.parentNode, input.label, input.owner, data] as const;
+    const [nonce, estimatedGas] = await Promise.all([
+      this.publicClient.getTransactionCount({
+        address: account.address,
+        blockTag: "pending",
+      }),
+      this.publicClient.estimateContractGas({
+        account,
+        address: this.requiredRegistry(),
+        abi: registryAbi,
+        functionName: "createSubnode",
+        args,
+      }),
+    ]);
     const hash = await this.walletClient.writeContract({
-      account: this.requiredAccount(),
+      account,
       address: this.requiredRegistry(),
       abi: registryAbi,
       functionName: "createSubnode",
-      args: [input.parentNode, input.label, input.owner, data],
+      args,
       chain: this.chain,
-      gas: 5_000_000n,
+      gas: gasWithMargin(estimatedGas),
+      nonce,
     });
     const receipt = await this.publicClient.waitForTransactionReceipt({
       hash,
@@ -150,14 +166,30 @@ export class ViemDurinWriter implements DurinWriter {
     value: string,
   ): Promise<`0x${string}`> {
     await this.verifyNetwork();
+    const account = this.requiredAccount();
+    const args = [namehash(name), key, value] as const;
+    const [nonce, estimatedGas] = await Promise.all([
+      this.publicClient.getTransactionCount({
+        address: account.address,
+        blockTag: "pending",
+      }),
+      this.publicClient.estimateContractGas({
+        account,
+        address: this.requiredRegistry(),
+        abi: registryAbi,
+        functionName: "setText",
+        args,
+      }),
+    ]);
     const hash = await this.walletClient.writeContract({
-      account: this.requiredAccount(),
+      account,
       address: this.requiredRegistry(),
       abi: registryAbi,
       functionName: "setText",
-      args: [namehash(name), key, value],
+      args,
       chain: this.chain,
-      gas: 5_000_000n,
+      gas: gasWithMargin(estimatedGas),
+      nonce,
     });
     const receipt = await this.publicClient.waitForTransactionReceipt({
       hash,
@@ -195,4 +227,8 @@ export class ViemDurinWriter implements DurinWriter {
     }
     return this.account;
   }
+}
+
+function gasWithMargin(estimate: bigint): bigint {
+  return estimate + estimate / 5n;
 }

@@ -64,14 +64,22 @@ export type PublishedEnsPolicyChange = PreparedEnsPolicyChange & {
 type Dependencies = {
   controlPlane: Pick<EnsControlPlaneService, "resolve">;
   reader?: Pick<DurinReader, "ready" | "text">;
-  writer?: Pick<DurinWriter, "ready" | "setText">;
+  writer?: Pick<DurinWriter, "ready" | "setText"> &
+    Partial<Pick<DurinWriter, "registrar">>;
   now?: () => Date;
+  settlementPollMs?: number;
+  settlementPollAttempts?: number;
 };
+
+const publicationQueues = new Map<string, Promise<unknown>>();
 
 export class EnsPolicyPreparationService {
   private readonly now: () => Date;
   private readonly reader: Pick<DurinReader, "ready" | "text">;
-  private readonly writer: Pick<DurinWriter, "ready" | "setText">;
+  private readonly writer: Pick<DurinWriter, "ready" | "setText"> &
+    Partial<Pick<DurinWriter, "registrar">>;
+  private readonly settlementPollMs: number;
+  private readonly settlementPollAttempts: number;
 
   constructor(
     private readonly config: ApiConfig,
@@ -80,6 +88,9 @@ export class EnsPolicyPreparationService {
     this.now = dependencies.now ?? (() => new Date());
     this.reader = dependencies.reader ?? new ViemDurinReader(config);
     this.writer = dependencies.writer ?? new ViemDurinWriter(config);
+    this.settlementPollMs = dependencies.settlementPollMs ?? 750;
+    this.settlementPollAttempts =
+      dependencies.settlementPollAttempts ?? 20;
   }
 
   async prepare(input: {
@@ -220,16 +231,35 @@ export class EnsPolicyPreparationService {
     input: { userId: string; owner: EvmAddress },
     prepared: PreparedEnsPolicyChange,
   ): Promise<PublishedEnsPolicyChange> {
+    const queueKey = this.writerKey();
+    const previous = publicationQueues.get(queueKey) ?? Promise.resolve();
+    const current = previous
+      .catch(() => undefined)
+      .then(() => this.publishPreparedSerial(input, prepared));
+    publicationQueues.set(queueKey, current);
+    try {
+      return await current;
+    } finally {
+      if (publicationQueues.get(queueKey) === current) {
+        publicationQueues.delete(queueKey);
+      }
+    }
+  }
+
+  private async publishPreparedSerial(
+    input: { userId: string; owner: EvmAddress },
+    prepared: PreparedEnsPolicyChange,
+  ): Promise<PublishedEnsPolicyChange> {
     const transactions: `0x${string}`[] = [];
     for (const { role } of fleetRoles) {
       const record = prepared.agentRecords[role];
-      transactions.push(
-        await this.writer.setText(
-          record.name,
-          record.recordKey,
-          record.settingsJson,
-        ),
+      const transaction = await this.writeRecord(
+        record.name,
+        record.recordKey,
+        record.settingsJson,
+        record.settingsHash,
       );
+      if (transaction) transactions.push(transaction);
     }
 
     for (const { role } of fleetRoles) {
@@ -263,13 +293,13 @@ export class EnsPolicyPreparationService {
       );
     }
 
-    transactions.push(
-      await this.writer.setText(
-        prepared.rootName,
-        "agent-context",
-        prepared.manifestJson,
-      ),
+    const manifestTransaction = await this.writeRecord(
+      prepared.rootName,
+      "agent-context",
+      prepared.manifestJson,
+      prepared.manifestHash,
     );
+    if (manifestTransaction) transactions.push(manifestTransaction);
     const verified = await this.dependencies.controlPlane.resolve({
       userId: input.userId,
       owner: input.owner,
@@ -284,6 +314,67 @@ export class EnsPolicyPreparationService {
     return { ...prepared, transactions, verified: true };
   }
 
+  private async writeRecord(
+    name: string,
+    key: string,
+    value: string,
+    expectedHash: `0x${string}`,
+  ): Promise<`0x${string}` | undefined> {
+    if (await this.recordMatches(name, key, expectedHash)) {
+      return undefined;
+    }
+    try {
+      return await this.writer.setText(name, key, value);
+    } catch (error) {
+      if (
+        !pendingTransactionError(error) ||
+        !(await this.waitForRecord(name, key, expectedHash))
+      ) {
+        throw error;
+      }
+      return undefined;
+    }
+  }
+
+  private async waitForRecord(
+    name: string,
+    key: string,
+    expectedHash: `0x${string}`,
+  ): Promise<boolean> {
+    for (
+      let attempt = 0;
+      attempt < this.settlementPollAttempts;
+      attempt += 1
+    ) {
+      if (await this.recordMatches(name, key, expectedHash)) {
+        return true;
+      }
+      if (this.settlementPollMs > 0) {
+        await wait(this.settlementPollMs);
+      }
+    }
+    return false;
+  }
+
+  private async recordMatches(
+    name: string,
+    key: string,
+    expectedHash: `0x${string}`,
+  ): Promise<boolean> {
+    const current = await this.reader.text(name, key);
+    return Boolean(
+      current &&
+        hashEnsRecord(current).toLowerCase() ===
+          expectedHash.toLowerCase(),
+    );
+  }
+
+  private writerKey(): string {
+    return (
+      this.writer.registrar?.()?.toLowerCase() ?? "eqlty-ens-writer"
+    );
+  }
+
   private assertPublicationReady(): void {
     if (!this.writer.ready()) {
       throw new Error("ENS policy publisher is not configured");
@@ -292,6 +383,19 @@ export class EnsPolicyPreparationService {
       throw new Error("ENS policy verifier is not configured");
     }
   }
+}
+
+function pendingTransactionError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    /replacement transaction underpriced|already known|nonce too low|nonce has already been used/i.test(
+      error.message,
+    )
+  );
+}
+
+function wait(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 function policyDiff(

@@ -58,6 +58,90 @@
   transition: width 0.55s ease;
 }
 
+.fleetFunding {
+  align-items: center;
+  background:
+    linear-gradient(120deg, rgba(91, 242, 158, 0.11), rgba(8, 15, 12, 0.94));
+  border: 1px solid rgba(91, 242, 158, 0.35);
+  border-radius: 18px;
+  display: flex;
+  gap: 28px;
+  justify-content: space-between;
+  margin: 22px 0;
+  padding: 22px 24px;
+}
+
+.fleetFunding div {
+  display: grid;
+  gap: 7px;
+  max-width: 720px;
+}
+
+.fleetFunding span,
+.fleetFunding small {
+  color: var(--muted);
+}
+
+.fleetFunding span {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.fleetFunding strong {
+  color: var(--green);
+  font-size: 20px;
+}
+
+.fleetFunding p,
+.fleetFunding small {
+  line-height: 1.5;
+  margin: 0;
+}
+
+.fleetFunding button {
+  background: var(--green);
+  border: 0;
+  border-radius: 12px;
+  color: #061009;
+  cursor: pointer;
+  flex: 0 0 auto;
+  font: 700 14px var(--font-mono);
+  min-height: 48px;
+  padding: 0 20px;
+}
+
+.fleetFunding button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.fleetFundingReceipt {
+  align-items: center;
+  color: var(--green);
+  display: flex;
+  font-size: 13px;
+  gap: 14px;
+  justify-content: flex-end;
+  margin: 12px 0;
+}
+
+.fleetFundingReceipt a {
+  color: inherit;
+}
+
+@media (max-width: 720px) {
+  .fleetFunding {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .fleetFunding button {
+    width: 100%;
+  }
+}
+
 .isActivating .fleetProgress i {
   background-size: 200% 100%;
   animation: fleetProgress 1.2s linear infinite;

@@ -38,6 +38,54 @@ export type FleetActivation = {
   runtime?: FleetRuntime;
 };
 
+export type FleetFundingRequirements = {
+  scheme: "exact";
+  network: "robinhood";
+  maxAmountRequired: string;
+  resource: string;
+  description: string;
+  mimeType: "application/json";
+  payTo: `0x${string}`;
+  maxTimeoutSeconds: number;
+  asset: `0x${string}`;
+  extra: {
+    name: string;
+    version: string;
+  };
+};
+
+export type FleetFundingQuote = {
+  amount: "0.1";
+  symbol: "USDG";
+  network: "eip155:4663";
+  requirements: FleetFundingRequirements;
+};
+
+export type FleetFundingPayment = {
+  x402Version: 1;
+  scheme: "exact";
+  network: "robinhood";
+  payload: {
+    signature: `0x${string}`;
+    authorization: {
+      from: `0x${string}`;
+      to: `0x${string}`;
+      value: string;
+      validAfter: string;
+      validBefore: string;
+      nonce: `0x${string}`;
+    };
+  };
+};
+
+export type FleetFundingReceipt = {
+  wallet: `0x${string}`;
+  creditsUsd: number;
+  deposited: number;
+  network: "robinhood";
+  transaction: `0x${string}`;
+};
+
 export type OneClawFleetSecurity =
   | {
       status: "link_required";

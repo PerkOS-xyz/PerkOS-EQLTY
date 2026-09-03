@@ -2,6 +2,9 @@ import type {
   AgentRole,
   EnsAgentMetadata,
   FleetActivation,
+  FleetFundingPayment,
+  FleetFundingQuote,
+  FleetFundingReceipt,
   FleetPolicyChange,
   FleetPolicyPublication,
   FleetPolicy,
@@ -14,10 +17,12 @@ import type {
 const fallbackUrl = "http://localhost:4021";
 const fallbackEnsAppUrl = "https://app.ens.dev";
 
-class FleetRequestError extends Error {
+export class FleetRequestError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    readonly code?: string,
+    readonly funding?: FleetFundingQuote,
   ) {
     super(message);
   }
@@ -43,7 +48,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       body && typeof body === "object" && "message" in body
         ? String(body.message)
         : `Fleet request failed with status ${response.status}`;
-    throw new FleetRequestError(response.status, message);
+    const code =
+      body && typeof body === "object" && "error" in body
+        ? String(body.error)
+        : undefined;
+    const funding =
+      body && typeof body === "object" && "funding" in body
+        ? (body.funding as FleetFundingQuote)
+        : undefined;
+    throw new FleetRequestError(response.status, message, code, funding);
   }
   return body as T;
 }
@@ -85,6 +98,15 @@ export async function verifyFleetOwner(
 export async function activateFleet(): Promise<FleetActivation> {
   return request<FleetActivation>("/api/fleet/activate", {
     method: "POST",
+  });
+}
+
+export async function fundFleet(
+  payment: FleetFundingPayment,
+): Promise<FleetFundingReceipt> {
+  return request<FleetFundingReceipt>("/api/fleet/funding", {
+    method: "POST",
+    body: JSON.stringify(payment),
   });
 }
 

@@ -11,6 +11,7 @@ import "./execution.css";
 import "./execution-mobile.css";
 import "./audit.css";
 import "./audit-mobile.css";
+import "./deck/deck.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {

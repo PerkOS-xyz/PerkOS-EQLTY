@@ -1,0 +1,533 @@
+.deckShell {
+  --deck-green: #7cf0a2;
+  --deck-lime: #d0ff32;
+  background: #070a08;
+  color: #edf4ef;
+  scroll-snap-type: y mandatory;
+}
+
+.deckNav {
+  position: fixed;
+  inset: 18px 24px auto;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 24px;
+  padding: 9px 12px;
+  border: 1px solid rgb(132 171 144 / 20%);
+  border-radius: 14px;
+  background: rgb(8 12 9 / 78%);
+  box-shadow: 0 12px 45px rgb(0 0 0 / 35%);
+  backdrop-filter: blur(18px);
+}
+
+.deckBrand {
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  gap: 9px;
+  text-decoration: none;
+}
+
+.deckBrand img {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+}
+
+.deckBrand span {
+  display: flex;
+  flex-direction: column;
+}
+
+.deckBrand b {
+  font-size: 13px;
+  letter-spacing: 0.08em;
+}
+
+.deckBrand small {
+  color: #718078;
+  font: 9px "DM Mono", monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.deckNav > div {
+  display: flex;
+  gap: 7px;
+}
+
+.deckNav > div a {
+  display: grid;
+  width: 25px;
+  height: 25px;
+  place-items: center;
+  border: 1px solid #263129;
+  border-radius: 50%;
+  color: #849088;
+  font: 10px "DM Mono", monospace;
+  text-decoration: none;
+}
+
+.deckNav > div a:hover {
+  border-color: var(--deck-green);
+  color: var(--deck-green);
+}
+
+.deckOpen {
+  justify-self: end;
+  padding: 8px 12px;
+  border: 1px solid #365340;
+  border-radius: 999px;
+  color: #a6e6b8;
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.deckSlide {
+  position: relative;
+  display: grid;
+  min-height: 100svh;
+  place-items: center;
+  overflow: hidden;
+  scroll-snap-align: start;
+  background:
+    radial-gradient(circle at 82% 16%, rgb(57 145 82 / 13%), transparent 28%),
+    radial-gradient(circle at 8% 92%, rgb(196 255 42 / 5%), transparent 26%);
+}
+
+.deckSlide::before {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgb(255 255 255 / 2.5%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 2.5%) 1px, transparent 1px);
+  background-size: 64px 64px;
+  content: "";
+  mask-image: linear-gradient(to bottom, transparent, #000 35%, transparent);
+}
+
+.deckFrame {
+  position: relative;
+  width: min(1180px, calc(100% - 80px));
+  padding: 94px 0 48px;
+}
+
+.deckFrame > header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 34px;
+}
+
+.deckFrame > header span {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid #2d4936;
+  border-radius: 50%;
+  color: var(--deck-green);
+  font: 11px "DM Mono", monospace;
+}
+
+.deckFrame > header p {
+  margin: 0;
+  color: var(--deck-green);
+  font: 500 11px "DM Mono", monospace;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.deckFrame h1,
+.deckFrame h2 {
+  margin: 0;
+  letter-spacing: -0.055em;
+  line-height: 0.98;
+}
+
+.deckFrame h1 {
+  font-size: clamp(48px, 7.3vw, 100px);
+}
+
+.deckFrame h2 {
+  font-size: clamp(38px, 5vw, 70px);
+}
+
+.deckFrame h1 em,
+.deckFrame h2 em {
+  color: #8e9a92;
+  font-style: normal;
+}
+
+.deckHero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.45fr);
+  align-items: end;
+  gap: 70px;
+}
+
+.deckHero > div > p,
+.deckMarket > div > p,
+.deckClose > div > p {
+  max-width: 760px;
+  margin: 27px 0 0;
+  color: #9eaaa2;
+  font-size: clamp(16px, 1.6vw, 21px);
+  line-height: 1.55;
+}
+
+.deckHero aside {
+  padding: 25px;
+  border: 1px solid #31533c;
+  border-radius: 18px;
+  background: linear-gradient(145deg, #121b15, #0b0f0c);
+}
+
+.deckHero aside > span,
+.deckLive > span,
+.deckRevenue article > span {
+  color: #779082;
+  font: 10px "DM Mono", monospace;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.deckHero aside > b {
+  display: block;
+  margin-top: 7px;
+  color: var(--deck-green);
+  font-size: 25px;
+  line-height: 1.15;
+}
+
+.deckHero ul {
+  display: grid;
+  gap: 9px;
+  margin: 21px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.deckHero li {
+  padding-top: 9px;
+  border-top: 1px solid #243129;
+  color: #c1cbc4;
+  font-size: 13px;
+}
+
+.deckConversation {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.7fr) minmax(0, 1.3fr);
+  align-items: center;
+  gap: 60px;
+}
+
+.deckQuestion {
+  position: relative;
+  padding: 25px;
+  border: 1px solid #31513b;
+  border-radius: 22px 22px 5px 22px;
+  background: #101913;
+  box-shadow: 0 24px 80px rgb(0 0 0 / 35%);
+}
+
+.deckQuestion span {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 50%;
+  background: #213629;
+  color: var(--deck-green);
+  font: 10px "DM Mono", monospace;
+}
+
+.deckQuestion p {
+  margin: 20px 0 0;
+  color: #dce6df;
+  font-size: clamp(18px, 2vw, 25px);
+  line-height: 1.5;
+}
+
+.deckRoles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 27px;
+}
+
+.deckRoles article {
+  display: flex;
+  min-height: 142px;
+  flex-direction: column;
+  padding: 15px;
+  border: 1px solid #26352c;
+  border-radius: 12px;
+  background: #0d130f;
+}
+
+.deckRoles i {
+  color: #536158;
+  font: normal 10px "DM Mono", monospace;
+}
+
+.deckRoles strong {
+  margin: 20px 0 5px;
+  color: var(--deck-green);
+  font-size: 14px;
+}
+
+.deckRoles span {
+  color: #d4ded7;
+  font-size: 12px;
+}
+
+.deckRoles small {
+  margin-top: auto;
+  color: #6f7c74;
+  font: 9px "DM Mono", monospace;
+}
+
+.deckOutcome,
+.deckExpansion {
+  margin: 15px 0 0;
+  color: #93a098;
+  font-size: 13px;
+}
+
+.deckProofRail {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 38px;
+}
+
+.deckProofRail article {
+  position: relative;
+  min-height: 205px;
+  padding: 20px;
+  border: 1px solid #2b3b31;
+  border-radius: 15px;
+  background: linear-gradient(145deg, #101712, #0b0f0c);
+}
+
+.deckProofRail article:not(:last-child)::after {
+  position: absolute;
+  top: 50%;
+  right: -15px;
+  z-index: 2;
+  color: var(--deck-lime);
+  content: "→";
+}
+
+.deckProofRail span {
+  color: var(--deck-lime);
+  font: 10px "DM Mono", monospace;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.deckProofRail strong {
+  display: block;
+  margin: 44px 0 9px;
+  font-size: 19px;
+}
+
+.deckProofRail p {
+  margin: 0;
+  color: #89968e;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.deckGuardrail {
+  margin-top: 10px;
+  padding: 13px;
+  border: 1px solid #2f4938;
+  border-radius: 11px;
+  color: #a5dfb5;
+  font: 11px "DM Mono", monospace;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.deckMarket,
+.deckClose {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(310px, 0.65fr);
+  align-items: center;
+  gap: 70px;
+}
+
+.deckLive {
+  padding: 23px;
+  border: 1px solid #314b39;
+  border-radius: 18px;
+  background: #0d130f;
+}
+
+.deckAudience {
+  padding-left: 14px;
+  border-left: 2px solid var(--deck-green);
+  font-size: 13px !important;
+}
+
+.deckAudience b {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--deck-green);
+  font: 10px "DM Mono", monospace;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.deckLive > div {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  align-items: center;
+  gap: 15px;
+  padding: 17px 0;
+  border-bottom: 1px solid #253029;
+}
+
+.deckLive > div b {
+  color: var(--deck-lime);
+  font: 500 30px "DM Mono", monospace;
+}
+
+.deckLive > div span {
+  color: #9da9a1;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.deckLive footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 15px;
+  color: #77837b;
+  font: 10px "DM Mono", monospace;
+}
+
+.deckLive footer i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #776b45;
+}
+
+.deckLive footer i.ready {
+  background: var(--deck-green);
+  box-shadow: 0 0 9px var(--deck-green);
+}
+
+.deckRevenue {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 38px;
+}
+
+.deckRevenue article {
+  min-height: 185px;
+  padding: 20px;
+  border: 1px solid #2b3a31;
+  border-radius: 15px;
+  background: #0d130f;
+}
+
+.deckRevenue b {
+  display: block;
+  margin: 27px 0 11px;
+  color: var(--deck-green);
+  font: 500 clamp(24px, 3vw, 38px) "DM Mono", monospace;
+}
+
+.deckRevenue p {
+  margin: 0;
+  color: #89958d;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.deckClose > div > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 28px;
+}
+
+.deckClose a {
+  padding: 12px 17px;
+  border: 1px solid #406249;
+  border-radius: 999px;
+  color: #b9edc7;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.deckClose a:first-child {
+  border-color: var(--deck-green);
+  background: var(--deck-green);
+  color: #071009;
+}
+
+.deckClose ol {
+  margin: 0;
+  padding: 0;
+  border: 1px solid #2b4132;
+  border-radius: 18px;
+  background: #0d130f;
+  list-style: none;
+}
+
+.deckClose li {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px;
+  border-bottom: 1px solid #253129;
+  color: #c6d0c9;
+  font-size: 14px;
+}
+
+.deckClose li:last-child { border-bottom: 0; }
+.deckClose li b { color: var(--deck-green); font: 11px "DM Mono", monospace; }
+
+@media (max-width: 1100px) {
+  .deckHero,
+  .deckConversation,
+  .deckMarket,
+  .deckClose { grid-template-columns: 1fr; gap: 30px; }
+  .deckProofRail,
+  .deckRevenue { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .deckRoles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .deckSlide { min-height: auto; }
+  .deckFrame { padding-block: 110px 70px; }
+}
+
+@media (max-width: 620px) {
+  .deckNav { inset: 10px 12px auto; grid-template-columns: 1fr auto; }
+  .deckNav > div { display: none; }
+  .deckBrand small { display: none; }
+  .deckOpen { font-size: 10px; }
+  .deckFrame { width: min(100% - 34px, 1180px); }
+  .deckFrame > header { margin-bottom: 25px; }
+  .deckFrame h1 { font-size: 46px; }
+  .deckFrame h2 { font-size: 38px; }
+  .deckProofRail,
+  .deckRevenue,
+  .deckRoles { grid-template-columns: 1fr; }
+  .deckProofRail article { min-height: 160px; }
+  .deckProofRail article:not(:last-child)::after { top: auto; right: 50%; bottom: -17px; transform: rotate(90deg); }
+  .deckQuestion { padding: 19px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deckShell { scroll-behavior: auto; }
+}

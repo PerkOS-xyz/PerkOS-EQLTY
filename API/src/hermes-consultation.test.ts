@@ -172,6 +172,16 @@ describe("HermesConsultationService", () => {
     expect(String(fetchFn.mock.calls[3]?.[0])).toContain(
       "/agents/auditor-id/task",
     );
+    const scoutRequest = JSON.parse(
+      String(fetchFn.mock.calls[0]?.[1]?.body),
+    ) as { prompt: string; timeoutMs: number };
+    const traderRequest = JSON.parse(
+      String(fetchFn.mock.calls[2]?.[1]?.body),
+    ) as { prompt: string; timeoutMs: number };
+    expect(scoutRequest.prompt).toContain('"recommendedTicker":"TICKER"');
+    expect(scoutRequest.timeoutMs).toBe(25_000);
+    expect(traderRequest.prompt).toContain('"decision":"prepare"');
+    expect(traderRequest.timeoutMs).toBe(35_000);
   });
 
   it("rejects a Scout selection that failed deterministic gates", async () => {

@@ -6,6 +6,15 @@ import type {
 } from "./fleet-types";
 
 const robinhoodChainId = 4663;
+const balanceAbi = [
+  {
+    inputs: [{ name: "account", type: "address" }],
+    name: "balanceOf",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;
 
 export async function authorizeFleetFunding(input: {
   wallet: WalletAccess;
@@ -14,7 +23,7 @@ export async function authorizeFleetFunding(input: {
   if (!input.wallet.address) {
     throw new Error("Connect the wallet that owns this fleet");
   }
-  const { walletClient } =
+  const { publicClient, walletClient } =
     await input.wallet.getEvmClients(robinhoodChainId);
   if (
     !walletClient.account ||
@@ -25,6 +34,22 @@ export async function authorizeFleetFunding(input: {
   }
 
   const terms = input.quote.requirements;
+  let balance: bigint;
+  try {
+    balance = await publicClient.readContract({
+      address: getAddress(terms.asset),
+      abi: balanceAbi,
+      functionName: "balanceOf",
+      args: [getAddress(input.wallet.address)],
+    });
+  } catch {
+    throw new Error("EQLTY could not verify the wallet USDG balance");
+  }
+  if (balance < BigInt(terms.maxAmountRequired)) {
+    throw new Error(
+      `This wallet needs at least ${input.quote.amount} USDG on Robinhood Chain to activate its fleet`,
+    );
+  }
   const validAfter = "0";
   const validBefore = String(
     Math.floor(Date.now() / 1_000) + terms.maxTimeoutSeconds,

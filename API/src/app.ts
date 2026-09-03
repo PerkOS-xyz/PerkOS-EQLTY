@@ -727,7 +727,7 @@ export function createApp(
     } catch (error) {
       return response.status(402).json({
         error: "fleet_funding_failed",
-        message: safeMessage(error),
+        message: fleetFundingMessage(error),
       });
     }
   });
@@ -1595,6 +1595,16 @@ function isInfraPaymentRequired(error: unknown): boolean {
       error.code ?? "",
     )
   );
+}
+
+function fleetFundingMessage(error: unknown): string {
+  if (
+    error instanceof Error &&
+    /insufficient funds/i.test(error.message)
+  ) {
+    return "The Stack settlement wallet needs Robinhood ETH for gas.";
+  }
+  return publicErrorMessage(error, "Fleet funding failed");
 }
 
 export default createApp(loadConfig());

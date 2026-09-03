@@ -266,10 +266,14 @@
   opacity: 0.35;
 }
 
-.goalWizardModal > .goalWorkspace {
+.goalWizardModal > .goalWorkspace,
+.goalWizardModal > .goalProgress,
+.goalWizardModal > .activationWizard {
+  min-height: 0;
   overflow-y: auto;
   padding: 18px 22px 22px;
   overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .fleetWakeProgress {

@@ -11,7 +11,9 @@
     border-radius: 0;
   }
 
-  .goalWizardModal > .goalWorkspace {
+  .goalWizardModal > .goalWorkspace,
+  .goalWizardModal > .goalProgress,
+  .goalWizardModal > .activationWizard {
     padding: 14px 16px 22px;
   }
 

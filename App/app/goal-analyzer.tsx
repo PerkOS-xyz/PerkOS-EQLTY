@@ -68,7 +68,7 @@ export function GoalAnalyzer({
   const analysis = state.session?.latest;
   const [formStep, setFormStep] = useState<1 | 2>(1);
   const [setupOpen, setSetupOpen] = useState(true);
-  const proof = useProofRun(state.session);
+  const proof = useProofRun(state.session, fleet.activate);
   const hasRecommendation = Boolean(
     analysis?.candidates.some((candidate) => candidate.status === "recommended"),
   );
@@ -90,8 +90,9 @@ export function GoalAnalyzer({
     };
   }, [setupOpen]);
   const resumeAfterFunding = async () => {
+    const continueProof = proof.awaitingFunding;
     if (await fleet.fundAndRetry()) {
-      window.setTimeout(state.analyze, 0);
+      window.setTimeout(continueProof ? proof.runProof : state.analyze, 0);
     }
   };
 
@@ -462,11 +463,12 @@ export function GoalAnalyzer({
           onActivate={() => void resumeAfterFunding()}
         />
       )}
-      {state.session && (
+      {state.session && !fleet.funding && (
         <GoalProgress
           analysis={analysis}
           onPay={state.payDecisionFee}
           paymentBusy={state.paymentBusy}
+          paymentPhase={state.paymentPhase}
           proof={proof}
           session={state.session}
         />
@@ -662,12 +664,14 @@ function GoalProgress({
   analysis,
   onPay,
   paymentBusy,
+  paymentPhase,
   proof,
   session,
 }: {
   analysis?: OpportunityAnalysis;
   onPay: () => void;
   paymentBusy: boolean;
+  paymentPhase: GoalAnalysisState["paymentPhase"];
   proof: ReturnType<typeof useProofRun>;
   session: AutonomousGoal;
 }) {
@@ -679,6 +683,7 @@ function GoalProgress({
         analysis={analysis}
         onPay={onPay}
         paymentBusy={paymentBusy}
+        paymentPhase={paymentPhase}
         proof={proof}
         session={session}
       />
@@ -820,12 +825,14 @@ function DecisionWizard({
   analysis,
   onPay,
   paymentBusy,
+  paymentPhase,
   proof,
   session,
 }: {
   analysis?: OpportunityAnalysis;
   onPay: () => void;
   paymentBusy: boolean;
+  paymentPhase: GoalAnalysisState["paymentPhase"];
   proof: ReturnType<typeof useProofRun>;
   session: AutonomousGoal;
 }) {
@@ -869,7 +876,11 @@ function DecisionWizard({
     title = "Seal the agents’ recommendation";
     copy = `Pay ${amount} USDG for the completed consultation. This is the decision fee, not the investment amount.`;
     action = onPay;
-    actionLabel = paymentBusy ? "Confirming decision fee…" : `Continue · Pay ${amount} USDG fee`;
+    actionLabel = paymentBusy
+      ? paymentPhase === "authorizing"
+        ? "Confirm in wallet…"
+        : "Submitting decision fee…"
+      : `Continue · Pay ${amount} USDG fee`;
     busy = paymentBusy;
   } else if (noCandidate) {
     title = "The safe result is to wait";
@@ -914,6 +925,28 @@ function DecisionWizard({
           );
         })}
       </div>
+      {paymentRequired && paymentBusy && (
+        <div className="fleetWalletAlert" role="alert">
+          <i aria-hidden="true">!</i>
+          <div>
+            <strong>
+              {paymentPhase === "authorizing"
+                ? "Confirm the decision fee in your wallet"
+                : "Decision fee authorized"}
+            </strong>
+            <small>
+              {paymentPhase === "authorizing"
+                ? "Open the wallet prompt and sign the exact USDG authorization."
+                : "The authorization is signed. EQLTY is waiting for onchain settlement."}
+            </small>
+          </div>
+          <b>
+            {paymentPhase === "authorizing"
+              ? "Waiting for wallet"
+              : "Submitting payment"}
+          </b>
+        </div>
+      )}
       <div className="decisionWizardAction">
         <div>
           <span>Step {current} of 6</span>

@@ -191,6 +191,166 @@
   gap: 12px;
 }
 
+.goalFormWizardSteps {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: 760px;
+  margin: 0 auto;
+  border: 1px solid #29372f;
+  border-radius: 13px;
+  background: #090d0b;
+}
+
+.goalFormWizardSteps button {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  padding: 13px 16px;
+  border: 0;
+  background: transparent;
+  color: #69746e;
+  text-align: left;
+}
+
+.goalFormWizardSteps button + button {
+  border-left: 1px solid #29372f;
+}
+
+.goalFormWizardSteps i {
+  display: grid;
+  grid-row: 1 / span 2;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid #3a463f;
+  border-radius: 50%;
+  font: normal 600 11px "DM Mono", monospace;
+}
+
+.goalFormWizardSteps span {
+  display: grid;
+  gap: 2px;
+}
+
+.goalFormWizardSteps b {
+  font-size: 12px;
+}
+
+.goalFormWizardSteps small {
+  font-size: 10px;
+}
+
+.goalFormWizardSteps .current,
+.goalFormWizardSteps .complete {
+  color: #c7d2ca;
+}
+
+.goalFormWizardSteps .current {
+  background: rgb(80 205 119 / 7%);
+}
+
+.goalFormWizardSteps .current i,
+.goalFormWizardSteps .complete i {
+  border-color: #61df89;
+  color: #74eba0;
+}
+
+.goalForm.goalFormWizard {
+  display: block;
+  width: 100%;
+  max-width: 760px;
+  min-height: 360px;
+  margin: 0 auto;
+}
+
+.goalWizardActions .goalStart {
+  width: auto;
+  margin-top: 0;
+  border: 1px solid #72efa0;
+}
+
+.goalFormStep {
+  animation: wizardStepIn 260ms ease-out;
+}
+
+.goalStepEyebrow {
+  display: block;
+  margin-bottom: 14px;
+  color: #6fdb93;
+  font: 600 11px "DM Mono", monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.goalWizardActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.goalWizardActions button {
+  min-height: 44px;
+  padding: 11px 18px;
+  border-radius: 10px;
+  font: 700 12px "DM Mono", monospace;
+}
+
+.wizardBack {
+  border: 1px solid #344139;
+  background: transparent;
+  color: #9aa69f;
+}
+
+.wizardPrimary {
+  border: 1px solid #72efa0;
+  background: #72efa0;
+  color: #061008;
+}
+
+.wizardPrimary:not(:disabled),
+.decisionWizardAction button:not(:disabled),
+.decisionWizardAction > a {
+  animation: wizardGlow 2s ease-in-out infinite;
+}
+
+.goalMoreInfo {
+  max-width: 760px;
+  margin: 0 auto;
+  color: #819087;
+}
+
+.goalMoreInfo > summary {
+  cursor: pointer;
+  font: 600 11px "DM Mono", monospace;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.goalMoreInfo .revenueStrip {
+  margin-top: 12px;
+}
+
+@keyframes wizardStepIn {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes wizardGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(105 235 148 / 10%), 0 0 18px rgb(105 235 148 / 12%); }
+  50% { box-shadow: 0 0 0 5px rgb(105 235 148 / 10%), 0 0 30px rgb(105 235 148 / 32%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .goalFormStep,
+  .wizardPrimary:not(:disabled),
+  .decisionWizardAction button:not(:disabled),
+  .decisionWizardAction > a {
+    animation: none;
+  }
+}
+
 .goalForm,
 .goalBoundaries {
   padding: 20px;

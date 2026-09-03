@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import type {
   AutonomousGoal,
   DecisionOutcome,
@@ -64,6 +66,7 @@ export function GoalAnalyzer({
   state: GoalAnalysisState;
 }) {
   const analysis = state.session?.latest;
+  const [formStep, setFormStep] = useState<1 | 2>(1);
   const resumeAfterFunding = async () => {
     if (await fleet.fundAndRetry()) {
       window.setTimeout(state.analyze, 5_000);
@@ -91,8 +94,33 @@ export function GoalAnalyzer({
       </header>
 
       <div className="goalWorkspace">
-        <div className="goalForm">
-          <div className="goalNarrative">
+        {!state.session && (
+          <nav aria-label="Consultation setup" className="goalFormWizardSteps">
+            <button
+              aria-current={formStep === 1 ? "step" : undefined}
+              className={formStep === 1 ? "current" : "complete"}
+              onClick={() => setFormStep(1)}
+              type="button"
+            >
+              <i>{formStep === 2 ? "✓" : "1"}</i>
+              <span><b>Your goal</b><small>What should the agents solve?</small></span>
+            </button>
+            <button
+              aria-current={formStep === 2 ? "step" : undefined}
+              className={formStep === 2 ? "current" : "upcoming"}
+              disabled={formStep === 1}
+              onClick={() => setFormStep(2)}
+              type="button"
+            >
+              <i>2</i>
+              <span><b>Budget and limits</b><small>Set the decision boundaries</small></span>
+            </button>
+          </nav>
+        )}
+
+        {!state.session && <div className="goalForm goalFormWizard">
+          {formStep === 1 && <div className="goalNarrative goalFormStep">
+            <span className="goalStepEyebrow">Step 1 of 2</span>
             <label className="goalObjective goalConversation">
               <span>Conversation</span>
               <div className="goalConversationComposer">
@@ -205,9 +233,20 @@ export function GoalAnalyzer({
               </select>
             </label>
             </div>
-          </div>
+            <div className="goalWizardActions">
+              <button
+                className="wizardPrimary"
+                disabled={state.goalText.trim().length < 10}
+                onClick={() => setFormStep(2)}
+                type="button"
+              >
+                Continue · Set budget
+              </button>
+            </div>
+          </div>}
 
-          <div className="goalControlStack">
+          {formStep === 2 && <div className="goalControlStack goalFormStep">
+            <span className="goalStepEyebrow">Step 2 of 2</span>
             <label className="goalCandidateFocus">
               <span>Candidate focus</span>
               <select
@@ -286,24 +325,34 @@ export function GoalAnalyzer({
               </label>
             </div>
 
-            <button
-              className="goalStart"
-              disabled={
-                state.busy ||
-                Boolean(fleet.funding) ||
-                state.goalText.trim().length < 10
-              }
-              onClick={state.analyze}
-              type="button"
-            >
-              {state.busy
-                ? "The fleet is discussing your question..."
-                : fleet.funding
-                  ? "Activate fleet to continue"
-                : state.connected
-                  ? "Ask the four agents"
-                  : "Connect wallet to begin"}
-            </button>
+            <div className="goalWizardActions">
+              <button
+                className="wizardBack"
+                disabled={state.busy}
+                onClick={() => setFormStep(1)}
+                type="button"
+              >
+                Back
+              </button>
+              <button
+                className="goalStart wizardPrimary"
+                disabled={
+                  state.busy ||
+                  Boolean(fleet.funding) ||
+                  state.goalText.trim().length < 10
+                }
+                onClick={state.analyze}
+                type="button"
+              >
+                {state.busy
+                  ? "Starting your agent fleet…"
+                  : fleet.funding
+                    ? "Activate fleet to continue"
+                    : state.connected
+                      ? "Continue · Ask the agents"
+                      : "Connect wallet to begin"}
+              </button>
+            </div>
 
             <p className="goalWalletNotice">
               <b>{state.connected ? "Wallet connected" : "Private by wallet"}</b>
@@ -315,10 +364,10 @@ export function GoalAnalyzer({
             {state.error && !fleet.busy && !fleet.fundingBusy && (
               <p className="goalError">{state.error}</p>
             )}
-          </div>
-        </div>
+          </div>}
+        </div>}
 
-        <aside className="goalBoundaries">
+        {!state.session && formStep === 2 && <aside className="goalBoundaries">
           <span>Boundaries applied every cycle</span>
           <ul>
             <li>
@@ -338,8 +387,11 @@ export function GoalAnalyzer({
               Indexed evidence and proof
             </li>
           </ul>
-        </aside>
-        <RevenueStrip config={state.feeConfig} />
+        </aside>}
+        <details className="goalMoreInfo">
+          <summary>Fees and safeguards</summary>
+          <RevenueStrip config={state.feeConfig} />
+        </details>
       </div>
 
       {fleet.funding && (

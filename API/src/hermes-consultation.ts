@@ -273,10 +273,11 @@ export class HermesConsultationService {
     idToken: string,
     prompt: string,
   ): Promise<ConsultationTaskResponse> {
-    const timeoutMs =
-      agent.role === "trader"
-        ? Math.max(this.config.PERKOS_AGENT_TASK_TIMEOUT_MS, 55_000)
-        : this.config.PERKOS_AGENT_TASK_TIMEOUT_MS;
+    const roleMinimumMs = agent.role === "trader" ? 55_000 : 40_000;
+    const timeoutMs = Math.max(
+      this.config.PERKOS_AGENT_TASK_TIMEOUT_MS,
+      roleMinimumMs,
+    );
     try {
       const response = await this.fetchFn(
         new URL(

@@ -179,7 +179,9 @@ describe("HermesConsultationService", () => {
       String(fetchFn.mock.calls[2]?.[1]?.body),
     ) as { prompt: string; timeoutMs: number };
     expect(scoutRequest.prompt).toContain('"recommendedTicker":"TICKER"');
-    expect(scoutRequest.timeoutMs).toBe(25_000);
+    expect(scoutRequest.timeoutMs).toBe(40_000);
+    expect(scoutRequest.prompt).toContain('"graphBlockNumber":"12345"');
+    expect(scoutRequest.prompt).not.toContain('"tokenAddress"');
     expect(traderRequest.prompt).toContain('"decision":"prepare"');
     expect(traderRequest.timeoutMs).toBe(55_000);
     expect(traderRequest.prompt).toContain('"uniswapRouting":"CLASSIC"');

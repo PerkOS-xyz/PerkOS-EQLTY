@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type {
   AutonomousGoal,
@@ -67,6 +67,27 @@ export function GoalAnalyzer({
 }) {
   const analysis = state.session?.latest;
   const [formStep, setFormStep] = useState<1 | 2>(1);
+  const [setupOpen, setSetupOpen] = useState(true);
+  const proof = useProofRun(state.session);
+  const hasRecommendation = Boolean(
+    analysis?.candidates.some((candidate) => candidate.status === "recommended"),
+  );
+  const processStarted = state.runKey > 0 || Boolean(fleet.fundingReceipt);
+  const processFinished = Boolean(
+    (state.session &&
+      ((!hasRecommendation && state.session.status !== "active") ||
+        ["executed", "rejected", "failed"].includes(proof.run?.status ?? ""))) ||
+      (fleet.phase === "failed" && !fleet.funding && !fleet.busy),
+  );
+  const canClose = !processStarted || processFinished;
+  useEffect(() => {
+    if (!setupOpen) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [setupOpen]);
   const resumeAfterFunding = async () => {
     if (await fleet.fundAndRetry()) {
       window.setTimeout(state.analyze, 5_000);
@@ -93,7 +114,44 @@ export function GoalAnalyzer({
         <span className="goalWindow">02:00 demo window</span>
       </header>
 
-      <div className="goalWorkspace">
+      {!setupOpen && (
+        <button
+          className="goalWizardLaunch wizardPrimary"
+          onClick={() => setSetupOpen(true)}
+          type="button"
+        >
+          Start guided consultation
+        </button>
+      )}
+
+      {setupOpen && (
+        <div className="goalWizardBackdrop">
+          <section
+            aria-label="Set up your agent consultation"
+            aria-modal="true"
+            className="goalWizardModal"
+            role="dialog"
+          >
+            <header className="goalWizardModalHeader">
+              <div>
+                <span>{processStarted ? "Guided process" : "Guided consultation"}</span>
+                <strong>{state.session ? "Agent decision and execution" : "Ask the fleet"}</strong>
+                {!canClose && (
+                  <small>This window stays open until the current process reaches a result.</small>
+                )}
+              </div>
+              <button
+                aria-label="Close consultation setup"
+                disabled={!canClose || state.busy || fleet.fundingBusy}
+                onClick={() => setSetupOpen(false)}
+                title={canClose ? "Close" : "Current process is still active"}
+                type="button"
+              >
+                ×
+              </button>
+            </header>
+
+      {!state.session && <div className="goalWorkspace">
         {!state.session && (
           <nav aria-label="Consultation setup" className="goalFormWizardSteps">
             <button
@@ -392,7 +450,7 @@ export function GoalAnalyzer({
           <summary>Fees and safeguards</summary>
           <RevenueStrip config={state.feeConfig} />
         </details>
-      </div>
+      </div>}
 
       {fleet.funding && (
         <FleetActivationWizard
@@ -401,15 +459,19 @@ export function GoalAnalyzer({
           onActivate={() => void resumeAfterFunding()}
         />
       )}
-
       {state.session && (
         <GoalProgress
           analysis={analysis}
           onPay={state.payDecisionFee}
           paymentBusy={state.paymentBusy}
+          proof={proof}
           session={state.session}
         />
       )}
+          </section>
+        </div>
+      )}
+
     </section>
   );
 }
@@ -463,17 +525,17 @@ function GoalProgress({
   analysis,
   onPay,
   paymentBusy,
+  proof,
   session,
 }: {
   analysis?: OpportunityAnalysis;
   onPay: () => void;
   paymentBusy: boolean;
+  proof: ReturnType<typeof useProofRun>;
   session: AutonomousGoal;
 }) {
   const active = session.status === "active";
   const paymentRequired = session.status === "payment-required";
-  const proof = useProofRun(session);
-
   return (
       <div className="goalProgress">
       <DecisionWizard

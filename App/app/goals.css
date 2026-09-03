@@ -191,6 +191,96 @@
   gap: 12px;
 }
 
+.goalWizardBackdrop {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  padding: 88px 24px 24px;
+  place-items: center;
+  background: rgb(3 7 5 / 88%);
+  backdrop-filter: blur(10px);
+}
+
+.goalWizardModal {
+  display: flex;
+  width: min(920px, 100%);
+  max-height: calc(100dvh - 112px);
+  overflow: hidden;
+  flex-direction: column;
+  border: 1px solid #345340;
+  border-radius: 18px;
+  background: #0b100d;
+  box-shadow: 0 30px 90px rgb(0 0 0 / 62%), 0 0 50px rgb(78 205 118 / 8%);
+  animation: wizardModalIn 220ms ease-out;
+}
+
+.goalWizardModalHeader {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #26352d;
+  background: linear-gradient(90deg, #111a14, #0b100d);
+}
+
+.goalWizardModalHeader > div {
+  display: grid;
+  gap: 3px;
+}
+
+.goalWizardModalHeader span {
+  color: #72e998;
+  font: 600 10px "DM Mono", monospace;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.goalWizardModalHeader strong {
+  color: #edf7f0;
+  font-size: 18px;
+}
+
+.goalWizardModalHeader small {
+  color: #87938b;
+  font-size: 10px;
+}
+
+.goalWizardModalHeader button {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid #35443b;
+  border-radius: 50%;
+  background: #101612;
+  color: #aab7af;
+  cursor: pointer;
+  font-size: 22px;
+}
+
+.goalWizardModalHeader button:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+.goalWizardModal > .goalWorkspace {
+  overflow-y: auto;
+  padding: 18px 22px 22px;
+  overscroll-behavior: contain;
+}
+
+.goalWizardLaunch {
+  display: block;
+  min-width: 260px;
+  margin: 24px auto 0;
+  padding: 14px 20px;
+  border-radius: 11px;
+  font-weight: 800;
+}
+
 .goalFormWizardSteps {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -283,11 +373,16 @@
 }
 
 .goalWizardActions {
+  position: sticky;
+  z-index: 2;
+  bottom: -1px;
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
   margin-top: 20px;
+  padding: 12px 0 2px;
+  background: linear-gradient(0deg, #0a0d0b 72%, transparent);
 }
 
 .goalWizardActions button {
@@ -337,6 +432,11 @@
   to { opacity: 1; transform: translateX(0); }
 }
 
+@keyframes wizardModalIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 @keyframes wizardGlow {
   0%, 100% { box-shadow: 0 0 0 0 rgb(105 235 148 / 10%), 0 0 18px rgb(105 235 148 / 12%); }
   50% { box-shadow: 0 0 0 5px rgb(105 235 148 / 10%), 0 0 30px rgb(105 235 148 / 32%); }
@@ -344,6 +444,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .goalFormStep,
+  .goalWizardModal,
   .wizardPrimary:not(:disabled),
   .decisionWizardAction button:not(:disabled),
   .decisionWizardAction > a {

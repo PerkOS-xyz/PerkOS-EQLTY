@@ -1,4 +1,20 @@
 @media (max-width: 760px) {
+  .goalWizardBackdrop {
+    padding: 0;
+  }
+
+  .goalWizardModal {
+    width: 100%;
+    max-height: 100dvh;
+    min-height: 100dvh;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .goalWizardModal > .goalWorkspace {
+    padding: 14px 16px 22px;
+  }
+
   .goalFormWizardSteps {
     grid-template-columns: 1fr;
   }

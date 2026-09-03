@@ -23,7 +23,7 @@ export function AppHeader({
           className={active === "deck" ? "active" : ""}
           href="/deck"
         >
-          Deck
+          Presentation
         </Link>
         <Link
           aria-current={active === "markets" ? "page" : undefined}

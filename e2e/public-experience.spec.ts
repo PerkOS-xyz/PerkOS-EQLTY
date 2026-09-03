@@ -6,6 +6,10 @@ test("explains the agent decision workflow", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: /Ask four agents/ }),
   ).toBeVisible();
+  await expect(page.getByRole("link", { name: "Presentation" })).toHaveAttribute(
+    "href",
+    "/deck",
+  );
   await expect(
     page.getByRole("heading", { name: "Your Financial Assistant Fleet" }),
   ).toBeVisible();
@@ -90,6 +94,10 @@ test("presents the product story with live proof", async ({ page }) => {
   await expect(page.getByRole("link", { name: "Open product" })).toHaveAttribute(
     "href",
     "/",
+  );
+  await expect(page.getByRole("link", { name: "Contact us" })).toHaveAttribute(
+    "href",
+    "mailto:contact@perko.xyz",
   );
 
   const coverage = page.getByLabel("Live product coverage");

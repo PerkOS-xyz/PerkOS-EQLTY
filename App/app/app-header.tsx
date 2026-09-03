@@ -14,7 +14,7 @@ export function AppHeader({
         </span>
         <span className="brandCopy">
           <strong>EQLTY</strong>
-          <span>Agent powered investing</span>
+          <span>Verifiable agent decisions</span>
         </span>
       </Link>
       <nav aria-label="Primary navigation" className="primaryNav">

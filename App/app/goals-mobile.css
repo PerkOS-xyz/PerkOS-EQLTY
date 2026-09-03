@@ -22,6 +22,14 @@
     grid-template-columns: 1fr;
   }
 
+  .revenueStrip {
+    grid-template-columns: 1fr;
+  }
+
+  .revenueStrip > div {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .goalProfileGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -107,6 +115,15 @@
   }
 
   .goalProfileGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .goalConversationComposer,
+  .fleetAnswer {
+    grid-template-columns: 1fr;
+  }
+
+  .revenueStrip > div {
     grid-template-columns: 1fr;
   }
 

@@ -4,8 +4,8 @@ import { MarketCatalog } from "./market-catalog";
 
 const journey = [
   {
-    title: "Define the goal",
-    copy: "Share the purpose, time horizon, liquidity need and risk comfort.",
+    title: "Ask the fleet",
+    copy: "Describe the outcome you want in your own words and set the boundaries.",
   },
   {
     title: "Compare choices",
@@ -25,23 +25,25 @@ export default function HomePage() {
       <main className="content">
         <section className="hero">
           <div>
-            <span className="eyebrow">Agent decision intelligence</span>
+            <span className="eyebrow">
+              Verifiable decisions for tokenized stocks
+            </span>
             <h1>
-              Start with the goal.
+              Ask four agents.
               <br />
-              <em>Get a decision you can verify.</em>
+              <em>Get one decision you can verify.</em>
             </h1>
             <p>
-              Four specialized agents turn your circumstances into an
-              explainable comparison. They may recommend a candidate, limit
-              the position, or tell you to wait.
+              Talk to a financial assistant fleet that compares Stock Tokens,
+              challenges its own recommendation and shows the evidence before
+              you decide whether to act.
             </p>
           </div>
 
           <aside className="statusCard">
             <span>Current milestone</span>
-            <strong>Goal-first consultation</strong>
-            <p>The fleet wakes on demand and hibernates after inactivity.</p>
+            <strong>Human-approved agent decisions</strong>
+            <p>Agents recommend. Rules constrain. You approve every trade.</p>
             <div className="meter">
               <i />
             </div>

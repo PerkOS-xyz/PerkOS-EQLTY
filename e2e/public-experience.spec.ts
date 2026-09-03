@@ -20,12 +20,14 @@ test("explains the agent decision workflow", async ({ page }) => {
     page.getByText(/fee is requested only/i),
   ).toBeVisible();
   await expect(
+    page.getByRole("dialog", { name: "Set up your agent consultation" }),
+  ).toBeVisible();
+  await expect(page.getByText("Step 1 of 2", { exact: true })).toBeVisible();
+
+  await page.getByText("Fees and safeguards", { exact: true }).click();
+  await expect(
     page.getByRole("region", { name: "EQLTY revenue model" }),
   ).toContainText("Users pay for verified decisions");
-  await expect(
-    page.getByRole("button", { name: "Connect wallet to begin" }),
-  ).toBeVisible();
-  await expect(page.getByText(/No funds move during onboarding/)).toBeVisible();
 
   const objective = page.getByLabel("Investment objective");
   await page.getByRole("button", { name: "Learn first" }).click();
@@ -36,8 +38,18 @@ test("explains the agent decision workflow", async ({ page }) => {
   await expect(page.getByLabel("Financial goal purpose")).toHaveValue("learn");
   await expect(page.getByLabel("Financial goal risk comfort")).toHaveValue("low");
 
+  await page.getByRole("button", { name: "Continue · Set budget" }).click();
+  await expect(page.getByText("Step 2 of 2", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Connect wallet to begin" }),
+  ).toBeVisible();
+  await expect(page.getByText(/No funds move during onboarding/)).toBeVisible();
+
   await page.getByRole("button", { name: "3 USDG", exact: true }).click();
   await expect(page.getByLabel("Goal budget in USDG")).toHaveValue("3");
+
+  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await expect(page.getByText("Step 1 of 2", { exact: true })).toBeVisible();
 
   await expect
     .poll(() => page.locator(".marketCard").count(), { timeout: 45_000 })

@@ -63,6 +63,9 @@ test("explains the agent decision workflow", async ({ page }) => {
     page.getByText("Potential purchase amount", { exact: true }),
   ).toBeVisible();
   await expect(page.getByText("Analysis time", { exact: true })).toBeVisible();
+  await expect(page.locator(".goalPolicyHint")).toContainText(
+    /Stock Token markets are available.*ENS policy/i,
+  );
   await expect(
     page.getByRole("button", { name: "Connect wallet to begin" }),
   ).toBeVisible();
@@ -141,6 +144,15 @@ test("presents the product story with live proof", async ({ page }) => {
   ).toBeVisible();
   await expect(page.getByText("Talk to the fleet", { exact: true })).toBeAttached();
   await expect(page.getByText("Every sponsor is load-bearing.")).toBeAttached();
+  await expect(
+    page.getByText(/These are not logos around a trading screen/),
+  ).toBeAttached();
+  const sponsorPath = page.getByLabel("Sponsor decision path");
+  await expect(sponsorPath).toContainText("Constrain the agents");
+  await expect(sponsorPath).toContainText("Prove market evidence");
+  await expect(sponsorPath).toContainText("Prepare execution");
+  await expect(sponsorPath.getByText("Judge verification")).toHaveCount(3);
+  await expect(page.getByText("EQLTY Vault enforcement")).toBeAttached();
   await expect(page.getByText("AI-assisted investing.")).toBeAttached();
   await expect(page.getByText("Start direct.")).toBeAttached();
   await expect(page.getByText("Pay for verified work.")).toBeAttached();

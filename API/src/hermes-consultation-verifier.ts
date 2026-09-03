@@ -308,7 +308,14 @@ export function scoutPrompt(input: {
     JSON.stringify({
       goal: input.goal,
       ensPolicy: input.manifest.policy,
-      candidates: input.candidates,
+      candidates: input.candidates.map((candidate) => ({
+        ticker: candidate.ticker,
+        status: candidate.status,
+        deviationBps: candidate.deviationBps,
+        uniswapRouting: candidate.uniswapRouting,
+        graphBlockNumber: candidate.graphEvidence?.blockNumber,
+        graphLiquidityUsd: candidate.graphEvidence?.liquidityUsd,
+      })),
     }),
   ].join("\n");
 }
@@ -334,8 +341,18 @@ export function riskPrompt(
         summary: scout.summary,
         responseHash: scout.responseHash,
       },
-      ensPolicy: manifest.policy,
-      candidate,
+      ensPolicy: {
+        allowedTickers: manifest.policy.allowedTickers,
+        maxDeviationBps: manifest.policy.maxDeviationBps,
+        minLiquidityUsd: manifest.policy.minLiquidityUsd,
+      },
+      candidate: {
+        ticker: candidate.ticker,
+        status: candidate.status,
+        deviationBps: candidate.deviationBps,
+        graphBlockNumber: candidate.graphEvidence?.blockNumber,
+        graphLiquidityUsd: candidate.graphEvidence?.liquidityUsd,
+      },
     }),
   ].join("\n");
 }

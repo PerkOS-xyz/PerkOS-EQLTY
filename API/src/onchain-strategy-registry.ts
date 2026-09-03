@@ -8,7 +8,9 @@ import {
 } from "viem";
 import type { ApiConfig } from "./config.js";
 import { eqltyVaultAbi } from "./eqlty-vault-abi.js";
-import { executionTraderAddress } from "./execution-addresses.js";
+import {
+  isExecutionTraderAddress,
+} from "./execution-addresses.js";
 import type {
   ExecutionStrategy,
   OnchainStrategy,
@@ -253,7 +255,7 @@ export class OnchainStrategyRegistry implements StrategyRegistry {
       throw new Error("Funded strategy owner does not match the session");
     }
     if (
-      !sameAddress(stored[1], templateAgent(this.config, owner)) ||
+      !isExecutionTraderAddress(this.config, owner, stored[1]) ||
       !sameAddress(stored[2], this.config.INPUT_TOKEN_ADDRESS) ||
       !sameAddress(
         stored[4],
@@ -309,13 +311,6 @@ export class OnchainStrategyRegistry implements StrategyRegistry {
     }
     return getAddress(this.config.EQLTY_VAULT_ADDRESS);
   }
-}
-
-function templateAgent(
-  config: ApiConfig,
-  owner: EvmAddress,
-): EvmAddress {
-  return executionTraderAddress(config) ?? owner;
 }
 
 function sameAddress(

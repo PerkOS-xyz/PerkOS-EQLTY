@@ -1107,7 +1107,7 @@ export function createApp(
         await strategies.create({
           owner: session.walletAddress,
           agent: (
-            executionTraderAddress(config) ??
+            executionTraderAddress(config, session.walletAddress) ??
             session.walletAddress
           ) as `0x${string}`,
           ticker: parsed.data.ticker,

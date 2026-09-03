@@ -9,6 +9,7 @@ export type TradeExecutionInput = {
 
 export type TradeExecutionReceipt = {
   transactionHash: `0x${string}`;
+  gasSponsorshipTransactionHash?: `0x${string}`;
   requestId: string;
   routing: string;
   quotedAmountOut: string;

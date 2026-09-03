@@ -134,7 +134,10 @@ export function publicConfig(
       eqltyVault: config.EQLTY_VAULT_ADDRESS as
         | `0x${string}`
         | undefined,
-      trader: executionTraderAddress(config),
+      trader:
+        config.EQLTY_SERVER_WALLET_MODE === "shared"
+          ? executionTraderAddress(config)
+          : undefined,
     },
     integrations: {
       ens:

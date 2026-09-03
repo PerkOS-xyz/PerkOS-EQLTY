@@ -4,7 +4,10 @@ import type {
   ExecutionStrategy,
   OnchainStrategy,
 } from "./execution-types.js";
-import { executionTraderAddress } from "./execution-addresses.js";
+import {
+  executionTraderAddress,
+  isExecutionTraderAddress,
+} from "./execution-addresses.js";
 import type { EvmAddress } from "./market-types.js";
 import {
   OnchainStrategyRegistry,
@@ -137,9 +140,19 @@ export class StrategyService {
     maxSlippageBps: number;
     expiresAt: string;
   }): Promise<{ ticker: string; orchestrationReady: boolean }> {
-    const expectedAgent =
-      executionTraderAddress(this.config) ?? input.owner;
-    if (!sameAddress(input.agent, expectedAgent)) {
+    const expectedAgent = executionTraderAddress(
+      this.config,
+      input.owner,
+    );
+    if (
+      expectedAgent
+        ? !isExecutionTraderAddress(
+            this.config,
+            input.owner,
+            input.agent,
+          )
+        : !sameAddress(input.agent, input.owner)
+    ) {
       throw new Error("Strategy agent is not the authorized trader");
     }
     if (!sameAddress(input.inputToken, this.config.INPUT_TOKEN_ADDRESS)) {

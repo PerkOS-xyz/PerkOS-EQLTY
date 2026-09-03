@@ -85,6 +85,21 @@ const schema = z.object({
     z.string().max(78).regex(/^(0|[1-9]\d*)$/),
   ),
   EQLTY_TRADER_PRIVATE_KEY: optional(privateKey),
+  EQLTY_SERVER_WALLET_MODE: z
+    .enum(["shared", "per-user"])
+    .default("per-user"),
+  EQLTY_SERVER_WALLET_MASTER_KEY: optional(privateKey),
+  EQLTY_GAS_SPONSOR_PRIVATE_KEY: optional(privateKey),
+  EQLTY_SERVER_WALLET_MIN_GAS_WEI: z
+    .string()
+    .max(78)
+    .regex(/^(0|[1-9]\d*)$/)
+    .default("1500000000000000"),
+  EQLTY_SERVER_WALLET_TARGET_GAS_WEI: z
+    .string()
+    .max(78)
+    .regex(/^[1-9]\d*$/)
+    .default("2000000000000000"),
   EQLTY_RISK_SIGNER_PRIVATE_KEY: optional(privateKey),
   EQLTY_EXECUTION_MODE: z
     .enum(["disabled", "live"])
@@ -280,6 +295,14 @@ export function loadConfig(
   ) {
     throw new Error(
       "Invalid API configuration: decision fees cannot exceed EQLTY_DECISION_FEE_MAX_AMOUNT",
+    );
+  }
+  if (
+    BigInt(result.data.EQLTY_SERVER_WALLET_TARGET_GAS_WEI) <
+    BigInt(result.data.EQLTY_SERVER_WALLET_MIN_GAS_WEI)
+  ) {
+    throw new Error(
+      "Invalid API configuration: server wallet target gas must cover the minimum",
     );
   }
   return result.data;

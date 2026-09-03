@@ -110,13 +110,44 @@ export function DeckPresenter() {
 
       <DeckSlide id="proof" number="03" eyebrow="The recommendation has a proof path">
         <h2>Every sponsor is <em>load-bearing.</em></h2>
-        <div className="deckProofRail">
-          <ProofStep label="ENS" title="Defines behavior" copy="Per-user agent identities, allowed assets and limits. Change a record; change the next cycle." />
-          <ProofStep label="The Graph" title="Proves the evidence" copy="Live Substreams data can advance or block a candidate. No fresh evidence, no recommendation." />
-          <ProofStep label="Uniswap" title="Prepares execution" copy="A fresh API quote supplies the route and request ID. Risk binds the approved calldata." />
-          <ProofStep label="EQLTY Vault" title="Enforces approval" copy="Amount, slippage, deadline, nonce and signature are checked onchain before execution." />
+        <p className="deckProofIntro">
+          These are not logos around a trading screen. Each integration changes
+          whether an agent recommendation can advance.
+        </p>
+        <div className="deckProofRail" aria-label="Sponsor decision path">
+          <ProofStep
+            copy="Each user receives agent subnames whose L2 records define allowed assets, spend limits, slippage and pause state. The fleet resolves them again every cycle."
+            evidence="Open the agent ENS record and compare its policy hash with the decision receipt."
+            label="01 · ENS"
+            metric="Per-user agent identity and policy"
+            title="Constrain the agents"
+          />
+          <ProofStep
+            copy="Our Substreams module indexes Robinhood Chain Uniswap V4 events. Scout and Risk use freshness, liquidity and price evidence; stale data stops the candidate."
+            evidence="Inspect the indexed event, checkpoint block and lag included in the audit trail."
+            label="02 · The Graph"
+            metric={graph
+              ? `${graph.observedTickers ?? 0} tickers · block ${graph.processedBlock ?? "pending"} · lag ${graph.lagBlocks ?? "—"}`
+              : "Loading the live Substreams checkpoint"}
+            title="Prove market evidence"
+          />
+          <ProofStep
+            copy="The Trading API returns the exact quote, V4 route, request ID and executable calldata. Risk signs its hash before Trader can submit a buy or sell."
+            evidence="Match the Uniswap request and executed pool against the onchain transaction."
+            label="03 · Uniswap"
+            metric={catalog
+              ? `${catalog.summary.routed} live markets observed`
+              : "Loading live Uniswap coverage"}
+            title="Prepare execution"
+          />
         </div>
-        <div className="deckGuardrail">Only Trader can spend · 1Claw controls its rail · the owner signs the final action</div>
+        <div className="deckGuardrail">
+          <b>EQLTY Vault enforcement</b>
+          <span>Only Trader can spend</span>
+          <span>1Claw optionally restricts its rail</span>
+          <span>The owner approves the final action</span>
+          <span>Amount, slippage, deadline and nonce are checked onchain</span>
+        </div>
       </DeckSlide>
 
       <DeckSlide id="market" number="04" eyebrow="Sector and first customer">
@@ -186,8 +217,28 @@ function DeckSlide({ children, eyebrow, id, number }: { children: React.ReactNod
   return <section className="deckSlide" id={id}><div className="deckFrame"><header><span>{number}</span><p>{eyebrow}</p></header>{children}</div></section>;
 }
 
-function ProofStep({ copy, label, title }: { copy: string; label: string; title: string }) {
-  return <article><span>{label}</span><strong>{title}</strong><p>{copy}</p></article>;
+function ProofStep({
+  copy,
+  evidence,
+  label,
+  metric,
+  title,
+}: {
+  copy: string;
+  evidence: string;
+  label: string;
+  metric: string;
+  title: string;
+}) {
+  return (
+    <article>
+      <span>{label}</span>
+      <strong>{title}</strong>
+      <p>{copy}</p>
+      <small>{metric}</small>
+      <footer><b>Judge verification</b>{evidence}</footer>
+    </article>
+  );
 }
 
 function Metric({ label, value }: { label: string; value?: number }) {

@@ -300,14 +300,24 @@
 
 .deckProofRail {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 9px;
-  margin-top: 38px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.deckProofIntro {
+  max-width: 760px;
+  margin: 16px 0 0;
+  color: #99a79e;
+  font-size: 16px;
+  line-height: 1.5;
 }
 
 .deckProofRail article {
   position: relative;
-  min-height: 205px;
+  display: flex;
+  min-height: 310px;
+  flex-direction: column;
   padding: 20px;
   border: 1px solid #2b3b31;
   border-radius: 15px;
@@ -332,7 +342,7 @@
 
 .deckProofRail strong {
   display: block;
-  margin: 44px 0 9px;
+  margin: 22px 0 9px;
   font-size: 19px;
 }
 
@@ -343,7 +353,41 @@
   line-height: 1.55;
 }
 
+.deckProofRail article > small {
+  display: block;
+  margin-top: 14px;
+  padding: 8px 10px;
+  border: 1px solid #294032;
+  border-radius: 8px;
+  background: #111b15;
+  color: #8fe7a9;
+  font: 10px "DM Mono", monospace;
+  line-height: 1.45;
+}
+
+.deckProofRail footer {
+  margin-top: auto;
+  padding-top: 14px;
+  color: #87948c;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.deckProofRail footer b {
+  display: block;
+  margin-bottom: 3px;
+  color: #c6d2ca;
+  font: 9px "DM Mono", monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .deckGuardrail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 7px 18px;
   margin-top: 10px;
   padding: 13px;
   border: 1px solid #2f4938;
@@ -352,6 +396,16 @@
   font: 11px "DM Mono", monospace;
   text-align: center;
   text-transform: uppercase;
+}
+
+.deckGuardrail b {
+  color: var(--deck-lime);
+}
+
+.deckGuardrail span::before {
+  margin-right: 7px;
+  color: #52675a;
+  content: "·";
 }
 
 .deckMarket,
@@ -614,7 +668,7 @@
   .deckDistribution,
   .deckRoadmap,
   .deckRoles { grid-template-columns: 1fr; }
-  .deckProofRail article { min-height: 160px; }
+  .deckProofRail article { min-height: 0; }
   .deckProofRail article:not(:last-child)::after { top: auto; right: 50%; bottom: -17px; transform: rotate(90deg); }
   .deckQuestion { padding: 19px; }
 }

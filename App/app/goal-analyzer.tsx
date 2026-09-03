@@ -14,6 +14,7 @@ import {
   transactionEventsUrl,
 } from "../lib/execution-api";
 import { ensManagerUrl } from "../lib/fleet-api";
+import { loadStockCatalog } from "../lib/market-api";
 import { ProofRunPanel } from "./proof-run-panel";
 import type { GoalAnalysisState } from "./use-goal-analysis";
 import { DecisionRoom } from "./decision-room";
@@ -68,6 +69,7 @@ export function GoalAnalyzer({
   const analysis = state.session?.latest;
   const [formStep, setFormStep] = useState<1 | 2>(1);
   const [setupOpen, setSetupOpen] = useState(false);
+  const [marketTotal, setMarketTotal] = useState<number>();
   const proof = useProofRun(state.session, fleet.activate);
   const hasRecommendation = Boolean(
     analysis?.candidates.some((candidate) => candidate.status === "recommended"),
@@ -89,6 +91,14 @@ export function GoalAnalyzer({
       document.body.style.overflow = previous;
     };
   }, [setupOpen]);
+  useEffect(() => {
+    if (!setupOpen || marketTotal !== undefined) return;
+    const controller = new AbortController();
+    void loadStockCatalog(false, controller.signal)
+      .then((catalog) => setMarketTotal(catalog.summary.total))
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [marketTotal, setupOpen]);
   const resumeAfterFunding = async () => {
     const continuation = proof.awaitingFunding;
     if (await fleet.fundAndRetry()) {
@@ -341,10 +351,14 @@ export function GoalAnalyzer({
                 {state.candidateTicker
                   ? `${state.candidateTicker} must still pass ENS, The Graph and Uniswap gates.`
                   : state.policy
-                    ? `The fleet compares up to ${Math.min(10, state.policy.allowedTickers.length)} assets allowed by ENS policy v${state.policy.version}.`
-                    : state.policyError
-                      ? "The active policy will resolve again when consultation starts."
-                      : "Reading the active ENS policy."}
+                    ? marketTotal !== undefined
+                      ? `${marketTotal} Stock Token markets are available. ENS policy v${state.policy.version} allows ${state.policy.allowedTickers.length}; the fleet compares up to ${Math.min(10, state.policy.allowedTickers.length)} this cycle.`
+                      : `ENS policy v${state.policy.version} allows ${state.policy.allowedTickers.length} assets; the fleet compares up to ${Math.min(10, state.policy.allowedTickers.length)} this cycle.`
+                    : marketTotal !== undefined
+                      ? `${marketTotal} Stock Token markets are available. ${state.policyError ? "The active ENS policy will resolve when consultation starts." : "Connect your wallet to resolve how many your ENS policy allows."}`
+                      : state.policyError
+                        ? "The active ENS policy will resolve when consultation starts."
+                        : "Reading the market universe and active ENS policy."}
               </small>
             </label>
 

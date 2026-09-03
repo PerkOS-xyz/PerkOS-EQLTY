@@ -4,16 +4,22 @@ test("explains the agent decision workflow", async ({ page }) => {
   await page.goto("/");
 
   await expect(
-    page.getByRole("heading", { name: /Start with the goal/ }),
+    page.getByRole("heading", { name: /Ask four agents/ }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Your Financial Assistant Fleet" }),
   ).toBeVisible();
-  await expect(page.getByText(/Share the purpose, time horizon/)).toBeVisible();
+  await expect(page.getByText(/Describe the outcome you want/)).toBeVisible();
   await expect(page.getByText(/test alternatives against live evidence/)).toBeVisible();
   await expect(page.getByText(/the case for doing nothing/)).toBeVisible();
   await expect(
     page.getByText(/fee is requested only/i),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "EQLTY revenue model" }),
+  ).toContainText("Users pay for verified decisions");
+  await expect(
+    page.getByRole("button", { name: "Connect wallet to begin" }),
   ).toBeVisible();
 
   const objective = page.getByLabel("Investment objective");

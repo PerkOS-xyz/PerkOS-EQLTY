@@ -62,11 +62,12 @@ export function GoalAnalyzer({ state }: { state: GoalAnalysisState }) {
     <section className="goalAnalyzer">
       <header className="goalHeading">
         <div>
-          <span className="eyebrow">Financial goal</span>
-          <h2>Start with what you want to achieve</h2>
+          <span className="eyebrow">Ask your financial assistant fleet</span>
+          <h2>What would you like the agents to evaluate?</h2>
           <p>
-            The fleet checks readiness, compares choices and can recommend a
-            candidate, a limited position, or waiting. Nothing executes here.
+            Ask in plain language. The fleet checks readiness, compares
+            choices and can recommend a candidate, a limited position or
+            waiting. Nothing executes during the conversation.
           </p>
           <small className="goalPricingHint">
             {state.feeConfig
@@ -80,14 +81,23 @@ export function GoalAnalyzer({ state }: { state: GoalAnalysisState }) {
       <div className="goalWorkspace">
         <div className="goalForm">
           <div className="goalNarrative">
-            <label className="goalObjective">
-            <span>What should this money help you achieve?</span>
-            <textarea
-              aria-label="Investment objective"
-              maxLength={500}
-              onChange={(event) => state.setGoalText(event.target.value)}
-              value={state.goalText}
-            />
+            <label className="goalObjective goalConversation">
+              <span>Conversation</span>
+              <div className="goalConversationComposer">
+                <i aria-hidden="true">You</i>
+                <div>
+                  <b>Ask the fleet</b>
+                  <textarea
+                    aria-label="Investment objective"
+                    maxLength={500}
+                    onChange={(event) =>
+                      state.setGoalText(event.target.value)
+                    }
+                    placeholder="For example: Compare a limited Stock Token position for long-term growth."
+                    value={state.goalText}
+                  />
+                </div>
+              </div>
             </label>
             <div
               aria-label="Goal presets"
@@ -271,9 +281,9 @@ export function GoalAnalyzer({ state }: { state: GoalAnalysisState }) {
               type="button"
             >
               {state.busy
-                ? "Waking and consulting the fleet..."
+                ? "The fleet is discussing your question..."
                 : state.connected
-                  ? "Compare options with the fleet"
+                  ? "Ask the four agents"
                   : "Connect wallet to begin"}
             </button>
 
@@ -302,6 +312,7 @@ export function GoalAnalyzer({ state }: { state: GoalAnalysisState }) {
             </li>
           </ul>
         </aside>
+        <RevenueStrip config={state.feeConfig} />
       </div>
 
       {state.session && (
@@ -413,6 +424,7 @@ function GoalProgress({
 
       {analysis && (
         <div className="candidateResult">
+          <FleetAnswer analysis={analysis} />
           <DecisionSummary analysis={analysis} />
           <DecisionRoom analysis={analysis} />
           <header>
@@ -465,6 +477,88 @@ function GoalProgress({
         </div>
       )}
     </div>
+  );
+}
+
+function FleetAnswer({ analysis }: { analysis: OpportunityAnalysis }) {
+  const primary = analysis.outcomes.find(
+    (outcome) => outcome.kind === "primary",
+  );
+  const graphBlock = analysis.candidates.find(
+    (candidate) => candidate.graphEvidence,
+  )?.graphEvidence?.blockNumber;
+  const uniswapRequest = analysis.candidates.find(
+    (candidate) => candidate.uniswapRequestId,
+  )?.uniswapRequestId;
+  const verifiedAgents = Object.values(analysis.receipt.agents).filter(
+    (agent) => agent.status === "verified",
+  ).length;
+
+  return (
+    <section className="fleetAnswer" aria-label="Fleet answer">
+      <i aria-hidden="true">EQ</i>
+      <div>
+        <span>Fleet answer</span>
+        <strong>{primary?.title ?? "The fleet recommends waiting"}</strong>
+        <p>
+          {primary?.summary ??
+            "No candidate passed every active evidence and policy gate in this cycle."}
+        </p>
+        <div className="fleetAnswerProofs">
+          <b>{verifiedAgents}/4 agents verified</b>
+          <b>ENS policy v{analysis.policy.version ?? "local"}</b>
+          <b>{graphBlock ? `Graph block ${graphBlock}` : "Graph gate closed"}</b>
+          <b>
+            {uniswapRequest
+              ? `Uniswap ${short(uniswapRequest)}`
+              : "No executable route"}
+          </b>
+        </div>
+        <small>
+          Decision support, not a prediction. Review the alternatives and
+          evidence below before approving any transaction.
+        </small>
+      </div>
+    </section>
+  );
+}
+
+function RevenueStrip({
+  config,
+}: {
+  config?: GoalAnalysisState["feeConfig"];
+}) {
+  return (
+    <section className="revenueStrip" aria-label="EQLTY revenue model">
+      <header>
+        <span>Usage-based business model</span>
+        <strong>Users pay for verified decisions, not promises.</strong>
+      </header>
+      <div>
+        <article>
+          <b>Free</b>
+          <span>Ask, set a goal and preview the process</span>
+        </article>
+        <article>
+          <b>
+            {config ? `${formatUsdG(config.completeAmount)} USDG` : "Exact fee"}
+          </b>
+          <span>Complete four-agent Decision Receipt</span>
+        </article>
+        <article>
+          <b>
+            {config
+              ? `${formatUsdG(config.noCandidateAmount)} USDG`
+              : "Reduced fee"}
+          </b>
+          <span>Verified no-action decision</span>
+        </article>
+        <article>
+          <b>x402</b>
+          <span>Exact wallet payment after proof is ready</span>
+        </article>
+      </div>
+    </section>
   );
 }
 

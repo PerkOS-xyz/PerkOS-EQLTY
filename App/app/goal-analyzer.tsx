@@ -512,14 +512,14 @@ function FleetWakeProgress({ fleet }: { fleet: FleetActivationState }) {
           : fleet.phase === "waking"
             ? readyCount === 4
               ? "Warming agent reasoning"
-              : "Connecting to Hermes agents"
+              : "Connecting to your private agents"
             : fleet.phase === "ready"
               ? "Agents ready. Starting consultation"
               : "Activating your fleet";
   const detail = waitingForWallet
     ? "Check MetaMask. This ownership signature cannot move funds."
     : fleet.phase === "waking" && readyCount === 4
-      ? "All runtimes are online. Hermes is loading its policy and plugin context before the first request."
+      ? "All runtimes are online. Your private agents are loading their policy and plugin context before the first request."
       : "Keep this window open. Status refreshes every five seconds while hibernated agents wake.";
 
   return (

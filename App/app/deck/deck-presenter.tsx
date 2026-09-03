@@ -173,7 +173,7 @@ export function DeckPresenter() {
           <div>
             <h2>Ask. Challenge.<br />Verify. <em>Then decide.</em></h2>
             <p>The product is not the trade. It is knowing why an option advanced, why another stopped and which rules protected the user.</p>
-            <div><Link href="/">Start a consultation</Link><a href="mailto:contact@perko.xyz">Contact us</a><Link href="/history">Open decision history</Link></div>
+            <div><Link href="/#consultation">Run live demo</Link><a href="mailto:contact@perko.xyz">Contact us</a><Link href="/history">Open decision history</Link></div>
           </div>
           <ol><li><b>01</b>Ask the fleet</li><li><b>02</b>Watch agents disagree</li><li><b>03</b>Open sponsor evidence</li><li><b>04</b>Approve only if convinced</li></ol>
         </div>

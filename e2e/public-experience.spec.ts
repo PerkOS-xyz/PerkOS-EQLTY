@@ -25,6 +25,7 @@ test("explains the agent decision workflow", async ({ page }) => {
   await expect(
     page.getByRole("button", { name: "Connect wallet to begin" }),
   ).toBeVisible();
+  await expect(page.getByText(/No funds move during onboarding/)).toBeVisible();
 
   const objective = page.getByLabel("Investment objective");
   await page.getByRole("button", { name: "Learn first" }).click();
@@ -112,9 +113,9 @@ test("presents the product story with live proof", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: /Ask\. Challenge/ }),
   ).toBeVisible();
-  await expect(page.getByRole("link", { name: "Start a consultation" })).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "Run live demo" })).toHaveAttribute(
     "href",
-    "/",
+    "/#consultation",
   );
 
   await expectNoPageOverflow(page);

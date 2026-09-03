@@ -71,7 +71,9 @@ describe("PurchaseAuditService", () => {
       poolManager,
       poolId,
       poolMatchedGraphEvidence: true,
+      graphPoolRelationship: "same-pool",
     });
+    expect(bundle.graph.response.evidenceScope).toBe("pre-trade-market");
     expect(bundle.graph.request).toMatchObject({
       method: "POST",
       body: { ticker: "AMZN", chainId: "eip155:4663" },
@@ -90,6 +92,43 @@ describe("PurchaseAuditService", () => {
     );
     expect(storedBody).not.toContain("firebase-id-token");
     expect(storedBody).toContain("Bearer [server credential]");
+  });
+
+  it("distinguishes pre-trade Graph evidence from an alternate execution pool", async () => {
+    const executionPoolId = `0x${"77".repeat(32)}` as const;
+    let storedBody = "";
+    const service = new PurchaseAuditService(
+      loadConfig({
+        EQLTY_VAULT_ADDRESS: vault,
+        EQLTY_GRAPH_ADAPTER_URL:
+          "https://eqlty-graph.perkos.xyz/api/graph-risk",
+      }),
+      {
+        fetchFn: (async (_url, init) => {
+          storedBody = String(init?.body ?? "");
+          return new Response("{}", { status: 200 });
+        }) as typeof fetch,
+        receipt: async () => receipt(executionPoolId),
+      },
+    );
+
+    const bundle = await service.capture({
+      owner,
+      idToken: "firebase-id-token",
+      run: run(),
+      strategy: strategy(),
+    });
+
+    expect(bundle.graph.response).toMatchObject({
+      evidenceScope: "pre-trade-market",
+      poolId,
+    });
+    expect(bundle.uniswap).toMatchObject({
+      poolId: executionPoolId,
+      poolMatchedGraphEvidence: false,
+      graphPoolRelationship: "independent-market-pool",
+    });
+    expect(storedBody).toContain("independent-market-pool");
   });
 });
 
@@ -192,7 +231,7 @@ function run(): TradeRun {
   };
 }
 
-function receipt(): TransactionReceipt {
+function receipt(executionPoolId = poolId): TransactionReceipt {
   const tradeTopics = encodeEventTopics({
     abi: eqltyVaultAbi,
     eventName: "TradeExecuted",
@@ -218,7 +257,7 @@ function receipt(): TransactionReceipt {
   ] as [Hex, Hex, Hex];
   const logs = [
     log(vault, tradeTopics as Log["topics"], tradeData, 10),
-    log(poolManager, [swapTopic, poolId], "0x", 11),
+    log(poolManager, [swapTopic, executionPoolId], "0x", 11),
     log(
       input,
       transferTopics,

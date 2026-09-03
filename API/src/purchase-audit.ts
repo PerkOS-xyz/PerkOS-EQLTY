@@ -184,6 +184,7 @@ export function buildAuditRecord(
       },
       response: {
         source: "the-graph-substreams",
+        evidenceScope: "pre-trade-market",
         provider: market.graphProvider,
         package: market.graphPackage,
         module: market.graphModule,
@@ -208,6 +209,10 @@ export function buildAuditRecord(
       poolId,
       poolMatchedGraphEvidence:
         poolId.toLowerCase() === market.poolIdentifier.toLowerCase(),
+      graphPoolRelationship:
+        poolId.toLowerCase() === market.poolIdentifier.toLowerCase()
+          ? "same-pool"
+          : "independent-market-pool",
     },
     proofs: {
       decisionReceipt: run.decisionReceipt,

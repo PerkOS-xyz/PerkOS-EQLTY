@@ -79,6 +79,11 @@ export default function PurchaseAuditPage() {
 
 function PurchaseAudit({ bundle }: { bundle: PurchaseAuditBundle }) {
   const graph = bundle.graph.response;
+  const graphPoolRelationship =
+    bundle.uniswap.graphPoolRelationship ??
+    (bundle.uniswap.poolMatchedGraphEvidence
+      ? "same-pool"
+      : "independent-market-pool");
   const transactionTrail: Array<[string, string, string]> = [
     [
       "1",
@@ -111,7 +116,10 @@ function PurchaseAudit({ bundle }: { bundle: PurchaseAuditBundle }) {
       <section aria-label="Audit verification summary" className="auditChecks">
         <AuditCheck copy="Receipt and token transfers" label="Onchain" />
         <AuditCheck copy="Router, PoolManager and poolId" label="Uniswap V4" />
-        <AuditCheck copy="Request, stream and checkpoint" label="Substreams" />
+        <AuditCheck
+          copy="Pre-trade market evidence and checkpoint"
+          label="Substreams"
+        />
         <AuditCheck copy="Wallet-scoped immutable document" label="Firestore" />
       </section>
 
@@ -176,11 +184,11 @@ function PurchaseAudit({ bundle }: { bundle: PurchaseAuditBundle }) {
           />
           <EvidenceRow label="Pool ID" value={bundle.uniswap.poolId} />
           <EvidenceRow
-            label="Graph pool match"
+            label="Graph evidence"
             value={
-              bundle.uniswap.poolMatchedGraphEvidence
-                ? "Verified"
-                : "Mismatch"
+              graphPoolRelationship === "same-pool"
+                ? "Same V4 pool"
+                : "Independent pre-trade pool"
             }
           />
           <footer>
@@ -215,6 +223,11 @@ function PurchaseAudit({ bundle }: { bundle: PurchaseAuditBundle }) {
               {JSON.stringify(bundle.graph.request.body, null, 2)}
             </code>
           </div>
+          <p>
+            Substreams supplied the pre-trade liquidity and price evidence used
+            by the agents. The confirmed receipt independently records the V4
+            pool selected by Uniswap for execution.
+          </p>
           <EvidenceRow
             label="Package"
             value={graph.package ?? "eqlty_robinhood_stock_v4@v0.1.0"}

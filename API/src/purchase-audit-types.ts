@@ -44,6 +44,7 @@ export type PurchaseAuditBundle = {
     };
     response: {
       source: "the-graph-substreams";
+      evidenceScope: "pre-trade-market";
       provider?: string;
       package?: string;
       module?: "map_pool_events";
@@ -67,6 +68,7 @@ export type PurchaseAuditBundle = {
     poolManager: EvmAddress;
     poolId: string;
     poolMatchedGraphEvidence: boolean;
+    graphPoolRelationship: "same-pool" | "independent-market-pool";
   };
   proofs: {
     decisionReceipt?: DecisionReceipt;

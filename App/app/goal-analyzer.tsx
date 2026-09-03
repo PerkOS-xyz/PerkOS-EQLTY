@@ -152,7 +152,8 @@ export function GoalAnalyzer({
             </header>
 
       {!state.session && <div className="goalWorkspace">
-        {!state.session && (
+        {state.busy && <FleetWakeProgress fleet={fleet} />}
+        {!state.busy && !fleet.funding && (
           <nav aria-label="Consultation setup" className="goalFormWizardSteps">
             <button
               aria-current={formStep === 1 ? "step" : undefined}
@@ -176,7 +177,7 @@ export function GoalAnalyzer({
           </nav>
         )}
 
-        {!state.session && <div className="goalForm goalFormWizard">
+        {!state.busy && !fleet.funding && <div className="goalForm goalFormWizard">
           {formStep === 1 && <div className="goalNarrative goalFormStep">
             <span className="goalStepEyebrow">Step 1 of 2</span>
             <label className="goalObjective goalConversation">
@@ -425,7 +426,7 @@ export function GoalAnalyzer({
           </div>}
         </div>}
 
-        {!state.session && formStep === 2 && <aside className="goalBoundaries">
+        {!state.busy && !fleet.funding && formStep === 2 && <aside className="goalBoundaries">
           <span>Boundaries applied every cycle</span>
           <ul>
             <li>
@@ -446,10 +447,10 @@ export function GoalAnalyzer({
             </li>
           </ul>
         </aside>}
-        <details className="goalMoreInfo">
+        {!state.busy && !fleet.funding && <details className="goalMoreInfo">
           <summary>Fees and safeguards</summary>
           <RevenueStrip config={state.feeConfig} />
-        </details>
+        </details>}
       </div>}
 
       {fleet.funding && (
@@ -472,6 +473,92 @@ export function GoalAnalyzer({
         </div>
       )}
 
+    </section>
+  );
+}
+
+function FleetWakeProgress({ fleet }: { fleet: FleetActivationState }) {
+  const runtime = fleet.activation?.runtime;
+  const agents = new Map(
+    runtime?.agents.map((agent) => [agent.role, agent.state]) ?? [],
+  );
+  const readyCount = [...agents.values()].filter((status) => status === "ready").length;
+  const waitingForWallet = fleet.phase === "locating" && !fleet.session;
+  const progress = waitingForWallet
+    ? 12
+    : fleet.phase === "locating"
+      ? 20
+      : fleet.phase === "creating"
+        ? 35
+        : fleet.phase === "provisioning"
+          ? Math.max(50, readyCount * 20)
+          : fleet.phase === "waking"
+            ? Math.max(72, readyCount * 24)
+            : fleet.phase === "ready"
+              ? 100
+              : 8;
+  const title = waitingForWallet
+    ? "Confirm wallet ownership"
+    : fleet.phase === "locating"
+      ? "Finding your private fleet"
+      : fleet.phase === "creating"
+        ? "Preparing secure runtimes"
+        : fleet.phase === "provisioning"
+          ? "Starting agent containers"
+          : fleet.phase === "waking"
+            ? "Connecting to Hermes agents"
+            : fleet.phase === "ready"
+              ? "Agents ready. Starting consultation"
+              : "Activating your fleet";
+  const detail = waitingForWallet
+    ? "Check MetaMask. This ownership signature cannot move funds."
+    : "Keep this window open. Hibernated agents can take about one minute to become available.";
+
+  return (
+    <section aria-live="polite" className="fleetWakeProgress">
+      <header>
+        <div>
+          <span>Fleet activation</span>
+          <strong>{title}</strong>
+          <small>{detail}</small>
+        </div>
+        <b>{progress}%</b>
+      </header>
+      <div
+        aria-label="Fleet activation progress"
+        aria-valuemax={100}
+        aria-valuemin={0}
+        aria-valuenow={progress}
+        className="fleetWakeBar"
+        role="progressbar"
+      >
+        <i style={{ width: `${progress}%` }} />
+      </div>
+      {waitingForWallet && (
+        <div className="fleetWalletAlert" role="alert">
+          <i aria-hidden="true">!</i>
+          <div>
+            <strong>Action required in MetaMask</strong>
+            <small>
+              Open the wallet prompt and sign to continue. This verifies ownership only and cannot move funds.
+            </small>
+          </div>
+          <b>Waiting for signature</b>
+        </div>
+      )}
+      <div className="fleetWakeAgents">
+        {roles.map((role) => {
+          const status = agents.get(role.toLowerCase() as "scout" | "risk" | "trader" | "auditor");
+          const ready = status === "ready";
+          return (
+            <span className={ready ? "ready" : "waiting"} key={role}>
+              <i>{ready ? "✓" : ""}</i>
+              <b>{role}</b>
+              <small>{ready ? "Ready" : waitingForWallet ? "Awaiting signature" : "Starting"}</small>
+            </span>
+          );
+        })}
+      </div>
     </section>
   );
 }

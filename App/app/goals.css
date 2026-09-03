@@ -272,6 +272,178 @@
   overscroll-behavior: contain;
 }
 
+.fleetWakeProgress {
+  width: 100%;
+  max-width: 760px;
+  margin: 12px auto;
+  padding: 28px;
+  border: 1px solid #31543e;
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 90% 0, rgb(93 229 137 / 12%), transparent 34%),
+    #0b110d;
+}
+
+.fleetWakeProgress > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.fleetWakeProgress > header > div {
+  display: grid;
+  gap: 6px;
+}
+
+.fleetWakeProgress > header span {
+  color: #6fe295;
+  font: 600 11px "DM Mono", monospace;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.fleetWakeProgress > header strong {
+  color: #eff8f1;
+  font-size: 22px;
+}
+
+.fleetWakeProgress > header small {
+  max-width: 560px;
+  color: #8e9c93;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.fleetWakeProgress > header > b {
+  color: #76eca0;
+  font: 700 18px "DM Mono", monospace;
+}
+
+.fleetWakeBar {
+  height: 7px;
+  margin: 24px 0;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #1c2821;
+}
+
+.fleetWakeBar i {
+  position: relative;
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #3ab965, #86f2aa);
+  box-shadow: 0 0 18px rgb(105 235 148 / 45%);
+  transition: width 500ms ease;
+}
+
+.fleetWakeBar i::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 45%), transparent);
+  content: "";
+  animation: fleetWakeShimmer 1.4s linear infinite;
+}
+
+.fleetWakeAgents {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.fleetWalletAlert {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  margin: -8px 0 20px;
+  padding: 13px 14px;
+  border: 1px solid #a77b32;
+  border-radius: 11px;
+  background: #21190c;
+  color: #f1ce83;
+  box-shadow: 0 0 24px rgb(211 156 58 / 12%);
+  animation: walletAlertPulse 1.8s ease-in-out infinite;
+}
+
+.fleetWalletAlert > i {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 50%;
+  background: #c18b32;
+  color: #171006;
+  font: normal 800 15px "DM Mono", monospace;
+}
+
+.fleetWalletAlert > div {
+  display: grid;
+  gap: 3px;
+}
+
+.fleetWalletAlert strong {
+  font-size: 13px;
+}
+
+.fleetWalletAlert small {
+  color: #c6ad78;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.fleetWalletAlert > b {
+  font: 600 10px "DM Mono", monospace;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.fleetWakeAgents > span {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 2px 8px;
+  padding: 12px;
+  border: 1px solid #27332c;
+  border-radius: 11px;
+  color: #8a958e;
+  background: #0b0f0d;
+}
+
+.fleetWakeAgents i {
+  display: grid;
+  grid-row: 1 / span 2;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 1px solid #496052;
+  border-radius: 50%;
+  background: #152019;
+}
+
+.fleetWakeAgents .waiting i {
+  box-shadow: 0 0 0 0 rgb(105 235 148 / 30%);
+  animation: fleetWakePulse 1.6s ease-out infinite;
+}
+
+.fleetWakeAgents .ready {
+  border-color: #376b48;
+  color: #c8efd3;
+}
+
+.fleetWakeAgents .ready i {
+  color: #76eca0;
+}
+
+.fleetWakeAgents b {
+  font-size: 12px;
+}
+
+.fleetWakeAgents small {
+  font-size: 10px;
+}
+
 .goalWizardLaunch {
   display: block;
   min-width: 260px;
@@ -437,6 +609,21 @@
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+@keyframes fleetWakeShimmer {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
+
+@keyframes fleetWakePulse {
+  0% { box-shadow: 0 0 0 0 rgb(105 235 148 / 26%); }
+  70%, 100% { box-shadow: 0 0 0 7px rgb(105 235 148 / 0%); }
+}
+
+@keyframes walletAlertPulse {
+  0%, 100% { border-color: #8d692c; box-shadow: 0 0 18px rgb(211 156 58 / 10%); }
+  50% { border-color: #d5a145; box-shadow: 0 0 30px rgb(211 156 58 / 24%); }
+}
+
 @keyframes wizardGlow {
   0%, 100% { box-shadow: 0 0 0 0 rgb(105 235 148 / 10%), 0 0 18px rgb(105 235 148 / 12%); }
   50% { box-shadow: 0 0 0 5px rgb(105 235 148 / 10%), 0 0 30px rgb(105 235 148 / 32%); }
@@ -445,6 +632,9 @@
 @media (prefers-reduced-motion: reduce) {
   .goalFormStep,
   .goalWizardModal,
+  .fleetWakeBar i::after,
+  .fleetWakeAgents .waiting i,
+  .fleetWalletAlert,
   .wizardPrimary:not(:disabled),
   .decisionWizardAction button:not(:disabled),
   .decisionWizardAction > a {

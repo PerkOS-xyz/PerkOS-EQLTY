@@ -450,7 +450,7 @@ export function createApp(
   app.disable("x-powered-by");
   app.use(
     cors({
-      origin: config.APP_ORIGIN,
+      origin: [config.APP_ORIGIN, ...config.APP_ALLOWED_ORIGINS],
       credentials: true,
       methods: ["GET", "POST", "OPTIONS"],
     }),

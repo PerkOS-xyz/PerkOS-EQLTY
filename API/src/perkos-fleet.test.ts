@@ -136,6 +136,15 @@ describe("PerkOS fleet", () => {
       ),
     ).toHaveLength(4);
     expect(
+      fetchFn.mock.calls
+        .filter(([url]) => String(url).endsWith("/ensure-awake"))
+        .every(([, init]) =>
+          String((init as RequestInit).body).includes(
+            '"waitForRunning":false',
+          ),
+        ),
+    ).toBe(true);
+    expect(
       fetchFn.mock.calls.some(([url]) => String(url).endsWith("/runtimes")),
     ).toBe(false);
   });

@@ -26,6 +26,31 @@ const privateKey = z.string().regex(/^0x[0-9a-fA-F]{64}$/);
 const schema = z.object({
   PORT: z.coerce.number().int().min(1).max(65_535).default(4021),
   APP_ORIGIN: z.string().url().default("http://localhost:3000"),
+  APP_ALLOWED_ORIGINS: z
+    .string()
+    .max(2_048)
+    .default("")
+    .transform((value, context) => {
+      const origins = value
+        .split(",")
+        .map((origin) => origin.trim())
+        .filter(Boolean);
+      for (const origin of origins) {
+        try {
+          const parsed = new URL(origin);
+          if (parsed.origin !== origin || parsed.pathname !== "/") {
+            throw new Error("origin only");
+          }
+        } catch {
+          context.addIssue({
+            code: "custom",
+            message: `Invalid allowed origin: ${origin}`,
+          });
+          return z.NEVER;
+        }
+      }
+      return [...new Set(origins)];
+    }),
   PUBLIC_PROJECT_NAME: z.string().min(1).max(80).default("EQLTY"),
   PUBLIC_SERVICE_SLUG: z
     .string()

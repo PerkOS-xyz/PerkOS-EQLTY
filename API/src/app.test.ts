@@ -32,6 +32,29 @@ describe("API foundation", () => {
     expect(config.PUBLIC_PROJECT_NAME).toBe("EQLTY");
     expect(config.ROBINHOOD_CHAIN_ID).toBe(4663);
     expect(config.DEMO_MODE).toBe(true);
+    expect(config.APP_ALLOWED_ORIGINS).toEqual([]);
+  });
+
+  it("allows explicit local development origins", async () => {
+    const response = await request(
+      "/health",
+      undefined,
+      { headers: { origin: "http://localhost:3000" } },
+      {
+        APP_ORIGIN: "https://eqlty.perkos.xyz",
+        APP_ALLOWED_ORIGINS: "http://localhost:3000,http://127.0.0.1:3000",
+      },
+    );
+
+    expect(response.headers.get("access-control-allow-origin")).toBe(
+      "http://localhost:3000",
+    );
+  });
+
+  it("rejects malformed development origins", () => {
+    expect(() =>
+      loadConfig({ APP_ALLOWED_ORIGINS: "localhost:3000/path" }),
+    ).toThrow("APP_ALLOWED_ORIGINS");
   });
 
   it("rejects invalid configuration", () => {

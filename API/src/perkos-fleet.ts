@@ -160,9 +160,8 @@ export class PerkosFleetService {
       idToken,
       {
         method: "POST",
-        body: "{}",
+        body: JSON.stringify({ waitForRunning: false }),
       },
-      90_000,
     );
     return {
       ...plan,

@@ -8,6 +8,136 @@
     #0c100e;
 }
 
+.decisionWizard {
+  margin-bottom: 24px;
+  overflow: hidden;
+  border: 1px solid #315b3e;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #101913, #0a0f0c 62%);
+  box-shadow: 0 18px 50px rgb(0 0 0 / 24%);
+}
+
+.decisionWizardSteps {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  border-bottom: 1px solid #26352d;
+}
+
+.decisionWizardSteps > span {
+  position: relative;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  padding: 14px 12px;
+  color: #657069;
+}
+
+.decisionWizardSteps > span:not(:last-child)::after {
+  position: absolute;
+  top: 29px;
+  right: -8px;
+  z-index: 1;
+  width: 16px;
+  height: 1px;
+  background: #35463d;
+  content: "";
+}
+
+.decisionWizardSteps i {
+  display: grid;
+  grid-row: 1 / span 2;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 1px solid #39433e;
+  border-radius: 50%;
+  font: normal 600 11px "DM Mono", monospace;
+}
+
+.decisionWizardSteps b {
+  font-size: 12px;
+}
+
+.decisionWizardSteps small {
+  margin-top: 2px;
+  overflow: hidden;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.decisionWizardSteps .complete,
+.decisionWizardSteps .current {
+  color: #b8c7bd;
+}
+
+.decisionWizardSteps .complete i {
+  border-color: #3c7950;
+  background: #183021;
+  color: #78eba0;
+}
+
+.decisionWizardSteps .current {
+  background: rgb(66 190 104 / 8%);
+}
+
+.decisionWizardSteps .current i {
+  border-color: #69e893;
+  box-shadow: 0 0 0 4px rgb(105 232 147 / 9%);
+  color: #76efa0;
+}
+
+.decisionWizardAction {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 20px;
+}
+
+.decisionWizardAction > div {
+  display: grid;
+  gap: 5px;
+}
+
+.decisionWizardAction span {
+  color: #6ed992;
+  font: 600 11px "DM Mono", monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.decisionWizardAction strong {
+  color: #eef6f0;
+  font-size: 18px;
+}
+
+.decisionWizardAction small {
+  max-width: 680px;
+  color: #94a199;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.decisionWizardAction button,
+.decisionWizardAction > a {
+  min-width: 220px;
+  padding: 12px 16px;
+  border: 1px solid #6de895;
+  border-radius: 10px;
+  background: #75ef9e;
+  color: #071009;
+  font: 700 12px "DM Mono", monospace;
+  text-align: center;
+  text-decoration: none;
+}
+
+.decisionWizardAction button:disabled {
+  border-color: #34443a;
+  background: #172019;
+  color: #718078;
+  cursor: wait;
+}
+
 .goalHeading {
   display: flex;
   align-items: flex-start;

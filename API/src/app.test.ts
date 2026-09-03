@@ -662,6 +662,47 @@ describe("API foundation", () => {
     );
   });
 
+  it("does not mislabel an insufficient USDG balance as an ENS error", async () => {
+    const session = testSession();
+    const response = await request(
+      "/api/fleet/funding",
+      {
+        infraFunding: {
+          quote: async () => fleetFundingQuote(),
+          settle: async () => {
+            throw new Error("settlement failed: insufficient funds");
+          },
+        },
+      },
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          x402Version: 1,
+          scheme: "exact",
+          network: "robinhood",
+          payload: {
+            signature: `0x${"11".repeat(65)}`,
+            authorization: {
+              from: session.walletAddress,
+              to: fleetFundingQuote().requirements.payTo,
+              value: "100000",
+              validAfter: "0",
+              validBefore: String(Math.floor(Date.now() / 1_000) + 120),
+              nonce: `0x${"22".repeat(32)}`,
+            },
+          },
+        }),
+      },
+    );
+
+    expect(response.status).toBe(402);
+    await expect(response.json()).resolves.toEqual({
+      error: "fleet_funding_failed",
+      message: "The Stack settlement wallet needs Robinhood ETH for gas.",
+    });
+  });
+
   it("returns the user claim URL for the trader rail", async () => {
     const session = testSession();
     const agents = [

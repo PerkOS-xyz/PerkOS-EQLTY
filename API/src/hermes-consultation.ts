@@ -21,16 +21,22 @@ import {
 
 type Dependencies = {
   fetchFn?: typeof fetch;
+  waitFn?: (milliseconds: number) => Promise<void>;
+  startupRetryMs?: number;
 };
 
 export class HermesConsultationService {
   private readonly fetchFn: typeof fetch;
+  private readonly waitFn: (milliseconds: number) => Promise<void>;
+  private readonly startupRetryMs: number;
 
   constructor(
     private readonly config: ApiConfig,
     dependencies: Dependencies = {},
   ) {
     this.fetchFn = dependencies.fetchFn ?? fetch;
+    this.waitFn = dependencies.waitFn ?? wait;
+    this.startupRetryMs = dependencies.startupRetryMs ?? 8_000;
   }
 
   async consult(input: {
@@ -273,6 +279,19 @@ export class HermesConsultationService {
     idToken: string,
     prompt: string,
   ): Promise<ConsultationTaskResponse> {
+    const first = await this.taskOnce(agent, idToken, prompt);
+    if (!runtimeIsStarting(first)) {
+      return first;
+    }
+    await this.waitFn(this.startupRetryMs);
+    return this.taskOnce(agent, idToken, prompt);
+  }
+
+  private async taskOnce(
+    agent: ReadyFleetAgent,
+    idToken: string,
+    prompt: string,
+  ): Promise<ConsultationTaskResponse> {
     const roleMinimumMs = agent.role === "trader" ? 55_000 : 40_000;
     const timeoutMs = Math.max(
       this.config.PERKOS_AGENT_TASK_TIMEOUT_MS,
@@ -317,6 +336,20 @@ export class HermesConsultationService {
       };
     }
   }
+}
+
+function runtimeIsStarting(response: ConsultationTaskResponse): boolean {
+  if (response.ok) return false;
+  const detail = response.detail?.toLowerCase() ?? "";
+  return (
+    detail.includes("runtime delivery failed") ||
+    detail.includes("gateway is not ready") ||
+    detail.includes("gateway not ready")
+  );
+}
+
+function wait(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 function repairPrompt(

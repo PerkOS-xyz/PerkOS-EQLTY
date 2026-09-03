@@ -73,6 +73,7 @@ export function GoalAnalyzer({
     analysis?.candidates.some((candidate) => candidate.status === "recommended"),
   );
   const processStarted = state.runKey > 0 || Boolean(fleet.fundingReceipt);
+  const activationBusy = fleet.busy || fleet.fundingBusy;
   const processFinished = Boolean(
     (state.session &&
       ((!hasRecommendation && state.session.status !== "active") ||
@@ -90,7 +91,7 @@ export function GoalAnalyzer({
   }, [setupOpen]);
   const resumeAfterFunding = async () => {
     if (await fleet.fundAndRetry()) {
-      window.setTimeout(state.analyze, 5_000);
+      window.setTimeout(state.analyze, 0);
     }
   };
 
@@ -152,8 +153,8 @@ export function GoalAnalyzer({
             </header>
 
       {!state.session && <div className="goalWorkspace">
-        {state.busy && <FleetWakeProgress fleet={fleet} />}
-        {!state.busy && !fleet.funding && (
+        {(state.busy || activationBusy) && <FleetWakeProgress fleet={fleet} />}
+        {!state.busy && !activationBusy && !fleet.funding && (
           <nav aria-label="Consultation setup" className="goalFormWizardSteps">
             <button
               aria-current={formStep === 1 ? "step" : undefined}
@@ -177,7 +178,7 @@ export function GoalAnalyzer({
           </nav>
         )}
 
-        {!state.busy && !fleet.funding && <div className="goalForm goalFormWizard">
+        {!state.busy && !activationBusy && !fleet.funding && <div className="goalForm goalFormWizard">
           {formStep === 1 && <div className="goalNarrative goalFormStep">
             <span className="goalStepEyebrow">Step 1 of 2</span>
             <label className="goalObjective goalConversation">
@@ -426,7 +427,7 @@ export function GoalAnalyzer({
           </div>}
         </div>}
 
-        {!state.busy && !fleet.funding && formStep === 2 && <aside className="goalBoundaries">
+        {!state.busy && !activationBusy && !fleet.funding && formStep === 2 && <aside className="goalBoundaries">
           <span>Boundaries applied every cycle</span>
           <ul>
             <li>
@@ -447,7 +448,7 @@ export function GoalAnalyzer({
             </li>
           </ul>
         </aside>}
-        {!state.busy && !fleet.funding && <details className="goalMoreInfo">
+        {!state.busy && !activationBusy && !fleet.funding && <details className="goalMoreInfo">
           <summary>Fees and safeguards</summary>
           <RevenueStrip config={state.feeConfig} />
         </details>}

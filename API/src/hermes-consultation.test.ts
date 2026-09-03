@@ -325,6 +325,91 @@ describe("HermesConsultationService", () => {
       "Retry once",
     );
   });
+
+  it("retries once while a Hermes gateway finishes starting", async () => {
+    const replies = [
+      { ok: false, detail: "Runtime delivery failed: fetch failed" },
+      {
+        ok: true,
+        reply: JSON.stringify({
+          recommendedTicker: "NVDA",
+          thesis:
+            "NVDA is indexed at block 12345 with route deviation 90 bps and the strongest sealed liquidity.",
+          evidence: ["graphLiquidity", "graphBlock", "routeDeviation"],
+        }),
+      },
+      {
+        ok: true,
+        reply: JSON.stringify({
+          decision: "approve",
+          ticker: "NVDA",
+          summary:
+            "NVDA route deviation 90 bps remains below the ENS limit of 300 bps.",
+          checks: [
+            "ensAllowed",
+            "deviationWithinLimit",
+            "liquidityAboveMinimum",
+            "graphEvidencePresent",
+          ],
+        }),
+      },
+      {
+        ok: true,
+        reply: JSON.stringify({
+          decision: "prepare",
+          ticker: "NVDA",
+          summary:
+            "Prepare the exact CLASSIC route from request NVDA-request without submitting funds.",
+          checks: [
+            "riskApproved",
+            "uniswapRoutePresent",
+            "requestIdPresent",
+            "ensTickerAllowed",
+          ],
+        }),
+      },
+      {
+        ok: true,
+        reply: JSON.stringify({
+          decision: "seal",
+          ticker: "NVDA",
+          summary:
+            "Seal NVDA after all four handoffs passed ENS policy version 1.",
+          checks: [
+            "ensManifestPresent",
+            "scoutVerified",
+            "riskVerified",
+            "traderVerified",
+          ],
+        }),
+      },
+    ];
+    const fetchFn = vi.fn(
+      async (_input: string | URL | Request, _init?: RequestInit) =>
+        Response.json(replies.shift()),
+    );
+    const waitFn = vi.fn(async () => undefined);
+    const service = new HermesConsultationService(loadConfig({}), {
+      fetchFn,
+      waitFn,
+      startupRetryMs: 8_000,
+    });
+
+    const result = await service.consult({
+      goal: "Choose a route",
+      candidates,
+      manifest,
+      manifestHash,
+      agents,
+      idToken: "owner-token",
+    });
+
+    expect(result.status).toBe("verified");
+    expect(fetchFn).toHaveBeenCalledTimes(5);
+    expect(waitFn).toHaveBeenCalledWith(8_000);
+    expect(String(fetchFn.mock.calls[0]?.[0])).toContain("/agents/scout-id/task");
+    expect(String(fetchFn.mock.calls[1]?.[0])).toContain("/agents/scout-id/task");
+  });
 });
 
 function candidate(

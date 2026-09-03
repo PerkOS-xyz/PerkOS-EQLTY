@@ -59,7 +59,7 @@ export function GoalAnalyzer({ state }: { state: GoalAnalysisState }) {
   const analysis = state.session?.latest;
 
   return (
-    <section className="goalAnalyzer">
+    <section className="goalAnalyzer" id="consultation">
       <header className="goalHeading">
         <div>
           <span className="eyebrow">Ask your financial assistant fleet</span>
@@ -286,6 +286,13 @@ export function GoalAnalyzer({ state }: { state: GoalAnalysisState }) {
                   ? "Ask the four agents"
                   : "Connect wallet to begin"}
             </button>
+
+            <p className="goalWalletNotice">
+              <b>{state.connected ? "Wallet connected" : "Private by wallet"}</b>
+              {state.connected
+                ? " First use may request one gasless ownership signature. It cannot move funds; payment and execution remain separate."
+                : " Connect to create or wake your private fleet. No funds move during onboarding."}
+            </p>
 
             {state.error && <p className="goalError">{state.error}</p>}
           </div>

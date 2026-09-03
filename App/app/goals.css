@@ -266,6 +266,17 @@
   font-weight: 800;
 }
 
+.goalWalletNotice {
+  margin: 10px 0 0;
+  color: #7f8c84;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.goalWalletNotice b {
+  color: #9fe5b2;
+}
+
 .goalStart:hover:not(:disabled) {
   background: #91f6b3;
 }

@@ -34,8 +34,10 @@ EQLTY coordinates four specialized roles:
 | Trader | Prepares and executes an approved Uniswap trade |
 | Auditor | Reconciles the decision with indexed transaction evidence |
 
-The fleet uses PerkOS infrastructure for managed Hermes runtimes. The 1Claw
-Platform API creates a user-owned execution agent and HSM wallet for Trader.
+The fleet uses PerkOS infrastructure for managed Hermes runtimes. EQLTY gives
+each owner an isolated server wallet for guarded execution and sponsors its
+Robinhood Chain gas. 1Claw is an optional policy and HSM security layer for
+higher-value automation.
 The other roles have no spending authority. Purchases of 3 USDG or more
 require the Trader rail to be linked.
 
@@ -136,7 +138,7 @@ flowchart LR
     ENS["ENS, Durin L2 records<br/>policy control plane"]
     UNI["Uniswap Trading API<br/>quotes, calldata, RWA series"]
     GRAPH["The Graph Substreams<br/>swap evidence, price series"]
-    CLAW["1Claw<br/>HSM trader wallet, execution rail"]
+    CLAW["1Claw<br/>optional HSM policy rail"]
   end
 
   subgraph CHAIN["Robinhood Chain"]
@@ -162,7 +164,8 @@ flowchart LR
 | ENS (Durin L2) | Behavior source of truth: owner, manifest and per role policy records |
 | Uniswap | Stock token discovery, V4 quotes, swap calldata and RWA market series |
 | The Graph | Substreams evidence gating every decision and feeding price history |
-| 1Claw | User claimed HSM trader wallet; only Trader has spending authority |
+| EQLTY server wallet | Isolated per owner; submits guarded swaps while EQLTY sponsors gas |
+| 1Claw | Optional HSM policy rail required for purchases at or above the configured lock |
 | Robinhood Chain | Stock token assets, receipts and the execution network |
 | EQLTY Vault | Holds funds per strategy and only executes risk signed trades |
 
@@ -177,6 +180,7 @@ sequenceDiagram
   participant Fleet as Hermes fleet
   participant Uniswap as Uniswap APIs
   participant Graph as The Graph Substreams
+  participant Trader as Isolated server wallet
   participant Vault as EQLTY Vault
 
   Owner->>App: Dynamic sign in and investment goal
@@ -198,6 +202,8 @@ sequenceDiagram
   Owner->>App: Review and approve the purchase
   App->>Vault: Create, approve and fund the strategy from the owner wallet
   App->>API: Execute within the strategy
+  API->>Trader: Sponsor gas when its balance is below the minimum
+  Trader->>Vault: Submit the risk signed Uniswap execution
   API->>API: Fail closed gates, see the decision workflow
   API->>Vault: Risk signed EIP-712 execution
   Vault->>Vault: Enforce limits, nonce and calldata hash

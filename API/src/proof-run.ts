@@ -348,6 +348,19 @@ export class ProofRunService {
         prepared!,
       );
       run.transactionHash = receipt.transactionHash;
+      run.gasSponsorshipTransactionHash =
+        receipt.gasSponsorshipTransactionHash;
+      if (receipt.gasSponsorshipTransactionHash) {
+        this.step(
+          run,
+          "gas-sponsorship",
+          "Server wallet gas",
+          "passed",
+          "live",
+          "EQLTY funded the user's isolated execution wallet just in time.",
+          receipt.gasSponsorshipTransactionHash,
+        );
+      }
       run.quote = {
         routing: receipt.routing,
         quotedAmountOut: receipt.quotedAmountOut,

@@ -235,6 +235,18 @@ function VerificationLogs({ run }: { run: TradeRun }) {
             <b>Verify purchase ↗</b>
           </a>
         )}
+        {run.gasSponsorshipTransactionHash && (
+          <a
+            href={transactionUrl(run.gasSponsorshipTransactionHash)}
+            rel="noreferrer"
+            target="_blank"
+          >
+            <span>Server wallet gas</span>
+            <strong>EQLTY gas sponsorship</strong>
+            <code>{short(run.gasSponsorshipTransactionHash)}</code>
+            <b>Verify sponsorship ↗</b>
+          </a>
+        )}
       </div>
 
       <p>
@@ -383,6 +395,16 @@ function PurchaseReviewScreen({
                       : "Blocked"
                     : "Below lock"}
                 </dd>
+              </div>
+              <div>
+                <dt>Agent wallet</dt>
+                <dd>
+                  {state.strategy ? short(state.strategy.agent) : "Pending"}
+                </dd>
+              </div>
+              <div>
+                <dt>Agent gas</dt>
+                <dd>Sponsored by EQLTY</dd>
               </div>
             </dl>
           </article>

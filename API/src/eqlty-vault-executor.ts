@@ -11,6 +11,10 @@ import {
 import { privateKeyToAccount } from "viem/accounts";
 import type { ApiConfig } from "./config.js";
 import {
+  executionAccountForStrategy,
+  gasSponsorAccount,
+} from "./execution-addresses.js";
+import {
   eqltyExecutionTypes,
   eqltyVaultAbi,
 } from "./eqlty-vault-abi.js";
@@ -43,6 +47,17 @@ export class EqltyVaultExecutor implements TradeExecutor {
   }
 
   ready(): boolean {
+    const serverWalletReady =
+      this.config.EQLTY_SERVER_WALLET_MODE === "shared"
+        ? Boolean(this.config.EQLTY_TRADER_PRIVATE_KEY)
+        : Boolean(
+            this.config.EQLTY_SERVER_WALLET_MASTER_KEY ??
+              this.config.EQLTY_TRADER_PRIVATE_KEY,
+          ) &&
+          Boolean(
+            this.config.EQLTY_GAS_SPONSOR_PRIVATE_KEY ??
+              this.config.EQLTY_TRADER_PRIVATE_KEY,
+          );
     return Boolean(
       this.config.EQLTY_EXECUTION_MODE === "live" &&
         this.config.EQLTY_EXECUTION_CONFIRM === "ROBINHOOD_MAINNET" &&
@@ -50,7 +65,7 @@ export class EqltyVaultExecutor implements TradeExecutor {
         this.config.UNISWAP_CHAIN_ID === 4663 &&
         this.config.ROBINHOOD_MAINNET_RPC_URL &&
         this.config.EQLTY_VAULT_ADDRESS &&
-        this.config.EQLTY_TRADER_PRIVATE_KEY &&
+        serverWalletReady &&
         this.config.EQLTY_RISK_SIGNER_PRIVATE_KEY &&
         this.uniswap.executionReady(),
     );
@@ -124,9 +139,13 @@ export class EqltyVaultExecutor implements TradeExecutor {
       chain,
       transport: http(rpcUrl),
     });
-    const trader = privateKeyToAccount(
-      this.config.EQLTY_TRADER_PRIVATE_KEY as Hex,
+    const trader = executionAccountForStrategy(
+      this.config,
+      input.strategy.owner,
+      input.strategy.agent,
     );
+    const gasSponsorshipTransactionHash =
+      await this.ensureExecutionGas(publicClient, chain, trader);
     const simulation = await publicClient.simulateContract({
       account: trader,
       address: this.vault(),
@@ -152,7 +171,63 @@ export class EqltyVaultExecutor implements TradeExecutor {
       requestId: prepared.requestId,
       routing: prepared.routing,
       quotedAmountOut: prepared.amountOut,
+      gasSponsorshipTransactionHash,
     };
+  }
+
+  private async ensureExecutionGas(
+    publicClient: ReturnType<typeof createPublicClient>,
+    chain: ReturnType<typeof robinhood>,
+    trader: ReturnType<typeof privateKeyToAccount>,
+  ): Promise<Hex | undefined> {
+    const minimum = BigInt(
+      this.config.EQLTY_SERVER_WALLET_MIN_GAS_WEI,
+    );
+    const target = BigInt(
+      this.config.EQLTY_SERVER_WALLET_TARGET_GAS_WEI,
+    );
+    const balance = await publicClient.getBalance({
+      address: trader.address,
+    });
+    if (balance >= minimum) return undefined;
+
+    const sponsor = gasSponsorAccount(this.config);
+    if (!sponsor) {
+      throw new Error(
+        "The Robinhood execution wallet needs gas sponsorship",
+      );
+    }
+    if (sponsor.address.toLowerCase() === trader.address.toLowerCase()) {
+      throw new Error(
+        "The Robinhood execution wallet needs more gas",
+      );
+    }
+
+    const value = gasTopUpAmount(balance, minimum, target);
+    if (value === 0n) return undefined;
+    const sponsorBalance = await publicClient.getBalance({
+      address: sponsor.address,
+    });
+    if (sponsorBalance <= value) {
+      throw new Error(
+        "The EQLTY gas sponsor needs more Robinhood Chain ETH",
+      );
+    }
+
+    const sponsorWallet = createWalletClient({
+      account: sponsor,
+      chain,
+      transport: http(this.rpcUrl()),
+    });
+    const hash = await sponsorWallet.sendTransaction({
+      to: trader.address,
+      value,
+    });
+    const receipt = await publicClient.waitForTransactionReceipt({ hash });
+    if (receipt.status !== "success") {
+      throw new Error("EQLTY gas sponsorship failed");
+    }
+    return hash;
   }
 
   private assertArmed(amountIn: string): void {
@@ -212,8 +287,10 @@ export class EqltyVaultExecutor implements TradeExecutor {
           functionName: "TOKEN_SPENDER",
         }),
       ]);
-    const trader = privateKeyToAccount(
-      this.config.EQLTY_TRADER_PRIVATE_KEY as Hex,
+    const trader = executionAccountForStrategy(
+      this.config,
+      strategy.owner,
+      strategy.agent,
     );
     const risk = privateKeyToAccount(
       this.config.EQLTY_RISK_SIGNER_PRIVATE_KEY as Hex,
@@ -260,6 +337,17 @@ export class EqltyVaultExecutor implements TradeExecutor {
   private rpcUrl(): string {
     return this.config.ROBINHOOD_MAINNET_RPC_URL as string;
   }
+}
+
+export function gasTopUpAmount(
+  balance: bigint,
+  minimum: bigint,
+  target: bigint,
+): bigint {
+  if (target < minimum) {
+    throw new Error("Gas target must cover the minimum");
+  }
+  return balance < minimum ? target - balance : 0n;
 }
 
 export function onchainStrategyId(

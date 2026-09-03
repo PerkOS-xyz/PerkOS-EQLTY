@@ -33,6 +33,12 @@ describe("public error messages", () => {
     expect(message).not.toContain("0xdeadbeef");
   });
 
+  it("does not mislabel execution gas failures as ENS failures", () => {
+    expect(
+      publicErrorMessage(new Error("insufficient funds for gas * price")),
+    ).toBe("The transaction signer needs more network gas.");
+  });
+
   it("uses the supplied fallback for unknown values", () => {
     expect(publicErrorMessage(undefined, "Unavailable")).toBe(
       "Unavailable",

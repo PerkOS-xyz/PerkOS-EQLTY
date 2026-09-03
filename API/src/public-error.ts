@@ -16,7 +16,7 @@ const knownProviderErrors: Array<[RegExp, string]> = [
   ],
   [
     /insufficient funds/i,
-    "The ENS registrar needs more network gas.",
+    "The transaction signer needs more network gas.",
   ],
   [
     /execution reverted/i,

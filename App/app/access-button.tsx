@@ -22,7 +22,7 @@ export function AccessButton() {
   if (!wallet.loaded) {
     return (
       <button className="accessButton" disabled type="button">
-        Loading
+        Restoring wallet…
       </button>
     );
   }

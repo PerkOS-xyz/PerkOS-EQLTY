@@ -60,12 +60,36 @@ test("explains the agent decision workflow", async ({ page }) => {
   await page.getByRole("button", { name: "Continue · Set budget" }).click();
   await expect(page.getByText("Step 2 of 2", { exact: true })).toBeVisible();
   await expect(
+    page.getByText("Potential purchase amount", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("Analysis time", { exact: true })).toBeVisible();
+  await expect(
     page.getByRole("button", { name: "Connect wallet to begin" }),
   ).toBeVisible();
-  await expect(page.getByText(/No funds move during onboarding/)).toBeVisible();
+  await expect(page.getByText(/Onboarding cannot move funds/)).toBeVisible();
+  await expect(page.getByText("ENS Rules", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("1Claw Spend Control", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("Uniswap Route", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("The Graph Evidence", { exact: true }),
+  ).toBeVisible();
 
   await page.getByRole("button", { name: "3 USDG", exact: true }).click();
-  await expect(page.getByLabel("Goal budget in USDG")).toHaveValue("3");
+  await expect(
+    page.getByLabel("Potential purchase amount in USDG"),
+  ).toHaveValue("3");
+
+  const [analysisTimeBox, wizardActionsBox] = await Promise.all([
+    page.getByLabel("Autonomous analysis window").boundingBox(),
+    page.locator(".goalWizardActions").boundingBox(),
+  ]);
+  expect(analysisTimeBox).not.toBeNull();
+  expect(wizardActionsBox).not.toBeNull();
+  expect(analysisTimeBox!.y + analysisTimeBox!.height).toBeLessThanOrEqual(
+    wizardActionsBox!.y,
+  );
 
   await page.getByRole("button", { name: "Back", exact: true }).click();
   await expect(page.getByText("Step 1 of 2", { exact: true })).toBeVisible();

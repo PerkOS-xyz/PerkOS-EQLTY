@@ -512,7 +512,7 @@ function FleetWakeProgress({ fleet }: { fleet: FleetActivationState }) {
               : "Activating your fleet";
   const detail = waitingForWallet
     ? "Check MetaMask. This ownership signature cannot move funds."
-    : "Keep this window open. Hibernated agents can take about one minute to become available.";
+    : "Keep this window open. Status refreshes every five seconds while hibernated agents wake.";
 
   return (
     <section aria-live="polite" className="fleetWakeProgress">
@@ -522,7 +522,10 @@ function FleetWakeProgress({ fleet }: { fleet: FleetActivationState }) {
           <strong>{title}</strong>
           <small>{detail}</small>
         </div>
-        <b>{progress}%</b>
+        <div className="fleetWakeMetric">
+          <b>{progress}%</b>
+          <small>{readyCount}/4 ready</small>
+        </div>
       </header>
       <div
         aria-label="Fleet activation progress"
@@ -550,17 +553,38 @@ function FleetWakeProgress({ fleet }: { fleet: FleetActivationState }) {
         {roles.map((role) => {
           const status = agents.get(role.toLowerCase() as "scout" | "risk" | "trader" | "auditor");
           const ready = status === "ready";
+          const failed = status === "failed";
           return (
-            <span className={ready ? "ready" : "waiting"} key={role}>
-              <i>{ready ? "✓" : ""}</i>
+            <span
+              className={ready ? "ready" : failed ? "failed" : "waiting"}
+              key={role}
+            >
+              <i>{ready ? "✓" : failed ? "!" : ""}</i>
               <b>{role}</b>
-              <small>{ready ? "Ready" : waitingForWallet ? "Awaiting signature" : "Starting"}</small>
+              <small>
+                {agentWakeLabel(status, fleet.phase, waitingForWallet)}
+              </small>
             </span>
           );
         })}
       </div>
     </section>
   );
+}
+
+function agentWakeLabel(
+  state: "planned" | "provisioning" | "ready" | "waking" | "failed" | undefined,
+  phase: FleetActivationState["phase"],
+  waitingForWallet: boolean,
+): string {
+  if (waitingForWallet) return "Awaiting signature";
+  if (state === "ready") return "Ready";
+  if (state === "waking") return "Waking runtime";
+  if (state === "provisioning") return "Provisioning";
+  if (state === "failed") return "Needs attention";
+  if (phase === "locating") return "Locating";
+  if (phase === "creating") return "Preparing";
+  return "Queued";
 }
 
 function FleetActivationWizard({

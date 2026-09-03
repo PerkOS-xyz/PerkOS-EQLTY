@@ -391,10 +391,10 @@ describe("API foundation", () => {
   it("offers Robinhood funding before a new wallet session exists", async () => {
     const quote = {
       ...fleetFundingQuote(),
-      amount: "0.3",
+      amount: "0.5",
       requirements: {
         ...fleetFundingQuote().requirements,
-        maxAmountRequired: "300000",
+        maxAmountRequired: "500000",
       },
     };
     const quoteFor = vi.fn(async () => quote);
@@ -430,7 +430,7 @@ describe("API foundation", () => {
     );
 
     expect(response.status).toBe(402);
-    expect(quoteFor).toHaveBeenCalledWith(0.3);
+    expect(quoteFor).toHaveBeenCalledWith(0.5);
     await expect(response.json()).resolves.toMatchObject({
       error: "infra_payment_required",
       funding: quote,

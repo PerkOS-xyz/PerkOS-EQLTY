@@ -3,6 +3,7 @@ import type { ApiConfig } from "./config.js";
 import type { EvmAddress } from "./market-types.js";
 
 const fundingPath = "/billing/deposit/x402";
+export const defaultFleetFundingUsdG = 0.5;
 
 export type FleetFundingRequirements = {
   scheme: "exact";
@@ -66,7 +67,9 @@ export class PerkosFundingService {
     this.fetchFn = dependencies.fetchFn ?? fetch;
   }
 
-  async quote(requestedAmount = 0.1): Promise<FleetFundingQuote> {
+  async quote(
+    requestedAmount = defaultFleetFundingUsdG,
+  ): Promise<FleetFundingQuote> {
     const amount = normalizeAmount(requestedAmount);
     const response = await this.deposit(amount);
     const body: unknown = await response.json().catch(() => undefined);

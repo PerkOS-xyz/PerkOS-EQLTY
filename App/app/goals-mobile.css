@@ -15,6 +15,27 @@
     padding: 14px 16px 22px;
   }
 
+  .fleetWakeProgress {
+    margin: 0 auto;
+    padding: 20px 16px;
+  }
+
+  .fleetWakeProgress > header strong {
+    font-size: 19px;
+  }
+
+  .fleetWakeAgents {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .fleetWalletAlert {
+    grid-template-columns: 32px minmax(0, 1fr);
+  }
+
+  .fleetWalletAlert > b {
+    grid-column: 2;
+  }
+
   .goalFormWizardSteps {
     grid-template-columns: 1fr;
   }

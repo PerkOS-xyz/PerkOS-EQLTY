@@ -24,6 +24,8 @@ import type {
 } from "../lib/fleet-types";
 import { useWalletAccess } from "./wallet-access-context";
 
+const coldStartWarmupMs = 20_000;
+
 export type FleetActivationState = {
   activation?: FleetActivation;
   session?: UserSession;
@@ -104,6 +106,7 @@ export function useFleetActivation(): FleetActivationState {
       if (activeRun.current !== run) {
         return false;
       }
+      const coldStart = fleetNeedsPolling(nextActivation);
       setActivation(nextActivation);
       setPhase(phaseFromActivation(nextActivation));
 
@@ -120,7 +123,16 @@ export function useFleetActivation(): FleetActivationState {
         setActivation(nextActivation);
         setPhase(phaseFromActivation(nextActivation));
       }
-      return !fleetNeedsPolling(nextActivation);
+      const ready = !fleetNeedsPolling(nextActivation);
+      if (ready && coldStart) {
+        setPhase("waking");
+        await wait(coldStartWarmupMs);
+        if (activeRun.current !== run) {
+          return false;
+        }
+        setPhase("ready");
+      }
+      return ready;
     } catch (cause) {
       if (activeRun.current !== run) {
         return false;

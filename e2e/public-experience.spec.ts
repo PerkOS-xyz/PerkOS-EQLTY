@@ -21,6 +21,12 @@ test("explains the agent decision workflow", async ({ page }) => {
   ).toBeVisible();
   await expect(
     page.getByRole("dialog", { name: "Set up your agent consultation" }),
+  ).toBeHidden();
+  await page
+    .getByRole("button", { name: "Start guided consultation" })
+    .click();
+  await expect(
+    page.getByRole("dialog", { name: "Set up your agent consultation" }),
   ).toBeVisible();
   await expect(page.getByText("Step 1 of 2", { exact: true })).toBeVisible();
 

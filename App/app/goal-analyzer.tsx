@@ -67,7 +67,7 @@ export function GoalAnalyzer({
 }) {
   const analysis = state.session?.latest;
   const [formStep, setFormStep] = useState<1 | 2>(1);
-  const [setupOpen, setSetupOpen] = useState(true);
+  const [setupOpen, setSetupOpen] = useState(false);
   const proof = useProofRun(state.session, fleet.activate);
   const hasRecommendation = Boolean(
     analysis?.candidates.some((candidate) => candidate.status === "recommended"),

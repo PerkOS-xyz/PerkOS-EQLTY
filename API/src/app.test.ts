@@ -638,6 +638,36 @@ describe("API foundation", () => {
     });
   });
 
+  it("returns the authenticated wallet compute balance", async () => {
+    const session = testSession();
+    const status = {
+      creditsUsd: 0.5,
+      estimatedFleetMinutes: 50,
+      rateUsdPerActiveAgentHour: 0.15,
+      state: "funded" as const,
+      updatedAt: "2026-09-03T08:30:00.000Z",
+    };
+    const readStatus = vi.fn(async () => status);
+    const response = await request(
+      "/api/fleet/billing",
+      {
+        ownerAuth: testOwnerAuth(session),
+        infraFunding: {
+          quote: async () => fleetFundingQuote(),
+          settle: async () => {
+            throw new Error("not called");
+          },
+          status: readStatus,
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(readStatus).toHaveBeenCalledWith("firebase-token");
+    await expect(response.json()).resolves.toEqual(status);
+  });
+
   it("settles pre-auth funding for the wallet that signed it", async () => {
     const session = testSession();
     const settle = vi.fn(async () => ({

@@ -318,7 +318,8 @@ type AppDependencies = {
   ensPolicyPreparation?: Pick<EnsPolicyPreparationService, "prepare"> &
     Partial<Pick<EnsPolicyPreparationService, "publish" | "renew">>;
   fleetActivation?: Pick<FleetActivationService, "activate">;
-  infraFunding?: Pick<PerkosFundingService, "quote" | "settle">;
+  infraFunding?: Pick<PerkosFundingService, "quote" | "settle"> &
+    Partial<Pick<PerkosFundingService, "status">>;
   oneclawFleet?: Pick<OneClawFleetProvisioner, "provision" | "ready"> &
     Partial<Pick<OneClawFleetProvisioner, "authorization" | "status">>;
   graphEvidence?: Pick<GraphEvidenceService, "evidence"> &
@@ -731,6 +732,30 @@ export function createApp(
       return response.status(402).json({
         error: "fleet_funding_failed",
         message: fleetFundingMessage(error),
+      });
+    }
+  });
+
+  app.get("/api/fleet/billing", async (request, response) => {
+    const session = ownerAuth.session(request);
+    const idToken = ownerAuth.perkosIdToken?.(request);
+    if (!session || !idToken) {
+      return response
+        .status(401)
+        .json({ error: "owner_session_required" });
+    }
+    if (!infraFunding.status) {
+      return response
+        .status(503)
+        .json({ error: "fleet_billing_unavailable" });
+    }
+    try {
+      response.setHeader("cache-control", "no-store");
+      return response.json(await infraFunding.status(idToken));
+    } catch {
+      return response.status(503).json({
+        error: "fleet_billing_unavailable",
+        message: "Compute balance is temporarily unavailable",
       });
     }
   });

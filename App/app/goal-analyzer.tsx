@@ -66,7 +66,7 @@ export function GoalAnalyzer({
   const analysis = state.session?.latest;
   const resumeAfterFunding = async () => {
     if (await fleet.fundAndRetry()) {
-      state.analyze();
+      window.setTimeout(state.analyze, 5_000);
     }
   };
 
@@ -312,7 +312,9 @@ export function GoalAnalyzer({
                 : " Connect to create or wake your private fleet. No funds move during onboarding."}
             </p>
 
-            {state.error && <p className="goalError">{state.error}</p>}
+            {state.error && !fleet.busy && !fleet.fundingBusy && (
+              <p className="goalError">{state.error}</p>
+            )}
           </div>
         </div>
 
@@ -552,15 +554,11 @@ function GoalProgress({
             </div>
             <span>No funds moved</span>
           </footer>
-          <ProofRunPanel
-            guided
-            hasCandidate={analysis.candidates.some(
-              (candidate) =>
-                candidate.status === "recommended" &&
-                Boolean(candidate.tokenAddress),
-            )}
-            state={proof}
-          />
+          {analysis.candidates.some(
+            (candidate) =>
+              candidate.status === "recommended" &&
+              Boolean(candidate.tokenAddress),
+          ) && <ProofRunPanel guided hasCandidate state={proof} />}
         </div>
       )}
     </div>

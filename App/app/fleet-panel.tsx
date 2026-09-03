@@ -174,7 +174,9 @@ export function FleetPanel({
           </p>
         </div>
         <b className={`fleetCount ${displayState}`}>
-          {displayState === "ready"
+          {state.busy || state.fundingBusy
+            ? "Waking agents…"
+            : displayState === "ready"
             ? "4/4 ready"
             : displayState === "idle" && wallet.connected
               ? "Asleep · wakes on demand"
@@ -190,7 +192,9 @@ export function FleetPanel({
         />
       </div>
 
-      <WorkflowBanner workflow={workflow} />
+      {!state.busy && !state.fundingBusy && (
+        <WorkflowBanner workflow={workflow} />
+      )}
 
       {showFundingAction && state.funding && (
         <section className="fleetFunding" aria-label="Fleet activation">
@@ -611,10 +615,10 @@ function WorkflowBanner({ workflow }: { workflow: FleetWorkflow }) {
       <span>
         <i />
         {workflow.phase === "blocked"
-          ? "Workflow stopped"
+          ? "Agent trace incomplete"
           : workflow.processing
-            ? "Agents communicating"
-            : "Cycle validated"}
+            ? "Live agent trace"
+            : "Agent trace complete"}
       </span>
       <strong>{workflowHeadline(workflow)}</strong>
       <small>

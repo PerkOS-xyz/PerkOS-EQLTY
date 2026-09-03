@@ -29,6 +29,19 @@ type LaunchResponse = {
   };
 };
 
+type HibernationStatus = {
+  state: "active" | "hibernating" | "hibernated" | "waking";
+  desiredCount: number;
+  runningCount: number;
+  pendingCount: number;
+};
+
+type EnsureAwakeResponse = {
+  finalState?: HibernationStatus["state"];
+  online?: boolean;
+  triggeredWake?: boolean;
+};
+
 type Dependencies = {
   fetchFn?: typeof fetch;
 };
@@ -155,7 +168,33 @@ export class PerkosFleetService {
       };
     }
 
-    const awake = await this.request<{ state?: string; woke?: boolean }>(
+    const hibernation = await this.request<HibernationStatus>(
+      `/agents/${encodeURIComponent(current.id)}/hibernation`,
+      idToken,
+    );
+    if (hibernation.state === "active" && hibernation.runningCount > 0) {
+      await this.touchActivity(current.id, idToken);
+      return {
+        ...plan,
+        agentId: current.id,
+        state: "ready",
+        oneclaw,
+      };
+    }
+    if (
+      hibernation.state === "waking" ||
+      (hibernation.desiredCount > 0 && hibernation.runningCount === 0)
+    ) {
+      await this.touchActivity(current.id, idToken);
+      return {
+        ...plan,
+        agentId: current.id,
+        state: "waking",
+        oneclaw,
+      };
+    }
+
+    const awake = await this.request<EnsureAwakeResponse>(
       `/agents/${encodeURIComponent(current.id)}/ensure-awake`,
       idToken,
       {
@@ -163,13 +202,26 @@ export class PerkosFleetService {
         body: JSON.stringify({ waitForRunning: false }),
       },
     );
+    await this.touchActivity(current.id, idToken);
     return {
       ...plan,
       agentId: current.id,
       state:
-        awake.woke || awake.state === "waking" ? "waking" : "ready",
+        awake.online || awake.finalState === "active" ? "ready" : "waking",
       oneclaw,
     };
+  }
+
+  private async touchActivity(agentId: string, idToken: string): Promise<void> {
+    try {
+      await this.request(
+        `/agents/${encodeURIComponent(agentId)}/activity`,
+        idToken,
+        { method: "POST", body: "{}" },
+      );
+    } catch {
+      // Activity extends the EQLTY idle window but must not block activation.
+    }
   }
 
   private async launchAgent(

@@ -160,13 +160,6 @@ export function useProofRun(
             "Wallet strategy funding is not configured on Robinhood Chain",
           );
         }
-        if (
-          config.contracts.trader &&
-          config.contracts.trader.toLowerCase() !==
-            activeStrategy.agent.toLowerCase()
-        ) {
-          throw new Error("The configured Hermes trader does not match");
-        }
         const onchain = await provisionWalletStrategy({
           wallet,
           strategy: activeStrategy,

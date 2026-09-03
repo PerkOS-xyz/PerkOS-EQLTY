@@ -79,6 +79,7 @@ export type TradeRun = {
   proofBundleRoot?: `0x${string}`;
   rejectionReason?: string;
   transactionHash?: `0x${string}`;
+  gasSponsorshipTransactionHash?: `0x${string}`;
   signal?: {
     goalId: string;
     decisionProofRoot: `0x${string}`;

@@ -168,6 +168,38 @@ describe("PerkOS fleet", () => {
       state: "failed",
     });
   });
+
+  it("preserves the PerkOS infrastructure payment error", async () => {
+    const fetchFn = vi.fn<typeof fetch>(async (input) => {
+      if (String(input).endsWith("/agents")) {
+        return Response.json({ agents: [] });
+      }
+      return Response.json(
+        {
+          error: {
+            code: "INFRA_PAYMENT_REQUIRED",
+            message: "Payment is required before using managed infrastructure.",
+          },
+        },
+        { status: 402 },
+      );
+    });
+    const service = new PerkosFleetService(
+      loadConfig({
+        PERKOS_FLEET_MODE: "live",
+        PERKOS_HERMES_IMAGE_TAG: "hermes-pinned",
+      }),
+      { fetchFn },
+    );
+
+    await expect(
+      service.activate({ ...input, idToken: "owner-id-token" }),
+    ).rejects.toMatchObject({
+      status: 402,
+      code: "INFRA_PAYMENT_REQUIRED",
+      message: "Payment is required before using managed infrastructure.",
+    });
+  });
 });
 
 function fleetApi(existing: unknown[]) {

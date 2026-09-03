@@ -8,6 +8,7 @@ import type { EnsPolicyPreparationService } from "./ens-policy-preparation.js";
 import type { ExecutionStrategy } from "./execution-types.js";
 import type { AutonomousGoal } from "./goal-types.js";
 import type { PurchaseAuditBundle } from "./purchase-audit-types.js";
+import { PerkosApiError } from "./perkos-fleet.js";
 import type { SaleAuditBundle } from "./sale-audit-types.js";
 
 const servers: ReturnType<typeof createServer>[] = [];
@@ -529,6 +530,87 @@ describe("API foundation", () => {
       userId: "u-12345678",
       verified: false,
     });
+  });
+
+  it("returns an in-app funding quote when managed compute needs credit", async () => {
+    const session = testSession();
+    const quote = fleetFundingQuote();
+    const response = await request(
+      "/api/fleet/activate",
+      {
+        ownerAuth: testOwnerAuth(session),
+        fleetActivation: {
+          activate: async () => {
+            throw new PerkosApiError(
+              402,
+              "INFRA_PAYMENT_REQUIRED",
+              "Payment is required before using PerkOS-managed infrastructure.",
+            );
+          },
+        },
+        infraFunding: {
+          quote: async () => quote,
+          settle: async () => {
+            throw new Error("not called");
+          },
+        },
+      },
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(402);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "infra_payment_required",
+      funding: quote,
+    });
+  });
+
+  it("settles fleet funding only for the authenticated owner", async () => {
+    const session = testSession();
+    const settle = vi.fn(async () => ({
+      wallet: session.walletAddress,
+      creditsUsd: 0.1,
+      deposited: 0.1,
+      network: "robinhood" as const,
+      transaction: `0x${"ab".repeat(32)}` as const,
+    }));
+    const authorization = {
+      from: session.walletAddress,
+      to: "0x3f0D7b9916212fA0A9Ac0EF8f72a25EB56F7046C",
+      value: "100000",
+      validAfter: "0",
+      validBefore: String(Math.floor(Date.now() / 1_000) + 120),
+      nonce: `0x${"22".repeat(32)}`,
+    };
+    const response = await request(
+      "/api/fleet/funding",
+      {
+        ownerAuth: testOwnerAuth(session),
+        infraFunding: {
+          quote: async () => fleetFundingQuote(),
+          settle,
+        },
+      },
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          x402Version: 1,
+          scheme: "exact",
+          network: "robinhood",
+          payload: {
+            signature: `0x${"11".repeat(65)}`,
+            authorization,
+          },
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(settle).toHaveBeenCalledWith(
+      session.walletAddress,
+      expect.objectContaining({ payload: { authorization, signature: expect.any(String) } }),
+    );
   });
 
   it("returns the user claim URL for the trader rail", async () => {
@@ -1610,6 +1692,28 @@ function testSession() {
       "0x1234567890abcdef1234567890abcdef12345678" as const,
     fleetUserId: "u-12345678",
     expiresAt: "2026-07-25T13:00:00.000Z",
+  };
+}
+
+function fleetFundingQuote() {
+  return {
+    amount: "0.1" as const,
+    symbol: "USDG" as const,
+    network: "eip155:4663" as const,
+    requirements: {
+      scheme: "exact" as const,
+      network: "robinhood" as const,
+      maxAmountRequired: "100000",
+      resource: "https://api.perkos.xyz/billing/deposit/x402",
+      description: "PerkOS agent credits top-up",
+      mimeType: "application/json" as const,
+      payTo:
+        "0x3f0D7b9916212fA0A9Ac0EF8f72a25EB56F7046C" as const,
+      maxTimeoutSeconds: 120,
+      asset:
+        "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168" as const,
+      extra: { name: "Global Dollar", version: "1" },
+    },
   };
 }
 

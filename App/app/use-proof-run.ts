@@ -39,6 +39,7 @@ export type ProofRunState = {
   readiness?: WalletReadiness;
   execution?: ExecutionConfig["execution"];
   acknowledged: boolean;
+  awaitingFunding: boolean;
   error?: string;
   runProof: () => void;
   executePurchase: () => void;
@@ -47,7 +48,10 @@ export type ProofRunState = {
   setAcknowledged: (value: boolean) => void;
 };
 
-export function useProofRun(session?: AutonomousGoal): ProofRunState {
+export function useProofRun(
+  session?: AutonomousGoal,
+  ensureFleetReady?: () => Promise<boolean>,
+): ProofRunState {
   const wallet = useWalletAccess();
   const [strategy, setStrategy] = useState<ExecutionStrategy>();
   const [run, setRun] = useState<TradeRun>();
@@ -61,6 +65,7 @@ export function useProofRun(session?: AutonomousGoal): ProofRunState {
   const [execution, setExecution] =
     useState<ExecutionConfig["execution"]>();
   const [acknowledged, setAcknowledged] = useState(false);
+  const [awaitingFunding, setAwaitingFunding] = useState(false);
   const [error, setError] = useState<string>();
 
   const runProof = useCallback(async () => {
@@ -71,10 +76,16 @@ export function useProofRun(session?: AutonomousGoal): ProofRunState {
     }
     setProofBusy(true);
     setAcknowledged(false);
+    setAwaitingFunding(false);
     setError(undefined);
     setRun(undefined);
 
     try {
+      if (ensureFleetReady && !(await ensureFleetReady())) {
+        setAwaitingFunding(true);
+        setError("Add PerkOS compute credit to verify the purchase plan.");
+        return;
+      }
       const nextStrategy = await createExecutionStrategy({
         owner: wallet.address,
         agent: wallet.address,
@@ -105,7 +116,7 @@ export function useProofRun(session?: AutonomousGoal): ProofRunState {
     } finally {
       setProofBusy(false);
     }
-  }, [session, wallet.address]);
+  }, [ensureFleetReady, session, wallet.address]);
 
   const executePurchase = useCallback(async () => {
     if (
@@ -189,6 +200,7 @@ export function useProofRun(session?: AutonomousGoal): ProofRunState {
     setReviewOpen(true);
     setReviewBusy(true);
     setAcknowledged(false);
+    setAwaitingFunding(false);
     setReadiness(undefined);
     setExecution(undefined);
     setError(undefined);
@@ -241,6 +253,7 @@ export function useProofRun(session?: AutonomousGoal): ProofRunState {
     setStrategy(undefined);
     setRun(undefined);
     setAcknowledged(false);
+    setAwaitingFunding(false);
     setPurchaseStage("idle");
     setReviewOpen(false);
     setReviewBusy(false);
@@ -260,6 +273,7 @@ export function useProofRun(session?: AutonomousGoal): ProofRunState {
     readiness,
     execution,
     acknowledged,
+    awaitingFunding,
     error,
     runProof: () => void runProof(),
     executePurchase: () => void executePurchase(),

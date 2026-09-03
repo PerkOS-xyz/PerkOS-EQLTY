@@ -46,6 +46,7 @@ export type GoalAnalysisState = {
   session?: AutonomousGoal;
   busy: boolean;
   paymentBusy: boolean;
+  paymentPhase: "idle" | "authorizing" | "settling";
   error?: string;
   workflowError?: string;
   connected: boolean;
@@ -79,6 +80,9 @@ export function useGoalAnalysis(
   const [runKey, setRunKey] = useState(0);
   const [busy, setBusy] = useState(false);
   const [paymentBusy, setPaymentBusy] = useState(false);
+  const [paymentPhase, setPaymentPhase] = useState<
+    GoalAnalysisState["paymentPhase"]
+  >("idle");
   const [error, setError] = useState<string>();
   const [workflowError, setWorkflowError] = useState<string>();
 
@@ -161,6 +165,7 @@ export function useGoalAnalysis(
       return;
     }
     setPaymentBusy(true);
+    setPaymentPhase("authorizing");
     setError(undefined);
     try {
       const payment = await authorizeDecisionFee({
@@ -169,6 +174,7 @@ export function useGoalAnalysis(
         requirements: fee.requirements,
         resourceUrl: goalDecisionFeeResource(session.id),
       });
+      setPaymentPhase("settling");
       const settled = await settleGoalDecisionFee(session.id, payment);
       setSession(settled);
     } catch (cause) {
@@ -179,6 +185,7 @@ export function useGoalAnalysis(
       );
     } finally {
       setPaymentBusy(false);
+      setPaymentPhase("idle");
     }
   }, [session, wallet]);
 
@@ -290,6 +297,7 @@ export function useGoalAnalysis(
       setRunKey(0);
       setBusy(false);
       setPaymentBusy(false);
+      setPaymentPhase("idle");
       setError(undefined);
       setWorkflowError(undefined);
     }
@@ -308,6 +316,7 @@ export function useGoalAnalysis(
     session,
     busy,
     paymentBusy,
+    paymentPhase,
     error,
     workflowError,
     connected: wallet.connected,

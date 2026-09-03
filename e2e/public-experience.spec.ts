@@ -24,10 +24,23 @@ test("explains the agent decision workflow", async ({ page }) => {
   ).toBeVisible();
   await expect(page.getByText("Step 1 of 2", { exact: true })).toBeVisible();
 
+  const wizardContent = page.locator(".goalWizardModal > .goalWorkspace");
+  await expect
+    .poll(() => wizardContent.evaluate((element) => getComputedStyle(element).overflowY))
+    .toBe("auto");
+
   await page.getByText("Fees and safeguards", { exact: true }).click();
   await expect(
     page.getByRole("region", { name: "EQLTY revenue model" }),
   ).toContainText("Users pay for verified decisions");
+  await expect
+    .poll(() =>
+      wizardContent.evaluate((element) => {
+        element.scrollTop = element.scrollHeight;
+        return element.scrollTop;
+      }),
+    )
+    .toBeGreaterThan(0);
 
   const objective = page.getByLabel("Investment objective");
   await page.getByRole("button", { name: "Learn first" }).click();

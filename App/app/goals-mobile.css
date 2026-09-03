@@ -1,4 +1,37 @@
 @media (max-width: 760px) {
+  .decisionWizardSteps {
+    grid-template-columns: repeat(5, 62px);
+    overflow-x: auto;
+  }
+
+  .decisionWizardSteps > span {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    padding: 12px 6px;
+    text-align: center;
+  }
+
+  .decisionWizardSteps i {
+    grid-row: auto;
+    margin-bottom: 5px;
+  }
+
+  .decisionWizardSteps small {
+    display: none;
+  }
+
+  .decisionWizardAction {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .decisionWizardAction button,
+  .decisionWizardAction > a {
+    width: 100%;
+    min-width: 0;
+  }
+
   .goalAnalyzer {
     margin-top: 18px;
     padding: 18px;

@@ -12,9 +12,11 @@ import type { TradeRun } from "../lib/execution-types";
 import type { ProofRunState } from "./use-proof-run";
 
 export function ProofRunPanel({
+  guided = false,
   hasCandidate,
   state,
 }: {
+  guided?: boolean;
   hasCandidate: boolean;
   state: ProofRunState;
 }) {
@@ -28,13 +30,15 @@ export function ProofRunPanel({
             market evidence without moving funds.
           </small>
         </div>
-        <button
-          disabled={!hasCandidate || state.proofBusy}
-          onClick={state.runProof}
-          type="button"
-        >
-          {state.proofBusy ? "Running proof..." : "Run execution proof"}
-        </button>
+        {!guided && (
+          <button
+            disabled={!hasCandidate || state.proofBusy}
+            onClick={state.runProof}
+            type="button"
+          >
+            {state.proofBusy ? "Running proof..." : "Run execution proof"}
+          </button>
+        )}
         {state.error && <p>{state.error}</p>}
       </div>
     );
@@ -91,7 +95,7 @@ export function ProofRunPanel({
         </>
       )}
 
-      {run.status === "approved" && (
+      {run.status === "approved" && !guided && (
         <PurchaseReviewEntry state={state} />
       )}
 

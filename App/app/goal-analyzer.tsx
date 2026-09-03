@@ -350,7 +350,14 @@ function GoalProgress({
   const proof = useProofRun(session);
 
   return (
-    <div className="goalProgress">
+      <div className="goalProgress">
+      <DecisionWizard
+        analysis={analysis}
+        onPay={onPay}
+        paymentBusy={paymentBusy}
+        proof={proof}
+        session={session}
+      />
       <header>
         <div>
           <span className={`goalStatus ${session.status}`}>
@@ -426,6 +433,7 @@ function GoalProgress({
           busy={paymentBusy}
           fee={session.decisionFee}
           onPay={onPay}
+          showAction={false}
         />
       )}
 
@@ -474,6 +482,7 @@ function GoalProgress({
             <span>No funds moved</span>
           </footer>
           <ProofRunPanel
+            guided
             hasCandidate={analysis.candidates.some(
               (candidate) =>
                 candidate.status === "recommended" &&
@@ -484,6 +493,121 @@ function GoalProgress({
         </div>
       )}
     </div>
+  );
+}
+
+function DecisionWizard({
+  analysis,
+  onPay,
+  paymentBusy,
+  proof,
+  session,
+}: {
+  analysis?: OpportunityAnalysis;
+  onPay: () => void;
+  paymentBusy: boolean;
+  proof: ReturnType<typeof useProofRun>;
+  session: AutonomousGoal;
+}) {
+  const paymentRequired = session.status === "payment-required";
+  const noCandidate = Boolean(
+    analysis && !analysis.candidates.some((item) => item.status === "recommended"),
+  );
+  const executed = proof.run?.status === "executed";
+  const proofStopped =
+    proof.run?.status === "rejected" || proof.run?.status === "failed";
+  const current = executed
+    ? 5
+    : proof.run?.status === "approved"
+      ? 4
+      : proof.proofBusy || proof.run
+        ? 3
+        : paymentRequired
+          ? 2
+          : session.status === "active"
+            ? 2
+            : noCandidate
+              ? 5
+              : 3;
+  const steps = [
+    ["Goal", "Question received"],
+    ["Decision", session.status === "active" ? "Agents are comparing" : "Recommendation sealed"],
+    ["Proof", proof.run ? "Route and rules checked" : "Check before purchase"],
+    ["Approve", "Your wallet decides"],
+    ["Receipt", executed ? "Purchase verified" : noCandidate ? "No-action verified" : "Audit trail"],
+  ];
+
+  let title = "The agents are discussing your goal";
+  let copy = "No action is needed while Scout, Risk, Trader and Auditor prepare one recommendation.";
+  let action: (() => void) | undefined;
+  let actionLabel = "Agents are working…";
+  let busy = session.status === "active";
+
+  if (paymentRequired) {
+    const amount = formatUsdG(session.decisionFee?.amount ?? "0");
+    title = "Seal the agents’ recommendation";
+    copy = `Pay ${amount} USDG for the completed consultation. This is the decision fee, not the investment amount.`;
+    action = onPay;
+    actionLabel = paymentBusy ? "Confirming decision fee…" : `Continue · Pay ${amount} USDG fee`;
+    busy = paymentBusy;
+  } else if (noCandidate) {
+    title = "The safe result is to wait";
+    copy = "The fleet found no candidate that passed every rule. No investment transaction is available.";
+    actionLabel = "No funds moved";
+    busy = true;
+  } else if (analysis && !proof.run) {
+    title = "Check the recommended purchase";
+    copy = "EQLTY will re-read ENS, refresh The Graph evidence and request the exact Uniswap route. No funds move in this step.";
+    action = proof.runProof;
+    actionLabel = proof.proofBusy ? "Checking route and rules…" : "Continue · Verify purchase plan";
+    busy = proof.proofBusy;
+  } else if (proof.run?.status === "approved") {
+    title = `Review the ${proof.run.ticker} purchase`;
+    copy = "See the exact amount, expected tokens and wallet transactions before approving anything.";
+    action = proof.openReview;
+    actionLabel = "Continue · Review and approve";
+    busy = proof.reviewBusy || proof.purchaseBusy;
+  } else if (executed && proof.run?.transactionHash) {
+    title = `${proof.run.ticker} purchase confirmed`;
+    copy = "The workflow is complete. Open the audit receipt to verify every agent, rule, route and onchain event.";
+    actionLabel = "Open verified receipt";
+  } else if (proofStopped) {
+    title = "The safety checks stopped execution";
+    copy = proof.run?.rejectionReason ?? "No funds moved. Review the failed proof below.";
+    actionLabel = "No funds moved";
+    busy = true;
+  }
+
+  return (
+    <section className="decisionWizard" aria-label="Purchase steps">
+      <div className="decisionWizardSteps">
+        {steps.map(([label, detail], index) => {
+          const number = index + 1;
+          const status = number < current ? "complete" : number === current ? "current" : "upcoming";
+          return (
+            <span className={status} key={label}>
+              <i>{number < current ? "✓" : number}</i>
+              <b>{label}</b>
+              <small>{detail}</small>
+            </span>
+          );
+        })}
+      </div>
+      <div className="decisionWizardAction">
+        <div>
+          <span>Step {current} of 5</span>
+          <strong>{title}</strong>
+          <small>{copy}</small>
+        </div>
+        {executed && proof.run?.transactionHash ? (
+          <a href={`/history/${proof.run.transactionHash}`}>{actionLabel}</a>
+        ) : (
+          <button disabled={busy || !action} onClick={action} type="button">
+            {actionLabel}
+          </button>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -770,10 +894,12 @@ function DecisionFeePanel({
   busy,
   fee,
   onPay,
+  showAction = true,
 }: {
   busy: boolean;
   fee: NonNullable<AutonomousGoal["decisionFee"]>;
   onPay: () => void;
+  showAction?: boolean;
 }) {
   const exact = formatUsdG(fee.amount);
   return (
@@ -798,7 +924,7 @@ function DecisionFeePanel({
             : "Legacy decision · start a new consultation"}
         </code>
       </div>
-      {fee.status === "payment-required" && (
+      {showAction && fee.status === "payment-required" && (
         <button disabled={busy} onClick={onPay} type="button">
           {busy ? "Settling with Stack..." : `Authorize ${exact} USDG`}
         </button>

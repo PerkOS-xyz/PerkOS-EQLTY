@@ -8,12 +8,17 @@ import {
 } from "react";
 import {
   activateFleet,
+  FleetRequestError,
+  fundFleet,
   loadFleetSession,
   requestFleetChallenge,
   verifyFleetOwner,
 } from "../lib/fleet-api";
+import { authorizeFleetFunding } from "../lib/fleet-funding";
 import type {
   FleetActivation,
+  FleetFundingQuote,
+  FleetFundingReceipt,
   FleetPhase,
   UserSession,
 } from "../lib/fleet-types";
@@ -24,8 +29,12 @@ export type FleetActivationState = {
   session?: UserSession;
   phase: FleetPhase;
   busy: boolean;
+  fundingBusy: boolean;
+  funding?: FleetFundingQuote;
+  fundingReceipt?: FleetFundingReceipt;
   error?: string;
   activate: () => Promise<boolean>;
+  fundAndRetry: () => Promise<boolean>;
   retry: () => void;
 };
 
@@ -33,10 +42,19 @@ export function useFleetActivation(): FleetActivationState {
   const wallet = useWalletAccess();
   const activeRun = useRef(0);
   const startedFor = useRef<string | undefined>(undefined);
+  const pendingOwnerProof = useRef<{
+    address: `0x${string}`;
+    nonce: string;
+    signature: `0x${string}`;
+  } | undefined>(undefined);
   const [activation, setActivation] = useState<FleetActivation>();
   const [session, setSession] = useState<UserSession>();
   const [phase, setPhase] = useState<FleetPhase>("idle");
   const [busy, setBusy] = useState(false);
+  const [fundingBusy, setFundingBusy] = useState(false);
+  const [funding, setFunding] = useState<FleetFundingQuote>();
+  const [fundingReceipt, setFundingReceipt] =
+    useState<FleetFundingReceipt>();
   const [error, setError] = useState<string>();
 
   const begin = useCallback(async (): Promise<boolean> => {
@@ -47,6 +65,7 @@ export function useFleetActivation(): FleetActivationState {
     activeRun.current = run;
     startedFor.current = wallet.address;
     setActivation(undefined);
+    setFunding(undefined);
     setError(undefined);
     setBusy(true);
     setPhase("locating");
@@ -59,6 +78,11 @@ export function useFleetActivation(): FleetActivationState {
       ) {
         const challenge = await requestFleetChallenge(wallet.address);
         const signature = await wallet.signMessage(challenge.message);
+        pendingOwnerProof.current = {
+          address: wallet.address,
+          nonce: challenge.nonce,
+          signature,
+        };
         if (activeRun.current !== run) {
           return false;
         }
@@ -67,6 +91,7 @@ export function useFleetActivation(): FleetActivationState {
           challenge.nonce,
           signature,
         );
+        pendingOwnerProof.current = undefined;
       }
       setSession(nextSession);
       setPhase("creating");
@@ -97,9 +122,19 @@ export function useFleetActivation(): FleetActivationState {
         return false;
       }
       startedFor.current = undefined;
-      setError(
-        cause instanceof Error ? cause.message : "Fleet activation failed",
-      );
+      if (
+        cause instanceof FleetRequestError &&
+        cause.status === 402 &&
+        cause.code === "infra_payment_required" &&
+        cause.funding
+      ) {
+        setFunding(cause.funding);
+        setError(undefined);
+      } else {
+        setError(
+          cause instanceof Error ? cause.message : "Fleet activation failed",
+        );
+      }
       setPhase("failed");
       return false;
     } finally {
@@ -113,14 +148,54 @@ export function useFleetActivation(): FleetActivationState {
     wallet.signMessage,
   ]);
 
+  const fundAndRetry = useCallback(async (): Promise<boolean> => {
+    if (!funding) return false;
+    setFundingBusy(true);
+    setError(undefined);
+    try {
+      const payment = await authorizeFleetFunding({ wallet, quote: funding });
+      const receipt = await fundFleet(payment);
+      setFundingReceipt(receipt);
+      setFunding(undefined);
+      const proof = pendingOwnerProof.current;
+      if (
+        proof &&
+        wallet.address &&
+        proof.address.toLowerCase() === wallet.address.toLowerCase()
+      ) {
+        const nextSession = await verifyFleetOwner(
+          proof.address,
+          proof.nonce,
+          proof.signature,
+        );
+        setSession(nextSession);
+        pendingOwnerProof.current = undefined;
+      }
+      return await begin();
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Fleet activation payment failed",
+      );
+      return false;
+    } finally {
+      setFundingBusy(false);
+    }
+  }, [begin, funding, wallet]);
+
   useEffect(() => {
     if (!wallet.connected || !wallet.address) {
       activeRun.current += 1;
       startedFor.current = undefined;
+      pendingOwnerProof.current = undefined;
       setActivation(undefined);
       setSession(undefined);
+      setFunding(undefined);
+      setFundingReceipt(undefined);
       setError(undefined);
       setBusy(false);
+      setFundingBusy(false);
       setPhase("idle");
       return;
     }
@@ -131,8 +206,12 @@ export function useFleetActivation(): FleetActivationState {
     session,
     phase,
     busy,
+    fundingBusy,
+    funding,
+    fundingReceipt,
     error,
     activate: begin,
+    fundAndRetry,
     retry: () => {
       startedFor.current = undefined;
       void begin();

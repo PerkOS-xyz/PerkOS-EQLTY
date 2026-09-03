@@ -190,6 +190,49 @@ export function FleetPanel({
 
       <WorkflowBanner workflow={workflow} />
 
+      {state.funding && (
+        <section className="fleetFunding" aria-label="Fleet activation">
+          <div>
+            <span>Private compute activation</span>
+            <strong>
+              Start this wallet&apos;s fleet with {state.funding.amount}{" "}
+              {state.funding.symbol}
+            </strong>
+            <p>
+              This prepaid credit runs the four private Hermes agents. Your
+              wallet signs an exact x402 authorization on Robinhood Chain;
+              Stack settles it, then EQLTY resumes this consultation.
+            </p>
+            <small>
+              Estimated rate: $0.15 per fleet hour. Unused credit remains in
+              your PerkOS infrastructure balance.
+            </small>
+          </div>
+          <button
+            disabled={state.fundingBusy}
+            onClick={() => void state.fundAndRetry()}
+            type="button"
+          >
+            {state.fundingBusy
+              ? "Activating with Stack..."
+              : `Activate fleet · ${state.funding.amount} USDG`}
+          </button>
+        </section>
+      )}
+
+      {state.fundingReceipt && (
+        <div className="fleetFundingReceipt">
+          <span>PerkOS compute funded</span>
+          <a
+            href={`https://robinhoodchain.blockscout.com/tx/${state.fundingReceipt.transaction}`}
+            rel="noreferrer"
+            target="_blank"
+          >
+            View x402 transaction ↗
+          </a>
+        </div>
+      )}
+
       {state.activation?.verified && (
         <FleetPolicyEditor rootName={state.activation.rootName} />
       )}

@@ -40,6 +40,12 @@ type Dependencies = {
   now?: () => number;
 };
 
+export class OwnerFundingRequiredError extends Error {
+  constructor(readonly shortfallUsd: number) {
+    super("PerkOS infrastructure funding is required for this wallet");
+  }
+}
+
 export class OwnerAuth {
   private readonly fetchFn: typeof fetch;
   private readonly now: () => number;
@@ -112,6 +118,15 @@ export class OwnerAuth {
     );
     const exchangeBody = await jsonRecord(exchange);
     if (!exchange.ok || typeof exchangeBody.token !== "string") {
+      if (exchange.status === 402) {
+        const payment = isRecord(exchangeBody.payment)
+          ? exchangeBody.payment
+          : undefined;
+        const shortfall = Number(payment?.shortfallUsd);
+        if (Number.isFinite(shortfall) && shortfall > 0) {
+          throw new OwnerFundingRequiredError(shortfall);
+        }
+      }
       throw new Error(
         errorMessage(exchangeBody, "PerkOS wallet sign-in failed"),
       );
@@ -304,6 +319,10 @@ function positiveInteger(value: string, fallback: number): number {
 
 function isAddress(value: string): value is EvmAddress {
   return /^0x[0-9a-fA-F]{40}$/.test(value);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
 
 function stripSlash(value: string): string {

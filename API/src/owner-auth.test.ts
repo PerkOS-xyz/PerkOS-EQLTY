@@ -5,7 +5,7 @@ import type {
 import { describe, expect, it, vi } from "vitest";
 import { loadConfig } from "./config.js";
 import { fleetUserIdForWallet } from "./fleet-identity.js";
-import { OwnerAuth } from "./owner-auth.js";
+import { OwnerAuth, OwnerFundingRequiredError } from "./owner-auth.js";
 
 const address = "0x1234567890abcdef1234567890abcdef12345678" as const;
 const signature = `0x${"ab".repeat(65)}` as const;
@@ -125,6 +125,30 @@ describe("owner authentication", () => {
         signature,
       }),
     ).rejects.toThrow("Owner authentication is not configured");
+  });
+
+  it("preserves the funding shortfall for a new PerkOS wallet", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      Response.json(
+        {
+          error: { code: "PAYMENT_REQUIRED" },
+          payment: {
+            minimumUsd: 0.3,
+            shortfallUsd: 0.3,
+          },
+        },
+        { status: 402 },
+      ),
+    );
+    const auth = new OwnerAuth(config(), { fetchFn, now: () => now });
+
+    await expect(
+      auth.verify(responseCapture().response, {
+        address,
+        nonce: "nonce-1",
+        signature,
+      }),
+    ).rejects.toEqual(new OwnerFundingRequiredError(0.3));
   });
 });
 

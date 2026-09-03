@@ -81,7 +81,12 @@ test("presents the product story with live proof", async ({ page }) => {
   ).toBeVisible();
   await expect(page.getByText("Talk to the fleet", { exact: true })).toBeAttached();
   await expect(page.getByText("Every sponsor is load-bearing.")).toBeAttached();
-  await expect(page.getByText("Users pay for a verified decision.")).toBeAttached();
+  await expect(page.getByText("AI-assisted investing.")).toBeAttached();
+  await expect(page.getByText("Start direct.")).toBeAttached();
+  await expect(page.getByText("Pay for verified work.")).toBeAttached();
+  await expect(page.getByText("Prove value first.")).toBeAttached();
+  await expect(page.getByText("Platform cost drivers")).toBeAttached();
+  await expect(page.getByText("LatAm and Africa")).toBeAttached();
   await expect(page.getByRole("link", { name: "Open product" })).toHaveAttribute(
     "href",
     "/",

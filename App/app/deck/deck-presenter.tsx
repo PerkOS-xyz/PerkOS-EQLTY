@@ -10,7 +10,16 @@ import {
 } from "../../lib/market-api";
 import type { StockCatalog } from "../../lib/market-types";
 
-const slides = ["opening", "conversation", "proof", "market", "business", "demo"];
+const slides = [
+  "opening",
+  "conversation",
+  "proof",
+  "market",
+  "distribution",
+  "business",
+  "roadmap",
+  "demo",
+];
 const roles = [
   { role: "Scout", action: "Discovers candidates", proof: "The Graph + ENS" },
   { role: "Risk", action: "Challenges or stops", proof: "Evidence + policy" },
@@ -72,7 +81,7 @@ export function DeckPresenter() {
         <div className="deckHero">
           <div>
             <h1>Buying is solved.<br /><em>Trusting an agent is not.</em></h1>
-            <p>EQLTY turns a financial goal into one decision that can be challenged, constrained and verified before money moves.</p>
+            <p>EQLTY is an AI-assisted decision layer that turns a financial goal into one recommendation that can be challenged, constrained and verified before money moves.</p>
           </div>
           <aside>
             <span>Four agents</span><b>One accountable decision</b>
@@ -110,12 +119,13 @@ export function DeckPresenter() {
         <div className="deckGuardrail">Only Trader can spend · 1Claw controls its rail · the owner signs the final action</div>
       </DeckSlide>
 
-      <DeckSlide id="market" number="04" eyebrow="A focused wedge">
+      <DeckSlide id="market" number="04" eyebrow="Sector and first customer">
         <div className="deckMarket">
           <div>
-            <h2>Exchanges execute.<br />Assistants suggest.<br /><em>EQLTY makes decisions accountable.</em></h2>
-            <p>The underserved layer sits between an AI opinion and an irreversible transaction: independent roles, portable policy and evidence a user can inspect.</p>
-            <p className="deckAudience"><b>Initial audience</b> Self-directed users in LatAm and Africa who can legally access tokenized assets and want verifiable guidance before execution.</p>
+            <h2>AI-assisted investing.<br /><em>For tokenized equities.</em></h2>
+            <p>EQLTY sits between generic AI advice and irreversible execution. It helps a self-directed user compare options without surrendering control of the wallet.</p>
+            <p className="deckAudience"><b>First customer</b> Digitally native investors in LatAm and Africa who can legally access tokenized assets, but lack trusted, explainable guidance before execution.</p>
+            <div className="deckBenefits" aria-label="User advantages"><span>Compare a wider market</span><span>Independent risk challenge</span><span>Proof before approval</span></div>
           </div>
           <div className="deckLive" aria-label="Live product coverage">
             <span>Live product coverage</span>
@@ -127,18 +137,38 @@ export function DeckPresenter() {
         </div>
       </DeckSlide>
 
-      <DeckSlide id="business" number="05" eyebrow="Usage-based revenue">
-        <h2>Users pay for a verified decision.<br /><em>Not for a promise.</em></h2>
+      <DeckSlide id="distribution" number="05" eyebrow="Distribution">
+        <h2>Start direct.<br /><em>Scale through platforms.</em></h2>
+        <div className="deckDistribution">
+          <article><span>01</span><strong>PerkOS ecosystem</strong><p>Reach wallet-connected users through the existing launcher, agent infrastructure and community demos.</p><small>Direct acquisition</small></article>
+          <article><span>02</span><strong>Education-led growth</strong><p>Turn real, inspectable decision receipts into product walkthroughs instead of performance promises.</p><small>Trust before conversion</small></article>
+          <article><span>03</span><strong>Wallets and fintechs</strong><p>Offer the same committee and receipt through an embeddable decision API and reusable agent plugins.</p><small>B2B distribution</small></article>
+        </div>
+        <p className="deckExpansion">Initial motion: founder-led demos and invited users. Scale motion: partner distribution where users already hold assets.</p>
+      </DeckSlide>
+
+      <DeckSlide id="business" number="06" eyebrow="Pricing and costs">
+        <h2>Pay for verified work.<br /><em>Keep execution costs separate.</em></h2>
         <div className="deckRevenue">
           <article><span>Start</span><b>Free</b><p>Ask the fleet, define the goal and preview how the committee works.</p></article>
           <article><span>Recommendation</span><b>{fees ? `${usdG(fees.completeAmount)} USDG` : "—"}</b><p>A complete four-agent Decision Receipt backed by live policy and evidence.</p></article>
           <article><span>No action</span><b>{fees ? `${usdG(fees.noCandidateAmount)} USDG` : "—"}</b><p>A lower fee when the verified answer is that no candidate should advance.</p></article>
-          <article><span>Settlement</span><b>x402</b><p>Exact wallet authorization bound to the receipt after value is produced.</p></article>
+          <article><span>Execution</span><b>Separate</b><p>Network gas, swap execution and the user&apos;s 1Claw plan are not hidden inside the advice fee.</p></article>
         </div>
-        <p className="deckExpansion">Expansion: recurring goal reviews, protected execution and a decision API for wallets and fintech apps.</p>
+        <div className="deckCostLine"><b>Platform cost drivers</b><span>Hermes compute + model inference + data/RPC usage</span><span>Agents hibernate after 15 minutes</span><span>Shared market snapshots reduce repeated calls</span></div>
+        <p className="deckExpansion">Contribution margin = x402 decision revenue − compute, inference and provider cost. The pilot measures this before pricing expands.</p>
       </DeckSlide>
 
-      <DeckSlide id="demo" number="06" eyebrow="See it work">
+      <DeckSlide id="roadmap" number="07" eyebrow="Roadmap">
+        <h2>Prove value first.<br /><em>Then repeat and distribute.</em></h2>
+        <div className="deckRoadmap">
+          <article><span>Live now</span><strong>Working decision loop</strong><p>Conversation, four-agent debate, ENS policy, Graph evidence, Uniswap route, receipt and optional execution.</p><small>Product proof</small></article>
+          <article><span>Next 30 days</span><strong>Measured pilot</strong><p>Cost telemetry, clearer chat, Spanish and English onboarding, recurring watchlists and user interviews.</p><small>Retention + unit economics</small></article>
+          <article><span>60–90 days</span><strong>Partner product</strong><p>Decision API for wallets and fintechs, policy templates and broader eligible tokenized markets.</p><small>B2B pilot</small></article>
+        </div>
+      </DeckSlide>
+
+      <DeckSlide id="demo" number="08" eyebrow="See it work">
         <div className="deckClose">
           <div>
             <h2>Ask. Challenge.<br />Verify. <em>Then decide.</em></h2>

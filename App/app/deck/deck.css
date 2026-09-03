@@ -384,6 +384,22 @@
   text-transform: uppercase;
 }
 
+.deckBenefits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 14px;
+}
+
+.deckBenefits span {
+  padding: 7px 10px;
+  border: 1px solid #2e4636;
+  border-radius: 999px;
+  color: #a8b6ad;
+  font: 9px "DM Mono", monospace;
+  text-transform: uppercase;
+}
+
 .deckLive > div {
   display: grid;
   grid-template-columns: 80px 1fr;
@@ -454,6 +470,77 @@
   line-height: 1.55;
 }
 
+.deckDistribution,
+.deckRoadmap {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 38px;
+}
+
+.deckDistribution article,
+.deckRoadmap article {
+  display: flex;
+  min-height: 235px;
+  flex-direction: column;
+  padding: 23px;
+  border: 1px solid #2b3a31;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #111813, #0b0f0c);
+}
+
+.deckDistribution article > span,
+.deckRoadmap article > span {
+  color: var(--deck-lime);
+  font: 11px "DM Mono", monospace;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.deckDistribution strong,
+.deckRoadmap strong {
+  margin-top: 42px;
+  font-size: 21px;
+}
+
+.deckDistribution p,
+.deckRoadmap p {
+  margin: 10px 0 24px;
+  color: #8f9c94;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.deckDistribution small,
+.deckRoadmap small {
+  margin-top: auto;
+  color: #718078;
+  font: 10px "DM Mono", monospace;
+  text-transform: uppercase;
+}
+
+.deckCostLine {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 11px;
+}
+
+.deckCostLine b,
+.deckCostLine span {
+  padding: 9px 12px;
+  border: 1px solid #2b3a31;
+  border-radius: 999px;
+  color: #8f9d94;
+  font: 10px "DM Mono", monospace;
+}
+
+.deckCostLine b {
+  border-color: #406249;
+  color: var(--deck-green);
+  text-transform: uppercase;
+}
+
 .deckClose > div > div {
   display: flex;
   flex-wrap: wrap;
@@ -505,7 +592,9 @@
   .deckMarket,
   .deckClose { grid-template-columns: 1fr; gap: 30px; }
   .deckProofRail,
-  .deckRevenue { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .deckRevenue,
+  .deckDistribution,
+  .deckRoadmap { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .deckRoles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .deckSlide { min-height: auto; }
   .deckFrame { padding-block: 110px 70px; }
@@ -522,6 +611,8 @@
   .deckFrame h2 { font-size: 38px; }
   .deckProofRail,
   .deckRevenue,
+  .deckDistribution,
+  .deckRoadmap,
   .deckRoles { grid-template-columns: 1fr; }
   .deckProofRail article { min-height: 160px; }
   .deckProofRail article:not(:last-child)::after { top: auto; right: 50%; bottom: -17px; transform: rotate(90deg); }

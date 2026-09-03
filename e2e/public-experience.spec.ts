@@ -73,6 +73,40 @@ test("discovers real stock-token markets", async ({ page }) => {
   await expectNoPageOverflow(page);
 });
 
+test("presents the product story with live proof", async ({ page }) => {
+  await page.goto("/deck");
+
+  await expect(
+    page.getByRole("heading", { name: /Buying is solved/ }),
+  ).toBeVisible();
+  await expect(page.getByText("Talk to the fleet", { exact: true })).toBeAttached();
+  await expect(page.getByText("Every sponsor is load-bearing.")).toBeAttached();
+  await expect(page.getByText("Users pay for a verified decision.")).toBeAttached();
+  await expect(page.getByRole("link", { name: "Open product" })).toHaveAttribute(
+    "href",
+    "/",
+  );
+
+  const coverage = page.getByLabel("Live product coverage");
+  await expect
+    .poll(async () => coverage.locator("b").first().innerText(), {
+      timeout: 45_000,
+    })
+    .toMatch(/^\d+$/);
+  await expect(coverage).toContainText(/Graph ready|Graph degraded|Graph pending/);
+
+  await page.keyboard.press("End");
+  await expect(
+    page.getByRole("heading", { name: /Ask\. Challenge/ }),
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "Start a consultation" })).toHaveAttribute(
+    "href",
+    "/",
+  );
+
+  await expectNoPageOverflow(page);
+});
+
 test("publishes safe 1Claw readiness", async ({ request }) => {
   const apiUrl = process.env.EQLTY_E2E_API_URL ?? "http://localhost:4021";
   const response = await request.get(`${apiUrl}/api/config`);

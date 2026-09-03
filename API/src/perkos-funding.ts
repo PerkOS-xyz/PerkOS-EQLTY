@@ -2,7 +2,6 @@ import { getAddress } from "viem";
 import type { ApiConfig } from "./config.js";
 import type { EvmAddress } from "./market-types.js";
 
-const fundingAmount = 0.1;
 const fundingPath = "/billing/deposit/x402";
 
 export type FleetFundingRequirements = {
@@ -22,7 +21,7 @@ export type FleetFundingRequirements = {
 };
 
 export type FleetFundingQuote = {
-  amount: "0.1";
+  amount: string;
   symbol: "USDG";
   network: "eip155:4663";
   requirements: FleetFundingRequirements;
@@ -67,15 +66,16 @@ export class PerkosFundingService {
     this.fetchFn = dependencies.fetchFn ?? fetch;
   }
 
-  async quote(): Promise<FleetFundingQuote> {
-    const response = await this.deposit();
+  async quote(requestedAmount = 0.1): Promise<FleetFundingQuote> {
+    const amount = normalizeAmount(requestedAmount);
+    const response = await this.deposit(amount);
     const body: unknown = await response.json().catch(() => undefined);
     if (response.status !== 402) {
       throw new Error("PerkOS did not return fleet funding terms");
     }
     const requirements = parseRequirements(body);
     return {
-      amount: "0.1",
+      amount: String(amount),
       symbol: "USDG",
       network: "eip155:4663",
       requirements,
@@ -86,10 +86,11 @@ export class PerkosFundingService {
     owner: EvmAddress,
     payment: FleetFundingPayment,
   ): Promise<FleetFundingReceipt> {
-    const quote = await this.quote();
+    const amount = Number(payment.payload.authorization.value) / 1_000_000;
+    const quote = await this.quote(amount);
     validatePayment(owner, payment, quote.requirements);
     const encoded = Buffer.from(JSON.stringify(payment)).toString("base64");
-    const response = await this.deposit(encoded);
+    const response = await this.deposit(amount, encoded);
     const body: unknown = await response.json().catch(() => undefined);
     if (!response.ok) {
       throw new Error(perkosMessage(body, response.status));
@@ -101,7 +102,7 @@ export class PerkosFundingService {
     return receipt;
   }
 
-  private deposit(payment?: string): Promise<Response> {
+  private deposit(amount: number, payment?: string): Promise<Response> {
     return this.fetchFn(
       new URL(fundingPath, `${this.config.PERKOS_API_URL.replace(/\/$/, "")}/`),
       {
@@ -111,11 +112,18 @@ export class PerkosFundingService {
           "content-type": "application/json",
           ...(payment ? { "payment-signature": payment } : {}),
         },
-        body: JSON.stringify({ network: "robinhood", amount: fundingAmount }),
+        body: JSON.stringify({ network: "robinhood", amount }),
         signal: AbortSignal.timeout(60_000),
       },
     );
   }
+}
+
+function normalizeAmount(value: number): number {
+  if (!Number.isFinite(value) || value <= 0 || value > 1_000) {
+    throw new Error("Fleet funding amount is outside the supported range");
+  }
+  return Number(value.toFixed(6));
 }
 
 function parseRequirements(body: unknown): FleetFundingRequirements {

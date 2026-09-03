@@ -9,6 +9,7 @@ import type { ExecutionStrategy } from "./execution-types.js";
 import type { AutonomousGoal } from "./goal-types.js";
 import type { PurchaseAuditBundle } from "./purchase-audit-types.js";
 import { PerkosApiError } from "./perkos-fleet.js";
+import { OwnerFundingRequiredError } from "./owner-auth.js";
 import type { SaleAuditBundle } from "./sale-audit-types.js";
 
 const servers: ReturnType<typeof createServer>[] = [];
@@ -364,6 +365,55 @@ describe("API foundation", () => {
     });
   });
 
+  it("offers Robinhood funding before a new wallet session exists", async () => {
+    const quote = {
+      ...fleetFundingQuote(),
+      amount: "0.3",
+      requirements: {
+        ...fleetFundingQuote().requirements,
+        maxAmountRequired: "300000",
+      },
+    };
+    const quoteFor = vi.fn(async () => quote);
+    const response = await request(
+      "/api/auth/perkos/verify",
+      {
+        ownerAuth: {
+          challenge: async () => {
+            throw new Error("not called");
+          },
+          verify: async () => {
+            throw new OwnerFundingRequiredError(0.3);
+          },
+          session: () => undefined,
+          logout: () => undefined,
+        },
+        infraFunding: {
+          quote: quoteFor,
+          settle: async () => {
+            throw new Error("not called");
+          },
+        },
+      },
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          address: testSession().walletAddress,
+          nonce: "nonce-1",
+          signature: `0x${"11".repeat(65)}`,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(402);
+    expect(quoteFor).toHaveBeenCalledWith(0.3);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "infra_payment_required",
+      funding: quote,
+    });
+  });
+
   it("serves authenticated agent metadata", async () => {
     const session = {
       sub: "eip155:4663:0x1234567890abcdef1234567890abcdef12345678",
@@ -565,7 +615,7 @@ describe("API foundation", () => {
     });
   });
 
-  it("settles fleet funding only for the authenticated owner", async () => {
+  it("settles pre-auth funding for the wallet that signed it", async () => {
     const session = testSession();
     const settle = vi.fn(async () => ({
       wallet: session.walletAddress,
@@ -585,7 +635,6 @@ describe("API foundation", () => {
     const response = await request(
       "/api/fleet/funding",
       {
-        ownerAuth: testOwnerAuth(session),
         infraFunding: {
           quote: async () => fleetFundingQuote(),
           settle,

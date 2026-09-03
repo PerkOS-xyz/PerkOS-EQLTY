@@ -14,7 +14,7 @@ import { FleetActivationService } from "./fleet-activation.js";
 import type { FleetAgent, FleetRole } from "./fleet-types.js";
 import { FirestoreGoalStore } from "./firestore-goal.js";
 import { GraphEvidenceService } from "./graph-evidence.js";
-import { OwnerAuth } from "./owner-auth.js";
+import { OwnerAuth, OwnerFundingRequiredError } from "./owner-auth.js";
 import { OpportunityAnalysisService } from "./opportunity-analysis.js";
 import {
   OneClawFleetProvisioner,
@@ -547,6 +547,20 @@ export function createApp(
         }),
       );
     } catch (error) {
+      if (error instanceof OwnerFundingRequiredError) {
+        try {
+          return response.status(402).json({
+            error: "infra_payment_required",
+            message: "Activate PerkOS infrastructure for this wallet.",
+            funding: await infraFunding.quote(error.shortfallUsd),
+          });
+        } catch {
+          return response.status(503).json({
+            error: "fleet_funding_unavailable",
+            message: "Fleet funding terms are temporarily unavailable",
+          });
+        }
+      }
       return response.status(401).json({
         error: "wallet_login_failed",
         message: safeMessage(error),
@@ -695,10 +709,6 @@ export function createApp(
   });
 
   app.post("/api/fleet/funding", async (request, response) => {
-    const session = ownerAuth.session(request);
-    if (!session) {
-      return response.status(401).json({ error: "owner_session_required" });
-    }
     const parsed = fleetFundingPayment.safeParse(request.body);
     if (!parsed.success) {
       return response.status(400).json({
@@ -710,7 +720,7 @@ export function createApp(
       response.setHeader("cache-control", "no-store");
       return response.json(
         await infraFunding.settle(
-          session.walletAddress,
+          parsed.data.payload.authorization.from as `0x${string}`,
           parsed.data as FleetFundingPayment,
         ),
       );

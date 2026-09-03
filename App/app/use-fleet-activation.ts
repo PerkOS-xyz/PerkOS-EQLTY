@@ -42,6 +42,11 @@ export function useFleetActivation(): FleetActivationState {
   const wallet = useWalletAccess();
   const activeRun = useRef(0);
   const startedFor = useRef<string | undefined>(undefined);
+  const pendingOwnerProof = useRef<{
+    address: `0x${string}`;
+    nonce: string;
+    signature: `0x${string}`;
+  } | undefined>(undefined);
   const [activation, setActivation] = useState<FleetActivation>();
   const [session, setSession] = useState<UserSession>();
   const [phase, setPhase] = useState<FleetPhase>("idle");
@@ -73,6 +78,11 @@ export function useFleetActivation(): FleetActivationState {
       ) {
         const challenge = await requestFleetChallenge(wallet.address);
         const signature = await wallet.signMessage(challenge.message);
+        pendingOwnerProof.current = {
+          address: wallet.address,
+          nonce: challenge.nonce,
+          signature,
+        };
         if (activeRun.current !== run) {
           return false;
         }
@@ -81,6 +91,7 @@ export function useFleetActivation(): FleetActivationState {
           challenge.nonce,
           signature,
         );
+        pendingOwnerProof.current = undefined;
       }
       setSession(nextSession);
       setPhase("creating");
@@ -146,6 +157,20 @@ export function useFleetActivation(): FleetActivationState {
       const receipt = await fundFleet(payment);
       setFundingReceipt(receipt);
       setFunding(undefined);
+      const proof = pendingOwnerProof.current;
+      if (
+        proof &&
+        wallet.address &&
+        proof.address.toLowerCase() === wallet.address.toLowerCase()
+      ) {
+        const nextSession = await verifyFleetOwner(
+          proof.address,
+          proof.nonce,
+          proof.signature,
+        );
+        setSession(nextSession);
+        pendingOwnerProof.current = undefined;
+      }
       return await begin();
     } catch (cause) {
       setError(
@@ -163,6 +188,7 @@ export function useFleetActivation(): FleetActivationState {
     if (!wallet.connected || !wallet.address) {
       activeRun.current += 1;
       startedFor.current = undefined;
+      pendingOwnerProof.current = undefined;
       setActivation(undefined);
       setSession(undefined);
       setFunding(undefined);

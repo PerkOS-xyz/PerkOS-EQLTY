@@ -55,7 +55,7 @@ export type FleetFundingRequirements = {
 };
 
 export type FleetFundingQuote = {
-  amount: "0.1";
+  amount: string;
   symbol: "USDG";
   network: "eip155:4663";
   requirements: FleetFundingRequirements;

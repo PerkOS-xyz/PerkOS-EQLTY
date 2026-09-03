@@ -31,6 +31,22 @@ describe("PerkOS fleet funding", () => {
     });
   });
 
+  it("uses the PerkOS login shortfall for a new wallet", async () => {
+    const fetchFn = vi.fn<typeof fetch>(async () =>
+      fundingChallenge("300000"),
+    );
+    const service = new PerkosFundingService(loadConfig({}), { fetchFn });
+
+    await expect(service.quote(0.3)).resolves.toMatchObject({
+      amount: "0.3",
+      requirements: { maxAmountRequired: "300000" },
+    });
+    expect(JSON.parse(String(fetchFn.mock.calls[0]?.[1]?.body))).toEqual({
+      network: "robinhood",
+      amount: 0.3,
+    });
+  });
+
   it("settles and verifies the wallet credited by PerkOS", async () => {
     const fetchFn = vi
       .fn<typeof fetch>()
@@ -97,7 +113,7 @@ describe("PerkOS fleet funding", () => {
   });
 });
 
-function fundingChallenge(): Response {
+function fundingChallenge(maxAmountRequired = "100000"): Response {
   return Response.json(
     {
       x402Version: 1,
@@ -105,7 +121,7 @@ function fundingChallenge(): Response {
         {
           scheme: "exact",
           network: "robinhood",
-          maxAmountRequired: "100000",
+          maxAmountRequired,
           resource: "https://api.perkos.xyz/billing/deposit/x402",
           description: "PerkOS agent credits top-up",
           mimeType: "application/json",

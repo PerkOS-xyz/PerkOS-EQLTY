@@ -79,7 +79,7 @@ describe("PerkOS fleet", () => {
     });
   });
 
-  it("wakes existing agents and reads 1Claw status", async () => {
+  it("reads active agents without requesting another wake", async () => {
     const existing = [
       {
         id: "agent-scout",
@@ -134,19 +134,79 @@ describe("PerkOS fleet", () => {
       fetchFn.mock.calls.filter(([url]) =>
         String(url).endsWith("/ensure-awake"),
       ),
-    ).toHaveLength(4);
+    ).toHaveLength(0);
     expect(
       fetchFn.mock.calls
-        .filter(([url]) => String(url).endsWith("/ensure-awake"))
-        .every(([, init]) =>
-          String((init as RequestInit).body).includes(
-            '"waitForRunning":false',
-          ),
-        ),
-    ).toBe(true);
+        .filter(([url]) => String(url).endsWith("/activity")),
+    ).toHaveLength(4);
     expect(
       fetchFn.mock.calls.some(([url]) => String(url).endsWith("/runtimes")),
     ).toBe(false);
+  });
+
+  it("starts hibernated agents once and reports them as waking", async () => {
+    const existing = ["scout", "risk", "trader", "auditor"].map((role) => ({
+      id: `agent-${role}`,
+      name: `eqlty-${role}-12345678`,
+      runtime: "Hermes",
+      status: "ready",
+    }));
+    const fetchFn = fleetApi(existing, "hibernated");
+    const service = new PerkosFleetService(
+      loadConfig({
+        PERKOS_FLEET_MODE: "live",
+        PERKOS_HERMES_IMAGE_TAG: "hermes-pinned",
+      }),
+      { fetchFn },
+    );
+
+    const runtime = await service.activate({
+      ...input,
+      idToken: "owner-id-token",
+    });
+
+    expect(runtime.status).toBe("provisioning");
+    expect(runtime.agents.every((agent) => agent.state === "waking")).toBe(
+      true,
+    );
+    const wakeCalls = fetchFn.mock.calls.filter(([url]) =>
+      String(url).endsWith("/ensure-awake"),
+    );
+    expect(wakeCalls).toHaveLength(4);
+    expect(
+      wakeCalls.every(([, init]) =>
+        String((init as RequestInit).body).includes(
+          '"waitForRunning":false',
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it("does not fail activation when the activity heartbeat is unavailable", async () => {
+    const existing = ["scout", "risk", "trader", "auditor"].map((role) => ({
+      id: `agent-${role}`,
+      name: `eqlty-${role}-12345678`,
+      runtime: "Hermes",
+      status: "ready",
+    }));
+    const fetchFn = fleetApi(existing, "active", 402);
+    const service = new PerkosFleetService(
+      loadConfig({ PERKOS_FLEET_MODE: "live" }),
+      { fetchFn },
+    );
+
+    const runtime = await service.activate({
+      ...input,
+      idToken: "owner-id-token",
+    });
+
+    expect(runtime.status).toBe("ready");
+    expect(runtime.agents.every((agent) => agent.state === "ready")).toBe(true);
+    expect(
+      fetchFn.mock.calls.filter(([url]) =>
+        String(url).endsWith("/ensure-awake"),
+      ),
+    ).toHaveLength(0);
   });
 
   it("does not replace an incompatible existing runtime", async () => {
@@ -211,7 +271,11 @@ describe("PerkOS fleet", () => {
   });
 });
 
-function fleetApi(existing: unknown[]) {
+function fleetApi(
+  existing: unknown[],
+  hibernationState: "active" | "hibernated" = "active",
+  activityStatus = 204,
+) {
   return vi.fn(async (
     input: URL | string | Request,
     init: RequestInit = {},
@@ -233,9 +297,32 @@ function fleetApi(existing: unknown[]) {
       expect(authorization).toBe("Bearer owner-id-token");
       return Response.json({ agents: existing });
     }
+    if (url.endsWith("/activity")) {
+      expect(authorization).toBe("Bearer owner-id-token");
+      return activityStatus === 204
+        ? new Response(null, { status: 204 })
+        : Response.json(
+            { error: "payment required" },
+            { status: activityStatus },
+          );
+    }
+    if (url.endsWith("/hibernation")) {
+      expect(authorization).toBe("Bearer owner-id-token");
+      return Response.json({
+        state: hibernationState,
+        desiredCount: hibernationState === "active" ? 1 : 0,
+        runningCount: hibernationState === "active" ? 1 : 0,
+        pendingCount: 0,
+        snapshot: { bucket: "test", prefix: "test/" },
+      });
+    }
     if (url.endsWith("/ensure-awake")) {
       expect(authorization).toBe("Bearer owner-id-token");
-      return Response.json({ state: "ready", woke: false });
+      return Response.json({
+        finalState: "waking",
+        online: false,
+        triggeredWake: true,
+      });
     }
     if (url.endsWith("/agents/launch")) {
       expect(authorization).toBe("Bearer owner-id-token");

@@ -315,9 +315,23 @@
   line-height: 1.5;
 }
 
-.fleetWakeProgress > header > b {
+.fleetWakeMetric {
+  display: grid;
+  flex: 0 0 auto;
+  justify-items: end;
+  gap: 3px;
+}
+
+.fleetWakeMetric > b {
   color: #76eca0;
   font: 700 18px "DM Mono", monospace;
+}
+
+.fleetWakeMetric > small {
+  color: #849188;
+  font: 600 10px "DM Mono", monospace;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .fleetWakeBar {
@@ -434,6 +448,16 @@
 
 .fleetWakeAgents .ready i {
   color: #76eca0;
+}
+
+.fleetWakeAgents .failed {
+  border-color: #7d3d3d;
+  color: #f3aaaa;
+}
+
+.fleetWakeAgents .failed i {
+  border-color: #a34d4d;
+  color: #ff8585;
 }
 
 .fleetWakeAgents b {

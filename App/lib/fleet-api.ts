@@ -2,6 +2,7 @@ import type {
   AgentRole,
   EnsAgentMetadata,
   FleetActivation,
+  FleetComputeStatus,
   FleetFundingPayment,
   FleetFundingQuote,
   FleetFundingReceipt,
@@ -108,6 +109,10 @@ export async function fundFleet(
     method: "POST",
     body: JSON.stringify(payment),
   });
+}
+
+export async function loadFleetCompute(): Promise<FleetComputeStatus> {
+  return request<FleetComputeStatus>("/api/fleet/billing");
 }
 
 export async function activateOneClawRails(

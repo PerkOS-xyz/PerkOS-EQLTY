@@ -184,6 +184,26 @@ export function FleetPanel({
         </b>
       </header>
 
+      {(state.compute || state.computeLoading) && (
+        <section
+          aria-label="Private compute balance"
+          className={`fleetCompute ${state.compute?.state ?? "loading"}`}
+        >
+          <div>
+            <span>Private compute</span>
+            <strong>{computeBalanceLabel(state)}</strong>
+          </div>
+          <div>
+            <span>Estimated runway</span>
+            <strong>{computeRunwayLabel(state)}</strong>
+          </div>
+          <small>
+            Four agents are metered only while active. Idle EQLTY fleets
+            hibernate after 15 minutes.
+          </small>
+        </section>
+      )}
+
       <div aria-hidden="true" className="fleetProgress">
         <i
           style={{
@@ -455,6 +475,21 @@ export function FleetPanel({
       )}
     </section>
   );
+}
+
+function computeBalanceLabel(state: FleetActivationState): string {
+  if (state.computeLoading && !state.compute) return "Checking…";
+  if (state.compute?.state === "sponsored") return "Sponsored";
+  return `${(state.compute?.creditsUsd ?? 0).toFixed(2)} USDG`;
+}
+
+function computeRunwayLabel(state: FleetActivationState): string {
+  if (state.computeLoading && !state.compute) return "Checking…";
+  if (state.compute?.state === "sponsored") return "No prepaid limit";
+  const minutes = state.compute?.estimatedFleetMinutes;
+  if (minutes === null || minutes === undefined) return "Unavailable";
+  if (minutes < 1) return "Exhausted";
+  return `About ${Math.floor(minutes)} min`;
 }
 
 function oneclawHealthLabel(

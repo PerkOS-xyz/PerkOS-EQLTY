@@ -66,15 +66,15 @@ can be executed with a clear evidence trail.
 - [x] Expose adapter checkpoint, lag and recovery state.
 - [x] Retry failed streams with controlled backoff.
 - [x] Explain fail-closed Graph status in the application.
-- [ ] Restore production provider quota.
-- [ ] Verify production catch-up within the configured lag limit.
+- [x] Restore production provider quota.
+- [x] Verify production catch-up within the configured lag limit.
 
 ### 9. Demonstration readiness
 
-- [ ] Complete a controlled end to end trade.
+- [x] Complete a controlled end to end trade.
 - [x] Verify the experience on mobile and desktop.
-- [ ] Prepare a repeatable two minute goal run.
-- [ ] Document live contract and transaction references.
+- [x] Prepare a repeatable two minute goal run.
+- [x] Document live contract and transaction references.
 
 ## Quality gates
 

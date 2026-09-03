@@ -53,6 +53,14 @@ export type FleetFundingReceipt = {
   transaction: `0x${string}`;
 };
 
+export type FleetComputeStatus = {
+  creditsUsd: number;
+  estimatedFleetMinutes: number | null;
+  rateUsdPerActiveAgentHour: number;
+  state: "sponsored" | "funded" | "exhausted" | "unfunded";
+  updatedAt?: string;
+};
+
 type Dependencies = {
   fetchFn?: typeof fetch;
 };
@@ -103,6 +111,30 @@ export class PerkosFundingService {
       throw new Error("PerkOS credited a different wallet");
     }
     return receipt;
+  }
+
+  async status(idToken: string): Promise<FleetComputeStatus> {
+    if (!idToken) {
+      throw new Error("PerkOS wallet authentication is required");
+    }
+    const response = await this.fetchFn(
+      new URL(
+        "/billing/me",
+        `${this.config.PERKOS_API_URL.replace(/\/$/, "")}/`,
+      ),
+      {
+        headers: {
+          accept: "application/json",
+          authorization: `Bearer ${idToken}`,
+        },
+        signal: AbortSignal.timeout(15_000),
+      },
+    );
+    const body: unknown = await response.json().catch(() => undefined);
+    if (!response.ok) {
+      throw new Error(perkosMessage(body, response.status));
+    }
+    return parseComputeStatus(body);
   }
 
   private deposit(amount: number, payment?: string): Promise<Response> {
@@ -212,6 +244,45 @@ function parseReceipt(body: unknown): FleetFundingReceipt {
     deposited: body.deposited,
     network: "robinhood",
     transaction: body.transaction as `0x${string}`,
+  };
+}
+
+function parseComputeStatus(body: unknown): FleetComputeStatus {
+  if (
+    !isRecord(body) ||
+    typeof body.creditsUsd !== "number" ||
+    !Number.isFinite(body.creditsUsd) ||
+    typeof body.enrolled !== "boolean" ||
+    typeof body.exempt !== "boolean" ||
+    !isRecord(body.infra) ||
+    typeof body.infra.allowed !== "boolean" ||
+    (body.infra.hoursRemaining !== null &&
+      (typeof body.infra.hoursRemaining !== "number" ||
+        !Number.isFinite(body.infra.hoursRemaining))) ||
+    typeof body.infra.rateUsdPerTeamHour !== "number" ||
+    !Number.isFinite(body.infra.rateUsdPerTeamHour)
+  ) {
+    throw new Error("PerkOS returned invalid compute status");
+  }
+  const creditsUsd = Math.max(0, body.creditsUsd);
+  const rate = Math.max(0, body.infra.rateUsdPerTeamHour);
+  const estimatedFleetMinutes =
+    body.exempt || body.infra.hoursRemaining === null
+      ? null
+      : Math.max(0, (body.infra.hoursRemaining / 4) * 60);
+  return {
+    creditsUsd,
+    estimatedFleetMinutes,
+    rateUsdPerActiveAgentHour: rate,
+    state: body.exempt
+      ? "sponsored"
+      : body.infra.allowed
+        ? "funded"
+        : body.enrolled
+          ? "exhausted"
+          : "unfunded",
+    updatedAt:
+      typeof body.generatedAt === "string" ? body.generatedAt : undefined,
   };
 }
 

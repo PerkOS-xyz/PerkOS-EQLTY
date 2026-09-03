@@ -41,6 +41,54 @@
   color: #f08780;
 }
 
+.fleetCompute {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.7fr) minmax(150px, 0.8fr) minmax(260px, 1.8fr);
+  gap: 16px;
+  align-items: center;
+  margin: 10px 0 16px;
+  padding: 13px 15px;
+  border: 1px solid #2d4436;
+  border-radius: 14px;
+  background: rgb(14 27 20 / 74%);
+}
+
+.fleetCompute > div {
+  display: grid;
+  gap: 3px;
+}
+
+.fleetCompute span,
+.fleetCompute small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.fleetCompute span {
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.fleetCompute strong {
+  color: var(--green);
+  font-size: 15px;
+}
+
+.fleetCompute small {
+  line-height: 1.45;
+}
+
+.fleetCompute.exhausted,
+.fleetCompute.unfunded {
+  border-color: #673b38;
+}
+
+.fleetCompute.exhausted strong,
+.fleetCompute.unfunded strong {
+  color: #f08780;
+}
+
 .fleetProgress {
   height: 3px;
   margin: -2px 0 13px;
@@ -132,6 +180,14 @@
 }
 
 @media (max-width: 720px) {
+  .fleetCompute {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .fleetCompute small {
+    grid-column: 1 / -1;
+  }
+
   .fleetFunding {
     align-items: stretch;
     flex-direction: column;

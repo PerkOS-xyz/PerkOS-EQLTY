@@ -47,6 +47,56 @@ describe("PerkOS fleet funding", () => {
     });
   });
 
+  it("reports the prepaid runway for the four-agent fleet", async () => {
+    const fetchFn = vi.fn<typeof fetch>(async () =>
+      Response.json({
+        creditsUsd: 0.5,
+        enrolled: true,
+        exempt: false,
+        infra: {
+          allowed: true,
+          hoursRemaining: 10 / 3,
+          rateUsdPerTeamHour: 0.15,
+        },
+        generatedAt: "2026-09-03T08:30:00.000Z",
+      }),
+    );
+    const service = new PerkosFundingService(loadConfig({}), { fetchFn });
+
+    await expect(service.status("firebase-token")).resolves.toEqual({
+      creditsUsd: 0.5,
+      estimatedFleetMinutes: 50,
+      rateUsdPerActiveAgentHour: 0.15,
+      state: "funded",
+      updatedAt: "2026-09-03T08:30:00.000Z",
+    });
+    expect(
+      new Headers(fetchFn.mock.calls[0]?.[1]?.headers).get("authorization"),
+    ).toBe("Bearer firebase-token");
+  });
+
+  it("keeps sponsored compute distinct from prepaid balances", async () => {
+    const service = new PerkosFundingService(loadConfig({}), {
+      fetchFn: vi.fn(async () =>
+        Response.json({
+          creditsUsd: 0,
+          enrolled: true,
+          exempt: true,
+          infra: {
+            allowed: true,
+            hoursRemaining: null,
+            rateUsdPerTeamHour: 0.15,
+          },
+        }),
+      ),
+    });
+
+    await expect(service.status("firebase-token")).resolves.toMatchObject({
+      estimatedFleetMinutes: null,
+      state: "sponsored",
+    });
+  });
+
   it("settles and verifies the wallet credited by PerkOS", async () => {
     const fetchFn = vi
       .fn<typeof fetch>()

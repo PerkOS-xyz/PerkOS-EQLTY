@@ -86,6 +86,14 @@ export type FleetFundingReceipt = {
   transaction: `0x${string}`;
 };
 
+export type FleetComputeStatus = {
+  creditsUsd: number;
+  estimatedFleetMinutes: number | null;
+  rateUsdPerActiveAgentHour: number;
+  state: "sponsored" | "funded" | "exhausted" | "unfunded";
+  updatedAt?: string;
+};
+
 export type OneClawFleetSecurity =
   | {
       status: "link_required";

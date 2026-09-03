@@ -1,4 +1,26 @@
 @media (max-width: 760px) {
+  .goalFormWizardSteps {
+    grid-template-columns: 1fr;
+  }
+
+  .goalFormWizardSteps button + button {
+    border-top: 1px solid #29372f;
+    border-left: 0;
+  }
+
+  .goalFormWizard {
+    min-height: 0;
+  }
+
+  .goalWizardActions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
+  .goalWizardActions button {
+    width: 100%;
+  }
+
   .decisionWizardSteps {
     grid-template-columns: repeat(6, 62px);
     overflow-x: auto;

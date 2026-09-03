@@ -181,7 +181,10 @@ describe("HermesConsultationService", () => {
     expect(scoutRequest.prompt).toContain('"recommendedTicker":"TICKER"');
     expect(scoutRequest.timeoutMs).toBe(25_000);
     expect(traderRequest.prompt).toContain('"decision":"prepare"');
-    expect(traderRequest.timeoutMs).toBe(35_000);
+    expect(traderRequest.timeoutMs).toBe(55_000);
+    expect(traderRequest.prompt).toContain('"uniswapRouting":"CLASSIC"');
+    expect(traderRequest.prompt).toContain('"uniswapRequestId":"NVDA-request"');
+    expect(traderRequest.prompt).not.toContain('"graphEvidence"');
   });
 
   it("rejects a Scout selection that failed deterministic gates", async () => {

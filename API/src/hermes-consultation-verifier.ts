@@ -362,8 +362,15 @@ export function traderPrompt(
         decision: risk.detail,
         responseHash: risk.responseHash,
       },
-      ensPolicy: manifest.policy,
-      candidate,
+      ensPolicy: {
+        allowedTickers: manifest.policy.allowedTickers,
+      },
+      candidate: {
+        ticker: candidate.ticker,
+        status: candidate.status,
+        uniswapRouting: candidate.uniswapRouting,
+        uniswapRequestId: candidate.uniswapRequestId,
+      },
     }),
   ].join("\n");
 }

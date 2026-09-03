@@ -276,6 +276,10 @@
   scrollbar-gutter: stable;
 }
 
+.goalWizardModal > .goalWorkspace {
+  grid-auto-rows: max-content;
+}
+
 .fleetWakeProgress {
   width: 100%;
   max-width: 760px;
@@ -851,6 +855,15 @@
   line-height: 1.5;
 }
 
+.goalFieldHint {
+  display: block;
+  min-height: 38px;
+  margin-top: 7px;
+  color: #7f8c84;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .amountInput {
   position: relative;
 }
@@ -882,14 +895,47 @@
 }
 
 .goalWalletNotice {
-  margin: 10px 0 0;
-  color: #7f8c84;
-  font-size: 11px;
-  line-height: 1.5;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 11px;
+  margin: 12px 0 0;
+  padding: 12px 14px;
+  border: 1px solid #2a4433;
+  border-radius: 11px;
+  background: #101914;
+  color: #a8b5ad;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.goalWalletNotice > i {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid #417451;
+  border-radius: 50%;
+  color: #7ce69d;
+  font: normal 700 13px "DM Mono", monospace;
+}
+
+.goalWalletNotice > div {
+  display: grid;
+  gap: 3px;
 }
 
 .goalWalletNotice b {
   color: #9fe5b2;
+}
+
+.goalWalletNotice span,
+.goalWalletNotice small {
+  display: block;
+}
+
+.goalWalletNotice small {
+  color: #7f8c84;
+  font-size: 12px;
 }
 
 .goalStart:hover:not(:disabled) {
@@ -940,16 +986,33 @@
   font-size: 13px;
 }
 
+.goalBoundaries li > span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.goalBoundaries li b {
+  color: #bdc9c1;
+  font-size: 12px;
+}
+
+.goalBoundaries li small {
+  color: #78847d;
+  font-size: 10px;
+  line-height: 1.25;
+}
+
 .goalBoundaries li i {
   display: grid;
-  width: 25px;
+  width: 30px;
   height: 25px;
-  flex: 0 0 25px;
+  flex: 0 0 30px;
   place-items: center;
   border-radius: 7px;
   background: #15231a;
   color: #79e39c;
-  font: normal 500 13px "DM Mono", monospace;
+  font: normal 600 10px "DM Mono", monospace;
 }
 
 .revenueStrip {

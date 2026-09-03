@@ -52,8 +52,11 @@
   }
 
   .goalWizardActions {
+    position: static;
     align-items: stretch;
     flex-direction: column-reverse;
+    padding-bottom: 0;
+    background: none;
   }
 
   .goalWizardActions button {

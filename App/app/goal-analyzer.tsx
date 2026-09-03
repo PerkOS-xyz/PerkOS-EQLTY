@@ -180,7 +180,7 @@ export function GoalAnalyzer({
               type="button"
             >
               <i>2</i>
-              <span><b>Budget and limits</b><small>Set the decision boundaries</small></span>
+              <span><b>Purchase boundaries</b><small>Set amount and analysis time</small></span>
             </button>
           </nav>
         )}
@@ -350,10 +350,10 @@ export function GoalAnalyzer({
 
             <div className="goalInputs">
               <label>
-                <span>Amount to evaluate</span>
+                <span>Potential purchase amount</span>
                 <div className="amountInput">
                   <input
-                    aria-label="Goal budget in USDG"
+                    aria-label="Potential purchase amount in USDG"
                     inputMode="decimal"
                     onChange={(event) => state.setAmount(event.target.value)}
                     value={state.amount}
@@ -375,9 +375,13 @@ export function GoalAnalyzer({
                     </button>
                   ))}
                 </div>
+                <small className="goalFieldHint">
+                  Used to size the recommendation and Uniswap quote. No funds
+                  move until you approve a final trade.
+                </small>
               </label>
               <label>
-                <span>Consultation window</span>
+                <span>Analysis time</span>
                 <select
                   aria-label="Autonomous analysis window"
                   onChange={(event) =>
@@ -385,10 +389,13 @@ export function GoalAnalyzer({
                   }
                   value={state.windowMinutes}
                 >
-                  <option value={2}>2 minutes</option>
+                  <option value={2}>2 minutes · demo</option>
                   <option value={5}>5 minutes</option>
                   <option value={20}>20 minutes</option>
                 </select>
+                <small className="goalFieldHint">
+                  The fleet compares candidates within this time limit.
+                </small>
               </label>
             </div>
 
@@ -416,17 +423,27 @@ export function GoalAnalyzer({
                   : fleet.funding
                     ? "Activate fleet to continue"
                     : state.connected
-                      ? "Continue · Ask the agents"
+                      ? `Start ${state.windowMinutes}-minute analysis`
                       : "Connect wallet to begin"}
               </button>
             </div>
 
-            <p className="goalWalletNotice">
-              <b>{state.connected ? "Wallet connected" : "Private by wallet"}</b>
-              {state.connected
-                ? " First use may request one gasless ownership signature. It cannot move funds; payment and execution remain separate."
-                : " Connect to create or wake your private fleet. No funds move during onboarding."}
-            </p>
+            <div className="goalWalletNotice" role="note">
+              <i aria-hidden="true">i</i>
+              <div>
+                <b>{state.connected ? "Wallet connected" : "Private by wallet"}</b>
+                <span>
+                  {state.connected
+                    ? "You may sign once to verify ownership. That signature cannot move funds."
+                    : "Connect to create or wake your private fleet. Onboarding cannot move funds."}
+                </span>
+                <small>
+                  {state.feeConfig
+                    ? `${formatUsdG(state.feeConfig.completeAmount)} USDG is requested only after all four agents finish a verified decision. Any purchase is reviewed and approved separately.`
+                    : "A decision fee is requested only after all four agents finish. Any purchase is reviewed and approved separately."}
+                </small>
+              </div>
+            </div>
 
             {state.error && !fleet.busy && !fleet.fundingBusy && (
               <p className="goalError">{state.error}</p>
@@ -435,23 +452,23 @@ export function GoalAnalyzer({
         </div>}
 
         {!state.busy && !activationBusy && !fleet.funding && formStep === 2 && <aside className="goalBoundaries">
-          <span>Boundaries applied every cycle</span>
+          <span>Checks applied every cycle</span>
           <ul>
             <li>
               <i>ENS</i>
-              Behavior and allowed assets
+              <span><b>ENS Rules</b><small>Behavior and allowed assets</small></span>
             </li>
             <li>
               <i>1C</i>
-              Agent spending controls
+              <span><b>1Claw Spend Control</b><small>Agent spending limits</small></span>
             </li>
             <li>
-              <i>UG</i>
-              Executable Uniswap route
+              <i>UNI</i>
+              <span><b>Uniswap Route</b><small>Executable Robinhood route</small></span>
             </li>
             <li>
-              <i>TG</i>
-              Indexed evidence and proof
+              <i>G</i>
+              <span><b>The Graph Evidence</b><small>Indexed market proof</small></span>
             </li>
           </ul>
         </aside>}

@@ -205,7 +205,7 @@ export function FleetPanel({
               {state.funding.symbol}
             </strong>
             <p>
-              This prepaid credit runs the four private Hermes agents. Your
+              This prepaid credit runs your four private agents. Your
               wallet signs an exact x402 authorization on Robinhood Chain;
               Stack settles it, then EQLTY resumes this consultation.
             </p>
@@ -948,7 +948,7 @@ function fleetHeadline(phase: FleetPhase, connected: boolean): string {
     idle: "No compute is running. Start a consultation to wake the fleet.",
     locating: "Looking for your existing agents",
     creating: "Creating missing agent identities",
-    provisioning: "Provisioning isolated Hermes runtimes",
+    provisioning: "Provisioning isolated private agents",
     waking: "Waking runtimes and checking health",
     ready: "Four secure runtimes are online",
     failed: "Fleet activation needs attention",

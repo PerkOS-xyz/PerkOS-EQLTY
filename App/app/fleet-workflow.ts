@@ -284,7 +284,7 @@ export function workflowHeadline(workflow: FleetWorkflow): string {
       ? "Fleet monitoring the next evaluation"
       : "First evaluation in progress";
   }
-  return "All four Hermes handoffs verified";
+  return "All four private-agent handoffs verified";
 }
 
 function runtimeCheck(
@@ -311,7 +311,7 @@ function runtimeCheck(
   const handoff = analysis.consultation[role];
   if (handoff.status !== "verified") {
     return {
-      label: "Hermes handoff",
+      label: "Private-agent handoff",
       value: handoff.detail ?? `${role} response was not verified`,
       state: "blocked",
     };
@@ -321,14 +321,14 @@ function runtimeCheck(
   );
   if (role === "scout") {
     return {
-      label: "Hermes handoff",
+      label: "Private-agent handoff",
       value: `${handoff.agentName ?? "Scout"} · ${shortHash(handoff.responseHash)}`,
       state: "passed",
     };
   }
   if (role === "risk") {
     return {
-      label: "Hermes handoff",
+      label: "Private-agent handoff",
       value: `${handoff.agentName ?? "Risk"} · ${evidenced.length} passed`,
       state: "passed",
     };
@@ -338,13 +338,13 @@ function runtimeCheck(
       (candidate) => candidate.uniswapRequestId,
     );
     return {
-      label: "Hermes handoff",
+      label: "Private-agent handoff",
       value: `${handoff.agentName ?? "Trader"} · ${quoted.length} V4 routes`,
       state: "passed",
     };
   }
   return {
-    label: "Hermes handoff",
+    label: "Private-agent handoff",
     value: `${handoff.agentName ?? "Auditor"} · ${shortHash(handoff.responseHash)}`,
     state: "passed",
   };
@@ -377,7 +377,7 @@ function workflowStop(
           stopRole: role,
           stopReason:
             handoff.detail ??
-            `${role} Hermes handoff was not verified; the deterministic fallback cannot authorize execution.`,
+            `${role} private-agent handoff was not verified; the deterministic fallback cannot authorize execution.`,
         };
       }
     }

@@ -93,7 +93,7 @@ export class PerkosFleetService {
     }
     if (!input.idToken) {
       throw new Error(
-        "PerkOS wallet authentication is required for live Hermes agents",
+        "PerkOS wallet authentication is required for your private agents",
       );
     }
     const idToken = input.idToken;

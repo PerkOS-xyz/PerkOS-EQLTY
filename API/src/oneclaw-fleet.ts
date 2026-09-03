@@ -426,7 +426,7 @@ export class OneClawFleetProvisioner {
       )
     ) {
       throw new Error(
-        "All four Hermes agents must be online before connecting 1Claw",
+        "All four private agents must be online before connecting 1Claw",
       );
     }
     const trader = managed.find(

@@ -30,6 +30,7 @@ export type FleetActivationState = {
   phase: FleetPhase;
   busy: boolean;
   fundingBusy: boolean;
+  fundingPhase: "idle" | "authorizing" | "settling" | "activating";
   funding?: FleetFundingQuote;
   fundingReceipt?: FleetFundingReceipt;
   error?: string;
@@ -52,6 +53,9 @@ export function useFleetActivation(): FleetActivationState {
   const [phase, setPhase] = useState<FleetPhase>("idle");
   const [busy, setBusy] = useState(false);
   const [fundingBusy, setFundingBusy] = useState(false);
+  const [fundingPhase, setFundingPhase] = useState<
+    FleetActivationState["fundingPhase"]
+  >("idle");
   const [funding, setFunding] = useState<FleetFundingQuote>();
   const [fundingReceipt, setFundingReceipt] =
     useState<FleetFundingReceipt>();
@@ -151,9 +155,11 @@ export function useFleetActivation(): FleetActivationState {
   const fundAndRetry = useCallback(async (): Promise<boolean> => {
     if (!funding) return false;
     setFundingBusy(true);
+    setFundingPhase("authorizing");
     setError(undefined);
     try {
       const payment = await authorizeFleetFunding({ wallet, quote: funding });
+      setFundingPhase("settling");
       const receipt = await fundFleet(payment);
       setFundingReceipt(receipt);
       setFunding(undefined);
@@ -171,6 +177,7 @@ export function useFleetActivation(): FleetActivationState {
         setSession(nextSession);
         pendingOwnerProof.current = undefined;
       }
+      setFundingPhase("activating");
       return await begin();
     } catch (cause) {
       setError(
@@ -181,6 +188,7 @@ export function useFleetActivation(): FleetActivationState {
       return false;
     } finally {
       setFundingBusy(false);
+      setFundingPhase("idle");
     }
   }, [begin, funding, wallet]);
 
@@ -196,6 +204,7 @@ export function useFleetActivation(): FleetActivationState {
       setError(undefined);
       setBusy(false);
       setFundingBusy(false);
+      setFundingPhase("idle");
       setPhase("idle");
       return;
     }
@@ -207,6 +216,7 @@ export function useFleetActivation(): FleetActivationState {
     phase,
     busy,
     fundingBusy,
+    fundingPhase,
     funding,
     fundingReceipt,
     error,

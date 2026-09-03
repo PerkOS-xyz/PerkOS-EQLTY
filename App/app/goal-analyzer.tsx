@@ -458,6 +458,7 @@ export function GoalAnalyzer({
         <FleetActivationWizard
           busy={fleet.fundingBusy}
           funding={fleet.funding}
+          phase={fleet.fundingPhase}
           onActivate={() => void resumeAfterFunding()}
         />
       )}
@@ -591,10 +592,12 @@ function agentWakeLabel(
 function FleetActivationWizard({
   busy,
   funding,
+  phase,
   onActivate,
 }: {
   busy: boolean;
   funding: NonNullable<FleetActivationState["funding"]>;
+  phase: FleetActivationState["fundingPhase"];
   onActivate: () => void;
 }) {
   return (
@@ -615,6 +618,18 @@ function FleetActivationWizard({
           </span>
         ))}
       </div>
+      {phase === "authorizing" && (
+        <div className="fleetWalletAlert" role="alert">
+          <i aria-hidden="true">!</i>
+          <div>
+            <strong>Confirm {funding.amount} {funding.symbol} in your wallet</strong>
+            <small>
+              Approve the compute payment to wake the four agents. Keep this window open while your wallet is waiting.
+            </small>
+          </div>
+          <b>Waiting for wallet</b>
+        </div>
+      )}
       <div className="decisionWizardAction">
         <div>
           <span>Step 2 of 6</span>
@@ -626,7 +641,13 @@ function FleetActivationWizard({
           </small>
         </div>
         <button disabled={busy} onClick={onActivate} type="button">
-          {busy ? "Activating fleet…" : `Continue · Add ${funding.amount} ${funding.symbol}`}
+          {phase === "authorizing"
+            ? "Confirm in wallet…"
+            : phase === "settling"
+              ? "Submitting payment…"
+              : phase === "activating"
+                ? "Waking agents…"
+                : `Continue · Add ${funding.amount} ${funding.symbol}`}
         </button>
       </div>
     </section>

@@ -36,7 +36,7 @@ export class HermesConsultationService {
   ) {
     this.fetchFn = dependencies.fetchFn ?? fetch;
     this.waitFn = dependencies.waitFn ?? wait;
-    this.startupRetryMs = dependencies.startupRetryMs ?? 8_000;
+    this.startupRetryMs = dependencies.startupRetryMs ?? 15_000;
   }
 
   async consult(input: {

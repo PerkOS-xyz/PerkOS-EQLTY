@@ -392,7 +392,7 @@ describe("HermesConsultationService", () => {
     const service = new HermesConsultationService(loadConfig({}), {
       fetchFn,
       waitFn,
-      startupRetryMs: 8_000,
+      startupRetryMs: 15_000,
     });
 
     const result = await service.consult({
@@ -406,7 +406,7 @@ describe("HermesConsultationService", () => {
 
     expect(result.status).toBe("verified");
     expect(fetchFn).toHaveBeenCalledTimes(5);
-    expect(waitFn).toHaveBeenCalledWith(8_000);
+    expect(waitFn).toHaveBeenCalledWith(15_000);
     expect(String(fetchFn.mock.calls[0]?.[0])).toContain("/agents/scout-id/task");
     expect(String(fetchFn.mock.calls[1]?.[0])).toContain("/agents/scout-id/task");
   });

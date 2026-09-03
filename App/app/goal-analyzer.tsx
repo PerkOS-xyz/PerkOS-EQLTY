@@ -16,6 +16,7 @@ import { ProofRunPanel } from "./proof-run-panel";
 import type { GoalAnalysisState } from "./use-goal-analysis";
 import { DecisionRoom } from "./decision-room";
 import { useProofRun } from "./use-proof-run";
+import type { FleetActivationState } from "./use-fleet-activation";
 
 const roles = ["Scout", "Risk", "Trader", "Auditor"];
 const goalPresets = [
@@ -55,8 +56,19 @@ const goalPresets = [
 ];
 const amountPresets = ["1", "3", "5", "10"];
 
-export function GoalAnalyzer({ state }: { state: GoalAnalysisState }) {
+export function GoalAnalyzer({
+  fleet,
+  state,
+}: {
+  fleet: FleetActivationState;
+  state: GoalAnalysisState;
+}) {
   const analysis = state.session?.latest;
+  const resumeAfterFunding = async () => {
+    if (await fleet.fundAndRetry()) {
+      state.analyze();
+    }
+  };
 
   return (
     <section className="goalAnalyzer" id="consultation">
@@ -276,12 +288,18 @@ export function GoalAnalyzer({ state }: { state: GoalAnalysisState }) {
 
             <button
               className="goalStart"
-              disabled={state.busy || state.goalText.trim().length < 10}
+              disabled={
+                state.busy ||
+                Boolean(fleet.funding) ||
+                state.goalText.trim().length < 10
+              }
               onClick={state.analyze}
               type="button"
             >
               {state.busy
                 ? "The fleet is discussing your question..."
+                : fleet.funding
+                  ? "Activate fleet to continue"
                 : state.connected
                   ? "Ask the four agents"
                   : "Connect wallet to begin"}
@@ -322,6 +340,14 @@ export function GoalAnalyzer({ state }: { state: GoalAnalysisState }) {
         <RevenueStrip config={state.feeConfig} />
       </div>
 
+      {fleet.funding && (
+        <FleetActivationWizard
+          busy={fleet.fundingBusy}
+          funding={fleet.funding}
+          onActivate={() => void resumeAfterFunding()}
+        />
+      )}
+
       {state.session && (
         <GoalProgress
           analysis={analysis}
@@ -330,6 +356,51 @@ export function GoalAnalyzer({ state }: { state: GoalAnalysisState }) {
           session={state.session}
         />
       )}
+    </section>
+  );
+}
+
+function FleetActivationWizard({
+  busy,
+  funding,
+  onActivate,
+}: {
+  busy: boolean;
+  funding: NonNullable<FleetActivationState["funding"]>;
+  onActivate: () => void;
+}) {
+  return (
+    <section className="decisionWizard activationWizard" aria-label="Purchase steps">
+      <div className="decisionWizardSteps">
+        {[
+          ["Goal", "Question received"],
+          ["Fleet", "Wake private agents"],
+          ["Decision", "Agents compare"],
+          ["Proof", "Check before purchase"],
+          ["Approve", "Your wallet decides"],
+          ["Receipt", "Audit trail"],
+        ].map(([label, detail], index) => (
+          <span className={index === 0 ? "complete" : index === 1 ? "current" : "upcoming"} key={label}>
+            <i>{index === 0 ? "✓" : index + 1}</i>
+            <b>{label}</b>
+            <small>{detail}</small>
+          </span>
+        ))}
+      </div>
+      <div className="decisionWizardAction">
+        <div>
+          <span>Step 2 of 6</span>
+          <strong>Wake your private agent fleet</strong>
+          <small>
+            Add {funding.amount} {funding.symbol} of PerkOS compute credit.
+            This runs your agents; it is separate from the decision fee and investment amount.
+            The consultation resumes automatically after confirmation.
+          </small>
+        </div>
+        <button disabled={busy} onClick={onActivate} type="button">
+          {busy ? "Activating fleet…" : `Continue · Add ${funding.amount} ${funding.symbol}`}
+        </button>
+      </div>
     </section>
   );
 }
@@ -517,20 +588,21 @@ function DecisionWizard({
   const proofStopped =
     proof.run?.status === "rejected" || proof.run?.status === "failed";
   const current = executed
-    ? 5
+    ? 6
     : proof.run?.status === "approved"
-      ? 4
+      ? 5
       : proof.proofBusy || proof.run
-        ? 3
+        ? 4
         : paymentRequired
-          ? 2
+          ? 3
           : session.status === "active"
-            ? 2
+            ? 3
             : noCandidate
-              ? 5
-              : 3;
+              ? 6
+              : 4;
   const steps = [
     ["Goal", "Question received"],
+    ["Fleet", "Private agents ready"],
     ["Decision", session.status === "active" ? "Agents are comparing" : "Recommendation sealed"],
     ["Proof", proof.run ? "Route and rules checked" : "Check before purchase"],
     ["Approve", "Your wallet decides"],
@@ -595,7 +667,7 @@ function DecisionWizard({
       </div>
       <div className="decisionWizardAction">
         <div>
-          <span>Step {current} of 5</span>
+          <span>Step {current} of 6</span>
           <strong>{title}</strong>
           <small>{copy}</small>
         </div>

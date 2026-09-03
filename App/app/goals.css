@@ -19,8 +19,14 @@
 
 .decisionWizardSteps {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   border-bottom: 1px solid #26352d;
+}
+
+.activationWizard {
+  margin-top: 18px;
+  border-color: #8a7035;
+  background: linear-gradient(145deg, #1a170e, #0d100d 62%);
 }
 
 .decisionWizardSteps > span {

@@ -43,9 +43,11 @@ const steps = ["Locate", "Create", "Provision", "Wake"];
 export function FleetPanel({
   fleet: state,
   goal,
+  showFundingAction = true,
 }: {
   fleet: FleetActivationState;
   goal: GoalAnalysisState;
+  showFundingAction?: boolean;
 }) {
   const wallet = useWalletAccess();
   const workflow = workflowFromGoal(goal);
@@ -190,7 +192,7 @@ export function FleetPanel({
 
       <WorkflowBanner workflow={workflow} />
 
-      {state.funding && (
+      {showFundingAction && state.funding && (
         <section className="fleetFunding" aria-label="Fleet activation">
           <div>
             <span>Private compute activation</span>

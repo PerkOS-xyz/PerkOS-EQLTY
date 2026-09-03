@@ -11,8 +11,8 @@ export function GoalFleetExperience() {
 
   return (
     <div className="goalFleetExperience">
-      <GoalAnalyzer state={goal} />
-      <FleetPanel fleet={fleet} goal={goal} />
+      <GoalAnalyzer fleet={fleet} state={goal} />
+      <FleetPanel fleet={fleet} goal={goal} showFundingAction={false} />
     </div>
   );
 }

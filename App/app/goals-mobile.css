@@ -1,6 +1,6 @@
 @media (max-width: 760px) {
   .decisionWizardSteps {
-    grid-template-columns: repeat(5, 62px);
+    grid-template-columns: repeat(6, 62px);
     overflow-x: auto;
   }
 

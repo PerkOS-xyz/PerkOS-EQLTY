@@ -20,12 +20,14 @@ import {
 const assetsUrl = "https://api.robinhood.com/rhj/assets";
 const pricesUrl = "https://api.robinhood.com/rhj/prices";
 const cacheTtlMs = 60_000;
+const retryDelaysMs = [500, 1_500, 3_500] as const;
 const availableDeviationBps = 100;
 const maxDeviationBps = 300;
 
 type Dependencies = {
   fetchFn?: typeof fetch;
   now?: () => number;
+  wait?: (milliseconds: number) => Promise<void>;
   uniswap?: Pick<UniswapClient, "quote" | "ready">;
   uniswapMarket?: Pick<UniswapRwaMarketService, "coverage">;
   graph?: Pick<GraphEvidenceService, "evidence" | "ready">;
@@ -36,6 +38,7 @@ export class StockCatalogService {
   private pending?: Promise<StockCatalog>;
   private readonly fetchFn: typeof fetch;
   private readonly now: () => number;
+  private readonly wait: (milliseconds: number) => Promise<void>;
   private readonly uniswap: Pick<UniswapClient, "quote" | "ready">;
   private readonly uniswapMarket: Pick<
     UniswapRwaMarketService,
@@ -49,6 +52,7 @@ export class StockCatalogService {
   ) {
     this.fetchFn = dependencies.fetchFn ?? fetch;
     this.now = dependencies.now ?? Date.now;
+    this.wait = dependencies.wait ?? delay;
     this.uniswap =
       dependencies.uniswap ?? new UniswapClient(config, this.fetchFn);
     this.uniswapMarket =
@@ -67,7 +71,7 @@ export class StockCatalogService {
     if (!force && this.cached && this.cached.expiresAt > now) {
       return this.cached.value;
     }
-    if (!force && this.pending) {
+    if (this.pending) {
       return this.pending;
     }
 
@@ -78,6 +82,12 @@ export class StockCatalogService {
           value,
         };
         return value;
+      })
+      .catch((error: unknown) => {
+        if (this.cached) {
+          return this.cached.value;
+        }
+        throw error;
       })
       .finally(() => {
         this.pending = undefined;
@@ -205,11 +215,16 @@ export class StockCatalogService {
   }
 
   private async refresh(): Promise<StockCatalog> {
-    const [assetsBody, pricesBody, uniswapCoverage] = await Promise.all([
-      this.fetchJson<{ assets?: RobinhoodAsset[] }>(assetsUrl),
-      this.fetchJson<{ quotes?: RobinhoodQuote[] }>(pricesUrl),
-      this.uniswapMarket.coverage().catch(() => undefined),
-    ]);
+    const uniswapCoveragePromise = this.uniswapMarket
+      .coverage()
+      .catch(() => undefined);
+    const assetsBody = await this.fetchJson<{
+      assets?: RobinhoodAsset[];
+    }>(assetsUrl);
+    const pricesBody = await this.fetchJson<{
+      quotes?: RobinhoodQuote[];
+    }>(pricesUrl);
+    const uniswapCoverage = await uniswapCoveragePromise;
     const quotes = new Map(
       (pricesBody.quotes ?? []).map((quote) => [
         quote.tokenSymbol.toUpperCase(),
@@ -331,15 +346,39 @@ export class StockCatalogService {
   }
 
   private async fetchJson<T>(url: string): Promise<T> {
-    const response = await this.fetchFn(url, {
-      headers: { accept: "application/json" },
-      signal: AbortSignal.timeout(12_000),
-    });
-    if (!response.ok) {
-      throw new Error(`Robinhood API failed with status ${response.status}`);
+    for (let attempt = 0; ; attempt += 1) {
+      const response = await this.fetchFn(url, {
+        headers: { accept: "application/json" },
+        signal: AbortSignal.timeout(12_000),
+      });
+      if (response.ok) {
+        return response.json() as Promise<T>;
+      }
+      const retryable = response.status === 429 || response.status >= 500;
+      if (!retryable || attempt >= retryDelaysMs.length) {
+        throw new Error(
+          `Robinhood API failed with status ${response.status}`,
+        );
+      }
+      const retryAfter = parseRetryAfter(response.headers.get("retry-after"));
+      await this.wait(retryAfter ?? retryDelaysMs[attempt]!);
     }
-    return response.json() as Promise<T>;
   }
+}
+
+function delay(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+function parseRetryAfter(value: string | null): number | undefined {
+  if (!value) return undefined;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return Math.min(seconds * 1_000, 5_000);
+  }
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) return undefined;
+  return Math.min(Math.max(timestamp - Date.now(), 0), 5_000);
 }
 
 function summarizeGraph(

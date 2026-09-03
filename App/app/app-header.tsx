@@ -4,7 +4,7 @@ import { AccessButton } from "./access-button";
 export function AppHeader({
   active,
 }: {
-  active: "home" | "markets" | "portfolio" | "history";
+  active: "home" | "markets" | "portfolio" | "history" | "deck";
 }) {
   return (
     <header className="topbar">
@@ -18,6 +18,13 @@ export function AppHeader({
         </span>
       </Link>
       <nav aria-label="Primary navigation" className="primaryNav">
+        <Link
+          aria-current={active === "deck" ? "page" : undefined}
+          className={active === "deck" ? "active" : ""}
+          href="/deck"
+        >
+          Deck
+        </Link>
         <Link
           aria-current={active === "markets" ? "page" : undefined}
           className={active === "markets" ? "active" : ""}

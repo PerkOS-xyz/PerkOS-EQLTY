@@ -98,6 +98,74 @@ describe("stock catalog", () => {
     expect(fetchFn).toHaveBeenCalledTimes(2);
   });
 
+  it("shares an in-flight refresh, including forced requests", async () => {
+    let release!: () => void;
+    const blocked = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const fetchFn = vi.fn(async (input: string | URL | Request) => {
+      await blocked;
+      return Response.json(
+        String(input).endsWith("/assets") ? assets : prices,
+      );
+    });
+    const service = new StockCatalogService(loadConfig({}), {
+      fetchFn,
+      now: () => now,
+      uniswapMarket: observedMarket(),
+    });
+
+    const first = service.catalog(true);
+    const second = service.catalog(true);
+    release();
+    await Promise.all([first, second]);
+
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries provider rate limits", async () => {
+    const wait = vi.fn(async () => undefined);
+    let assetAttempts = 0;
+    const fetchFn = vi.fn(async (input: string | URL | Request) => {
+      if (String(input).endsWith("/assets") && assetAttempts++ === 0) {
+        return new Response(undefined, {
+          status: 429,
+          headers: { "retry-after": "1" },
+        });
+      }
+      return Response.json(
+        String(input).endsWith("/assets") ? assets : prices,
+      );
+    });
+    const service = new StockCatalogService(loadConfig({}), {
+      fetchFn,
+      now: () => now,
+      wait,
+      uniswapMarket: observedMarket(),
+    });
+
+    const catalog = await service.catalog();
+
+    expect(catalog.summary.total).toBe(2);
+    expect(wait).toHaveBeenCalledWith(1_000);
+  });
+
+  it("keeps the last real snapshot when refresh is rate limited", async () => {
+    const fetchFn = fixtureFetch();
+    const service = new StockCatalogService(loadConfig({}), {
+      fetchFn,
+      now: () => now,
+      wait: async () => undefined,
+      uniswapMarket: observedMarket(),
+    });
+    const initial = await service.catalog();
+    fetchFn.mockResolvedValue(new Response(undefined, { status: 429 }));
+
+    const fallback = await service.catalog(true);
+
+    expect(fallback).toBe(initial);
+  });
+
   it("requires a fresh Uniswap quote for orchestration", async () => {
     const service = new StockCatalogService(loadConfig({}), {
       fetchFn: fixtureFetch(),

@@ -33,6 +33,16 @@ type Dependencies = {
   fetchFn?: typeof fetch;
 };
 
+export class PerkosApiError extends Error {
+  constructor(
+    readonly status: number,
+    readonly code: string | undefined,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
 export class PerkosFleetService {
   private readonly fetchFn: typeof fetch;
 
@@ -242,13 +252,21 @@ export class PerkosFleetService {
     );
     const body: unknown = await response.json().catch(() => ({}));
     if (!response.ok) {
+      const nestedError =
+        isRecord(body) && isRecord(body.error) ? body.error : undefined;
       const detail =
         isRecord(body) && typeof body.message === "string"
           ? body.message
           : isRecord(body) && typeof body.error === "string"
             ? body.error
+            : nestedError && typeof nestedError.message === "string"
+              ? nestedError.message
             : `PerkOS API request failed with status ${response.status}`;
-      throw new Error(detail);
+      const code =
+        nestedError && typeof nestedError.code === "string"
+          ? nestedError.code
+          : undefined;
+      throw new PerkosApiError(response.status, code, detail);
     }
     return body as T;
   }

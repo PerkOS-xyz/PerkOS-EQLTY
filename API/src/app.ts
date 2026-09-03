@@ -22,6 +22,11 @@ import {
 } from "./oneclaw-fleet.js";
 import { oneClawGate } from "./oneclaw-policy.js";
 import { PortfolioService } from "./portfolio.js";
+import { PerkosApiError } from "./perkos-fleet.js";
+import {
+  PerkosFundingService,
+  type FleetFundingPayment,
+} from "./perkos-funding.js";
 import { ProofRunService } from "./proof-run.js";
 import { publicConfig } from "./public-config.js";
 import { publicErrorMessage } from "./public-error.js";
@@ -131,6 +136,30 @@ const decisionFeePayment = z
       })
       .strict(),
     extensions: z.record(z.string(), z.unknown()),
+  })
+  .strict();
+const fleetFundingPayment = z
+  .object({
+    x402Version: z.literal(1),
+    scheme: z.literal("exact"),
+    network: z.literal("robinhood"),
+    payload: z
+      .object({
+        signature: z
+          .string()
+          .regex(/^0x(?:[0-9a-fA-F]{128}|[0-9a-fA-F]{130})$/),
+        authorization: z
+          .object({
+            from: address,
+            to: address,
+            value: x402Uint,
+            validAfter: x402Uint,
+            validBefore: x402Uint,
+            nonce: z.string().regex(/^0x[0-9a-fA-F]{64}$/),
+          })
+          .strict(),
+      })
+      .strict(),
   })
   .strict();
 const strategyInput = z
@@ -288,6 +317,7 @@ type AppDependencies = {
   ensPolicyPreparation?: Pick<EnsPolicyPreparationService, "prepare"> &
     Partial<Pick<EnsPolicyPreparationService, "publish" | "renew">>;
   fleetActivation?: Pick<FleetActivationService, "activate">;
+  infraFunding?: Pick<PerkosFundingService, "quote" | "settle">;
   oneclawFleet?: Pick<OneClawFleetProvisioner, "provision" | "ready"> &
     Partial<Pick<OneClawFleetProvisioner, "authorization" | "status">>;
   graphEvidence?: Pick<GraphEvidenceService, "evidence"> &
@@ -344,6 +374,8 @@ export function createApp(
         ? { renew: ensPolicyPreparation.renew.bind(ensPolicyPreparation) }
         : undefined,
     });
+  const infraFunding =
+    dependencies.infraFunding ?? new PerkosFundingService(config);
   const oneclawFleet =
     dependencies.oneclawFleet ?? new OneClawFleetProvisioner(config);
   const confirmedOneClawRoles = async (
@@ -640,8 +672,51 @@ export function createApp(
         }),
       );
     } catch (error) {
+      if (isInfraPaymentRequired(error)) {
+        try {
+          return response.status(402).json({
+            error: "infra_payment_required",
+            message:
+              "Activate this wallet's private fleet with prepaid PerkOS compute.",
+            funding: await infraFunding.quote(),
+          });
+        } catch {
+          return response.status(503).json({
+            error: "fleet_funding_unavailable",
+            message: "Fleet funding terms are temporarily unavailable",
+          });
+        }
+      }
       return response.status(503).json({
         error: "fleet_activation_failed",
+        message: safeMessage(error),
+      });
+    }
+  });
+
+  app.post("/api/fleet/funding", async (request, response) => {
+    const session = ownerAuth.session(request);
+    if (!session) {
+      return response.status(401).json({ error: "owner_session_required" });
+    }
+    const parsed = fleetFundingPayment.safeParse(request.body);
+    if (!parsed.success) {
+      return response.status(400).json({
+        error: "invalid_fleet_funding_payment",
+        issues: parsed.error.issues,
+      });
+    }
+    try {
+      response.setHeader("cache-control", "no-store");
+      return response.json(
+        await infraFunding.settle(
+          session.walletAddress,
+          parsed.data as FleetFundingPayment,
+        ),
+      );
+    } catch (error) {
+      return response.status(402).json({
+        error: "fleet_funding_failed",
         message: safeMessage(error),
       });
     }
@@ -1500,6 +1575,16 @@ export function createApp(
 
 function safeMessage(error: unknown): string {
   return publicErrorMessage(error, "Request failed");
+}
+
+function isInfraPaymentRequired(error: unknown): boolean {
+  return (
+    error instanceof PerkosApiError &&
+    error.status === 402 &&
+    ["INFRA_PAYMENT_REQUIRED", "INFRA_CREDITS_EXHAUSTED"].includes(
+      error.code ?? "",
+    )
+  );
 }
 
 export default createApp(loadConfig());

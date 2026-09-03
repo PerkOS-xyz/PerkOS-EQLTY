@@ -39,7 +39,7 @@ export type ProofRunState = {
   readiness?: WalletReadiness;
   execution?: ExecutionConfig["execution"];
   acknowledged: boolean;
-  awaitingFunding: boolean;
+  awaitingFunding?: "proof" | "purchase";
   error?: string;
   runProof: () => void;
   executePurchase: () => void;
@@ -65,7 +65,9 @@ export function useProofRun(
   const [execution, setExecution] =
     useState<ExecutionConfig["execution"]>();
   const [acknowledged, setAcknowledged] = useState(false);
-  const [awaitingFunding, setAwaitingFunding] = useState(false);
+  const [awaitingFunding, setAwaitingFunding] = useState<
+    ProofRunState["awaitingFunding"]
+  >();
   const [error, setError] = useState<string>();
 
   const runProof = useCallback(async () => {
@@ -76,13 +78,13 @@ export function useProofRun(
     }
     setProofBusy(true);
     setAcknowledged(false);
-    setAwaitingFunding(false);
+    setAwaitingFunding(undefined);
     setError(undefined);
     setRun(undefined);
 
     try {
       if (ensureFleetReady && !(await ensureFleetReady())) {
-        setAwaitingFunding(true);
+        setAwaitingFunding("proof");
         setError("Add PerkOS compute credit to verify the purchase plan.");
         return;
       }
@@ -139,8 +141,14 @@ export function useProofRun(
 
     setPurchaseBusy(true);
     setPurchaseStage("checking");
+    setAwaitingFunding(undefined);
     setError(undefined);
     try {
+      if (ensureFleetReady && !(await ensureFleetReady())) {
+        setAwaitingFunding("purchase");
+        setError("Add PerkOS compute credit to execute this purchase.");
+        return;
+      }
       let activeStrategy = strategy;
       if (!activeStrategy.onchain) {
         const config = await readExecutionConfig();
@@ -193,14 +201,22 @@ export function useProofRun(
       setPurchaseBusy(false);
       setPurchaseStage("idle");
     }
-  }, [acknowledged, readiness?.ready, run, session, strategy, wallet]);
+  }, [
+    acknowledged,
+    ensureFleetReady,
+    readiness?.ready,
+    run,
+    session,
+    strategy,
+    wallet,
+  ]);
 
   const openReview = useCallback(async () => {
     if (!run || run.status !== "approved") return;
     setReviewOpen(true);
     setReviewBusy(true);
     setAcknowledged(false);
-    setAwaitingFunding(false);
+    setAwaitingFunding(undefined);
     setReadiness(undefined);
     setExecution(undefined);
     setError(undefined);
@@ -253,7 +269,7 @@ export function useProofRun(
     setStrategy(undefined);
     setRun(undefined);
     setAcknowledged(false);
-    setAwaitingFunding(false);
+    setAwaitingFunding(undefined);
     setPurchaseStage("idle");
     setReviewOpen(false);
     setReviewBusy(false);

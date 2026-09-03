@@ -15,19 +15,19 @@ describe("PerkOS fleet funding", () => {
     const service = new PerkosFundingService(loadConfig({}), { fetchFn });
 
     await expect(service.quote()).resolves.toMatchObject({
-      amount: "0.1",
+      amount: "0.5",
       symbol: "USDG",
       network: "eip155:4663",
       requirements: {
         network: "robinhood",
-        maxAmountRequired: "100000",
+        maxAmountRequired: "500000",
         payTo,
         asset,
       },
     });
     expect(JSON.parse(String(fetchFn.mock.calls[0]?.[1]?.body))).toEqual({
       network: "robinhood",
-      amount: 0.1,
+      amount: 0.5,
     });
   });
 
@@ -55,8 +55,8 @@ describe("PerkOS fleet funding", () => {
         Response.json({
           ok: true,
           wallet: owner,
-          creditsUsd: 0.1,
-          deposited: 0.1,
+          creditsUsd: 0.5,
+          deposited: 0.5,
           network: "robinhood",
           transaction: `0x${"ab".repeat(32)}`,
         }),
@@ -65,7 +65,7 @@ describe("PerkOS fleet funding", () => {
 
     const receipt = await service.settle(owner, payment());
 
-    expect(receipt.creditsUsd).toBe(0.1);
+    expect(receipt.creditsUsd).toBe(0.5);
     const header = new Headers(fetchFn.mock.calls[1]?.[1]?.headers).get(
       "payment-signature",
     );
@@ -74,7 +74,7 @@ describe("PerkOS fleet funding", () => {
     ).toMatchObject({
       x402Version: 1,
       network: "robinhood",
-      payload: { authorization: { from: owner, value: "100000" } },
+      payload: { authorization: { from: owner, value: "500000" } },
     });
   });
 
@@ -99,8 +99,8 @@ describe("PerkOS fleet funding", () => {
         Response.json({
           ok: true,
           wallet: "0x9999999999999999999999999999999999999999",
-          creditsUsd: 0.1,
-          deposited: 0.1,
+          creditsUsd: 0.5,
+          deposited: 0.5,
           network: "robinhood",
           transaction: `0x${"ab".repeat(32)}`,
         }),
@@ -113,7 +113,7 @@ describe("PerkOS fleet funding", () => {
   });
 });
 
-function fundingChallenge(maxAmountRequired = "100000"): Response {
+function fundingChallenge(maxAmountRequired = "500000"): Response {
   return Response.json(
     {
       x402Version: 1,
@@ -146,7 +146,7 @@ function payment(): FleetFundingPayment {
       authorization: {
         from: owner,
         to: payTo,
-        value: "100000",
+        value: "500000",
         validAfter: "0",
         validBefore: String(Math.floor(Date.now() / 1_000) + 120),
         nonce: `0x${"22".repeat(32)}`,

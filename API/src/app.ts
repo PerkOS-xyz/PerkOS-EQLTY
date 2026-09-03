@@ -24,6 +24,7 @@ import { oneClawGate } from "./oneclaw-policy.js";
 import { PortfolioService } from "./portfolio.js";
 import { PerkosApiError } from "./perkos-fleet.js";
 import {
+  defaultFleetFundingUsdG,
   PerkosFundingService,
   type FleetFundingPayment,
 } from "./perkos-funding.js";
@@ -552,7 +553,9 @@ export function createApp(
           return response.status(402).json({
             error: "infra_payment_required",
             message: "Activate PerkOS infrastructure for this wallet.",
-            funding: await infraFunding.quote(error.shortfallUsd),
+            funding: await infraFunding.quote(
+              Math.max(defaultFleetFundingUsdG, error.shortfallUsd),
+            ),
           });
         } catch {
           return response.status(503).json({

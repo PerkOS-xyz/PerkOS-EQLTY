@@ -210,8 +210,9 @@ export function FleetPanel({
               Stack settles it, then EQLTY resumes this consultation.
             </p>
             <small>
-              Estimated rate: $0.15 per fleet hour. Unused credit remains in
-              your PerkOS infrastructure balance.
+              Estimated rate: $0.15 per active agent-hour. For four agents,
+              0.5 USDG provides about 50 minutes. Unused credit remains in your
+              PerkOS infrastructure balance.
             </small>
           </div>
           <button

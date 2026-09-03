@@ -90,9 +90,15 @@ export function GoalAnalyzer({
     };
   }, [setupOpen]);
   const resumeAfterFunding = async () => {
-    const continueProof = proof.awaitingFunding;
+    const continuation = proof.awaitingFunding;
     if (await fleet.fundAndRetry()) {
-      window.setTimeout(continueProof ? proof.runProof : state.analyze, 0);
+      const resume =
+        continuation === "purchase"
+          ? proof.executePurchase
+          : continuation === "proof"
+            ? proof.runProof
+            : state.analyze;
+      window.setTimeout(resume, 0);
     }
   };
 
@@ -643,7 +649,8 @@ function FleetActivationWizard({
           <small>
             Add {funding.amount} {funding.symbol} of PerkOS compute credit.
             This runs your agents; it is separate from the decision fee and investment amount.
-            The consultation resumes automatically after confirmation.
+            At the current rate, 0.5 USDG gives the four-agent fleet about 50 minutes.
+            Unused credit remains available, and the consultation resumes automatically after confirmation.
           </small>
         </div>
         <button disabled={busy} onClick={onActivate} type="button">

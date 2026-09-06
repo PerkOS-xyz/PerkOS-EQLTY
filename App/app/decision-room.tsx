@@ -17,7 +17,7 @@ import { GraphEvidenceModal } from "./graph-evidence-modal";
 type DecisionEvent = {
   actor: "ENS" | "Scout" | "Risk" | "Trader" | "Auditor";
   target: string;
-  provider: "ENS" | "The Graph" | "EQLTY" | "Uniswap";
+  provider: "ENS" | "Onchain" | "EQLTY" | "Uniswap";
   title: string;
   detail: string;
   fact: string;
@@ -117,7 +117,7 @@ export function DecisionRoom({
                           fallback={event.graphEvidence.fallback}
                           ticker={event.graphEvidence.ticker}
                         >
-                          View Graph evidence
+                          View onchain evidence
                         </GraphEvidenceModal>
                       )}
                     </footer>
@@ -197,7 +197,7 @@ function decisionEvents(analysis: OpportunityAnalysis): DecisionEvent[] {
     {
       actor: "Scout",
       target: "Risk",
-      provider: "The Graph",
+      provider: "Onchain",
       title:
         consultation.scout.status === "verified"
           ? `${consultation.scout.agentName ?? "Scout Hermes"} selected ${consultation.scout.ticker}`
@@ -206,13 +206,13 @@ function decisionEvents(analysis: OpportunityAnalysis): DecisionEvent[] {
         consultation.scout.summary ??
         consultation.scout.detail ??
         (evidence
-          ? `Substreams confirmed latest Graph evidence for ${representativeTicker} before risk gate.`
+          ? `${evidenceSource(evidence)} confirmed current market evidence for ${representativeTicker} before the risk gate.`
           : "No verified scout handoff was produced."),
       fact: consultationFact(
         consultation.scout,
         evidence
           ? `block ${evidence.blockNumber} · ${money(evidence.liquidityUsd)} indexed liquidity`
-          : "indexed evidence unavailable",
+          : "onchain evidence unavailable",
       ),
       links: graphLinks(representative),
       graphEvidence: evidence
@@ -347,9 +347,17 @@ function graphLinks(
   return [
     {
       href: transactionEventsUrl(evidence.transactionHash),
-      label: "Verify indexed event",
+      label: "Verify onchain event",
     },
   ];
+}
+
+function evidenceSource(
+  evidence?: OpportunityCandidate["graphEvidence"],
+): string {
+  return evidence?.source === "the-graph-substreams"
+    ? "The Graph Substreams"
+    : "Robinhood Chain RPC";
 }
 
 function policyVersion(analysis: OpportunityAnalysis): string {

@@ -199,7 +199,7 @@ function VerificationLogs({ run }: { run: TradeRun }) {
           target="_blank"
         >
           <span>Onchain block</span>
-          <strong>Graph checkpoint {market.blockNumber}</strong>
+          <strong>Evidence block {market.blockNumber}</strong>
           <code>{new Date(market.capturedAt).toLocaleString()}</code>
           <b>Open block ↗</b>
         </a>
@@ -218,8 +218,8 @@ function VerificationLogs({ run }: { run: TradeRun }) {
           rel="noreferrer"
           target="_blank"
         >
-          <span>Substreams payload</span>
-          <strong>The Graph evidence</strong>
+          <span>Evidence payload</span>
+          <strong>Onchain evidence</strong>
           <code>{run.ticker} · block {market.blockNumber}</code>
           <b>Open JSON ↗</b>
         </a>

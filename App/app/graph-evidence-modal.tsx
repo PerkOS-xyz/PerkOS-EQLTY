@@ -14,7 +14,7 @@ export function GraphEvidenceModal({
   ticker,
   fallback,
   expectedTransaction,
-  children = "The Graph",
+  children = "Onchain evidence",
 }: {
   ticker: string;
   fallback: Record<string, unknown>;
@@ -92,7 +92,7 @@ export function GraphEvidenceModal({
           role="presentation"
         >
           <section
-            aria-label={`${ticker} The Graph evidence`}
+            aria-label={`${ticker} onchain evidence`}
             aria-modal="true"
             className="graphEvidenceDialog"
             role="dialog"
@@ -100,11 +100,11 @@ export function GraphEvidenceModal({
             <header>
               <div>
                 <span className="eyebrow">Verifiable market evidence</span>
-                <strong>The Graph observation</strong>
+                <strong>Onchain observation</strong>
                 <small>{ticker} · Robinhood Chain · Uniswap V4</small>
               </div>
               <button
-                aria-label="Close The Graph evidence"
+                aria-label="Close onchain evidence"
                 onClick={() => setOpen(false)}
                 type="button"
               >
@@ -116,7 +116,7 @@ export function GraphEvidenceModal({
               <i aria-hidden="true" />
               <span>
                 {phase === "loading"
-                  ? "Refreshing the live Substreams response"
+                  ? "Refreshing the live onchain response"
                   : phase === "ready"
                     ? "Live API response"
                     : phase === "fallback"
@@ -160,7 +160,7 @@ export function GraphEvidenceModal({
                 value={summary.poolManager}
               />
               <EvidenceFact
-                label="Substreams module"
+                label="Evidence module"
                 value={summary.module}
               />
             </section>
@@ -232,7 +232,7 @@ function summarize(evidence: Record<string, unknown>) {
     status:
       text(evidence.status) ??
       (evidence.saleObserved === true ? "Observed" : "Verified"),
-    source: text(evidence.source) ?? "The Graph Substreams",
+    source: sourceLabel(text(evidence.source)),
     block:
       text(evidence.blockNumber) ??
       text(evidence.evidenceBlock) ??
@@ -250,8 +250,18 @@ function summarize(evidence: Record<string, unknown>) {
       text(evidence.poolAddress) ??
       text(evidence.salePoolManager) ??
       text(evidence.poolManager),
-    module: text(evidence.module) ?? "map_pool_events",
+    module:
+      text(evidence.module) ??
+      (text(evidence.source) === "robinhood-rpc"
+        ? "eth_getLogs"
+        : "map_pool_events"),
   };
+}
+
+function sourceLabel(source?: string): string {
+  if (source === "robinhood-rpc") return "Robinhood Chain RPC";
+  if (source === "the-graph-substreams") return "The Graph Substreams";
+  return source ?? "Onchain evidence";
 }
 
 function text(value: unknown): string | undefined {

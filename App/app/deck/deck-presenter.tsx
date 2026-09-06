@@ -21,7 +21,7 @@ const slides = [
   "demo",
 ];
 const roles = [
-  { role: "Scout", action: "Discovers candidates", proof: "The Graph + ENS" },
+  { role: "Scout", action: "Discovers candidates", proof: "Onchain + ENS" },
   { role: "Risk", action: "Challenges or stops", proof: "Evidence + policy" },
   { role: "Trader", action: "Prepares the route", proof: "Uniswap + 1Claw" },
   { role: "Auditor", action: "Seals the decision", proof: "Receipt + events" },
@@ -109,9 +109,9 @@ export function DeckPresenter() {
       </DeckSlide>
 
       <DeckSlide id="proof" number="03" eyebrow="The recommendation has a proof path">
-        <h2>Every sponsor is <em>load-bearing.</em></h2>
+        <h2>Every proof layer is <em>load-bearing.</em></h2>
         <p className="deckProofIntro">
-          These are not logos around a trading screen. Each integration changes
+          These are not logos around a trading screen. Each proof layer changes
           whether an agent recommendation can advance.
         </p>
         <div className="deckProofRail" aria-label="Sponsor decision path">
@@ -123,12 +123,12 @@ export function DeckPresenter() {
             title="Constrain the agents"
           />
           <ProofStep
-            copy="Our Substreams module indexes Robinhood Chain Uniswap V4 events. Scout and Risk use freshness, liquidity and price evidence; stale data stops the candidate."
-            evidence="Inspect the indexed event, checkpoint block and lag included in the audit trail."
-            label="02 · The Graph"
+            copy="EQLTY reads Robinhood Chain Uniswap V4 events through the selected evidence provider. Scout and Risk use freshness, liquidity and price evidence; stale data stops the candidate."
+            evidence="Inspect the source event, checkpoint block and provider included in the audit trail."
+            label="02 · Onchain evidence"
             metric={graph
               ? `${graph.observedTickers ?? 0} tickers · block ${graph.processedBlock ?? "pending"} · lag ${graph.lagBlocks ?? "—"}`
-              : "Loading the live Substreams checkpoint"}
+              : "Loading the live onchain checkpoint"}
             title="Prove market evidence"
           />
           <ProofStep
@@ -162,8 +162,8 @@ export function DeckPresenter() {
             <span>Live product coverage</span>
             <Metric value={catalog?.summary.total} label="Robinhood Stock Tokens discovered" />
             <Metric value={catalog?.summary.routed} label="Uniswap markets observed" />
-            <Metric value={graph?.observedTickers} label="Tickers indexed by The Graph" />
-            <footer><i className={graph?.status === "ready" ? "ready" : ""} />{graph ? `Graph ${graph.status} · lag ${graph.lagBlocks ?? "—"}` : "Loading live evidence"}</footer>
+            <Metric value={graph?.observedTickers} label="Pools in the evidence registry" />
+            <footer><i className={graph?.status === "ready" ? "ready" : ""} />{graph ? `${providerName(graph)} ${graph.status} · lag ${graph.lagBlocks ?? "—"}` : "Loading live evidence"}</footer>
           </div>
         </div>
       </DeckSlide>
@@ -193,9 +193,9 @@ export function DeckPresenter() {
       <DeckSlide id="roadmap" number="07" eyebrow="Roadmap">
         <h2>Prove value first.<br /><em>Then repeat and distribute.</em></h2>
         <div className="deckRoadmap">
-          <article><span>Live now</span><strong>Working decision loop</strong><p>Conversation, four-agent debate, ENS policy, Graph evidence, Uniswap route, receipt and optional execution.</p><small>Product proof</small></article>
+          <article><span>Live now</span><strong>Working decision loop</strong><p>Conversation, four-agent debate, ENS policy, onchain evidence, Uniswap route, receipt and optional execution.</p><small>Product proof</small></article>
           <article><span>Next 30 days</span><strong>Measured pilot</strong><p>Cost telemetry, clearer chat, Spanish and English onboarding, recurring watchlists and user interviews.</p><small>Retention + unit economics</small></article>
-          <article><span>60–90 days</span><strong>Partner product</strong><p>Decision API for wallets and fintechs, policy templates and broader eligible tokenized markets.</p><small>B2B pilot</small></article>
+          <article><span>60–90 days</span><strong>Partner product</strong><p>Decision API for wallets and fintechs, policy templates, broader markets and The Graph Substreams reactivated as the premium evidence rail.</p><small>B2B pilot</small></article>
         </div>
       </DeckSlide>
 
@@ -206,7 +206,7 @@ export function DeckPresenter() {
             <p>The product is not the trade. It is knowing why an option advanced, why another stopped and which rules protected the user.</p>
             <div><Link href="/#consultation">Run live demo</Link><a href="mailto:contact@perko.xyz">Contact us</a><Link href="/history">Open decision history</Link></div>
           </div>
-          <ol><li><b>01</b>Ask the fleet</li><li><b>02</b>Watch agents disagree</li><li><b>03</b>Open sponsor evidence</li><li><b>04</b>Approve only if convinced</li></ol>
+          <ol><li><b>01</b>Ask the fleet</li><li><b>02</b>Watch agents disagree</li><li><b>03</b>Open live evidence</li><li><b>04</b>Approve only if convinced</li></ol>
         </div>
       </DeckSlide>
     </main>
@@ -247,4 +247,10 @@ function Metric({ label, value }: { label: string; value?: number }) {
 
 function usdG(value: string): string {
   return (Number(value) / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+function providerName(health: GraphIntegrationHealth): string {
+  return health.evidenceProvider === "the-graph-substreams"
+    ? "The Graph"
+    : "Onchain RPC";
 }

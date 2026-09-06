@@ -61,8 +61,8 @@ export default function MarketsPage() {
             <span className="eyebrow">Robinhood Chain markets</span>
             <h1>Explore stock tokens</h1>
             <p>
-              Live Robinhood assets, current Uniswap market coverage and The
-              Graph evidence when a fleet completes its assessment.
+              Live Robinhood assets, current Uniswap market coverage and
+              onchain evidence when a fleet completes its assessment.
             </p>
           </div>
           {catalog && (
@@ -109,7 +109,7 @@ export default function MarketsPage() {
             <i />
             Swap history
             <b>
-              The Graph{" "}
+              Onchain evidence{" "}
               {graphIntegration?.status === "degraded"
                 ? graphHealthLabel(graphIntegration.reason)
                 : seriesState === "ready"
@@ -120,9 +120,9 @@ export default function MarketsPage() {
             </b>
           </span>
           <p>
-            Every 1D chart point comes from Uniswap RWA market data. The Graph
-            swaps are shown separately as indexed execution evidence. No
-            synthetic history is displayed.
+            Every 1D chart point comes from Uniswap RWA market data. Onchain
+            swaps are shown separately as execution evidence. No synthetic
+            history is displayed.
           </p>
         </section>
 

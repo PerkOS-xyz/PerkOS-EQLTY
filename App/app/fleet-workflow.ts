@@ -33,7 +33,7 @@ export type PolicyCheck = {
 };
 
 export type TechnologyStep = {
-  label: "ENS" | "The Graph" | "Uniswap" | "Proof";
+  label: "ENS" | "Onchain" | "Uniswap" | "Proof";
   detail: string;
   state: "checking" | "passed" | "blocked" | "waiting";
 };
@@ -215,10 +215,10 @@ export function workflowTechnologySteps(
           : "checking",
     },
     {
-      label: "The Graph",
+      label: "Onchain",
       detail: analysis
-        ? `${evidenced?.length ?? 0}/${analysis.candidates.length} candidates indexed`
-        : "Substreams market evidence",
+        ? `${evidenced?.length ?? 0}/${analysis.candidates.length} candidates verified`
+        : "Robinhood Chain market evidence",
       state: !analysis
         ? workflow.stopRole
           ? "waiting"
@@ -299,7 +299,7 @@ function runtimeCheck(
           ? "Uniswap route"
           : role === "auditor"
             ? "Proof root"
-            : "Graph evidence",
+            : "Onchain evidence",
       value:
         workflowState === "waiting"
           ? "Waiting for prior gate"

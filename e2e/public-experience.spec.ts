@@ -78,7 +78,7 @@ test("explains the agent decision workflow", async ({ page }) => {
   ).toBeVisible();
   await expect(page.getByText("Uniswap Route", { exact: true })).toBeVisible();
   await expect(
-    page.getByText("The Graph Evidence", { exact: true }),
+    page.getByText("Onchain Evidence", { exact: true }),
   ).toBeVisible();
 
   await page.getByRole("button", { name: "3 USDG", exact: true }).click();
@@ -116,9 +116,9 @@ test("discovers real stock-token markets", async ({ page }) => {
   await expect(
     page.getByRole("button", { name: "Uniswap market" }),
   ).toBeVisible();
-  await expect(page.getByText(/The Graph/).first()).toBeVisible();
+  await expect(page.getByText(/Onchain evidence/).first()).toBeVisible();
   await expect(
-    page.getByLabel("The Graph evidence status"),
+    page.getByLabel("Onchain evidence status"),
   ).toBeVisible();
 
   await expect
@@ -145,7 +145,7 @@ test("presents the product story with live proof", async ({ page }) => {
     page.getByRole("heading", { name: /Buying is solved/ }),
   ).toBeVisible();
   await expect(page.getByText("Talk to the fleet", { exact: true })).toBeAttached();
-  await expect(page.getByText("Every sponsor is load-bearing.")).toBeAttached();
+  await expect(page.getByText("Every proof layer is load-bearing.")).toBeAttached();
   await expect(
     page.getByText(/These are not logos around a trading screen/),
   ).toBeAttached();
@@ -176,7 +176,7 @@ test("presents the product story with live proof", async ({ page }) => {
       timeout: 45_000,
     })
     .toMatch(/^\d+$/);
-  await expect(coverage).toContainText(/Graph ready|Graph degraded|Graph pending/);
+  await expect(coverage).toContainText(/Onchain RPC (ready|degraded|pending)|The Graph (ready|degraded|pending)/);
 
   await page.keyboard.press("End");
   await expect(
@@ -212,7 +212,7 @@ test("publishes safe 1Claw readiness", async ({ request }) => {
   );
 });
 
-test("blocks paid consultation before compute when Graph evidence is stale", async ({
+test("blocks paid consultation before compute when onchain evidence is stale", async ({
   page,
 }) => {
   await page.route("**/api/config", async (route) => {
@@ -235,10 +235,11 @@ test("blocks paid consultation before compute when Graph evidence is stale", asy
             checkedAt: "2026-09-06T13:29:20.125Z",
             platformApi: true,
           },
-          theGraph: {
+          marketEvidence: {
             configured: true,
             status: "degraded",
             checkedAt: "2026-09-06T13:29:20.059Z",
+            evidenceProvider: "robinhood-rpc",
             running: false,
             lagBlocks: 1_246_836,
             reason: "quota-exhausted",

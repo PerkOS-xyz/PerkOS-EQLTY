@@ -277,7 +277,7 @@ export function SellPosition({
                 <small>Received by your connected wallet</small>
                 {audit && (
                   <p className="sellAuditStatus">
-                    Evidence saved · The Graph{" "}
+                    Evidence saved · Onchain{" "}
                     {audit.graph.response.status}
                   </p>
                 )}
@@ -466,10 +466,10 @@ function SellJourney({
     {
       label: "Index and save the evidence",
       detail: audit
-        ? `The Graph ${audit.graph.response.status} · audit bundle sealed`
+        ? `Onchain evidence ${audit.graph.response.status} · audit bundle sealed`
         : journeyStage === "evidence-error"
           ? "The sale is safe; the audit record needs attention"
-          : "Matching the V4 pool and transaction with The Graph",
+          : "Matching the V4 pool and transaction with onchain evidence",
       status: audit
         ? "complete"
         : journeyStage === "recording"

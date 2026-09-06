@@ -351,7 +351,7 @@ export function GoalAnalyzer({
               </select>
               <small className="goalPolicyHint">
                 {state.candidateTicker
-                  ? `${state.candidateTicker} must still pass ENS, The Graph and Uniswap gates.`
+                  ? `${state.candidateTicker} must still pass ENS, onchain evidence and Uniswap gates.`
                   : state.policy
                     ? marketTotal !== undefined
                       ? `${marketTotal} Stock Token markets are available. ENS policy v${state.policy.version} allows ${state.policy.allowedTickers.length}; the fleet compares up to ${Math.min(10, state.policy.allowedTickers.length)} this cycle.`
@@ -423,7 +423,7 @@ export function GoalAnalyzer({
               role={graphReady ? "status" : "alert"}
             >
               <div>
-                <span>The Graph preflight</span>
+                <span>Onchain evidence preflight</span>
                 <strong>
                   {state.graphHealthLoading
                     ? "Checking live evidence"
@@ -466,7 +466,7 @@ export function GoalAnalyzer({
                 {state.busy
                   ? "Starting your agent fleet…"
                   : state.graphHealthLoading
-                    ? "Checking The Graph evidence…"
+                    ? "Checking onchain evidence…"
                     : !graphReady
                       ? "Evidence unavailable · refresh"
                   : fleet.funding
@@ -520,7 +520,7 @@ export function GoalAnalyzer({
             </li>
             <li>
               <i>G</i>
-              <span><b>The Graph Evidence</b><small>Indexed market proof</small></span>
+              <span><b>Onchain Evidence</b><small>Verified market proof</small></span>
             </li>
           </ul>
         </aside>}
@@ -559,13 +559,16 @@ export function GoalAnalyzer({
 function graphPreflightCopy(state: GoalAnalysisState): string {
   const health = state.graphHealth;
   if (state.graphHealthLoading) {
-    return "The fleet will not wake until live Substreams evidence is current.";
+    return "The fleet will not wake until current onchain evidence is available.";
   }
   if (health?.status === "ready") {
     const checkpoint = health.processedBlock
       ? ` at block ${Number(health.processedBlock).toLocaleString("en-US")}`
       : "";
-    return `Live Substreams evidence is ready${checkpoint}.`;
+    const source = health.evidenceProvider === "the-graph-substreams"
+      ? "Substreams"
+      : "Robinhood Chain RPC";
+    return `${source} evidence is ready${checkpoint}.`;
   }
   if (health?.reason === "quota-exhausted") {
     return "Provider capacity is exhausted. No compute or decision fee will be requested.";
@@ -985,7 +988,7 @@ function DecisionWizard({
     busy = true;
   } else if (analysis && !proof.run) {
     title = "Check the recommended purchase";
-    copy = "EQLTY will re-read ENS, refresh The Graph evidence and request the exact Uniswap route. No funds move in this step.";
+    copy = "EQLTY will re-read ENS, refresh onchain evidence and request the exact Uniswap route. No funds move in this step.";
     action = proof.runProof;
     actionLabel = proof.proofBusy ? "Checking route and rules…" : "Continue · Verify purchase plan";
     busy = proof.proofBusy;
@@ -1239,7 +1242,7 @@ function goalEvidenceCards(
         state: "waiting",
       },
       {
-        title: "The Graph",
+        title: "Onchain evidence",
         value: "Waiting",
         detail: "No candidate evidence loaded yet.",
         state: "waiting",
@@ -1295,18 +1298,18 @@ function goalEvidenceCards(
       linkLabel: analysis.policy.rootName ? "Open ENS policy ↗" : undefined,
     },
     {
-      title: "The Graph",
+      title: "Onchain evidence",
       value: `${graphReady} verified routes`,
       detail: graphEvidence
         ? `${graphEvidence.blockNumber} checkpoint · ${formatUsd(
             graphEvidence.liquidityUsd,
           )} liquidity`
-        : "No candidate passed the Graph evidence check",
+        : "No candidate passed the onchain evidence check",
       state: graphReady > 0 ? "ready" : "blocked",
       link: graphEvidence?.transactionHash
         ? transactionEventsUrl(graphEvidence.transactionHash)
         : undefined,
-      linkLabel: graphEvidence ? "Open Graph event ↗" : undefined,
+      linkLabel: graphEvidence ? "Open onchain event ↗" : undefined,
     },
     {
       title: "Uniswap",

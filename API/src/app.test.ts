@@ -75,6 +75,7 @@ describe("API foundation", () => {
       ok: boolean;
       service: string;
       mode: string;
+      demoMode: boolean;
     };
 
     expect(response.status).toBe(200);
@@ -83,6 +84,19 @@ describe("API foundation", () => {
       ok: true,
       service: "eqlty-api",
       mode: "preview",
+      demoMode: true,
+    });
+  });
+
+  it("reports live evidence mode independently from demo controls", async () => {
+    const response = await request("/health", undefined, undefined, {
+      DEMO_MODE: "true",
+      REQUIRE_LIVE_DATA: "true",
+    });
+
+    await expect(response.json()).resolves.toMatchObject({
+      mode: "live",
+      demoMode: true,
     });
   });
 

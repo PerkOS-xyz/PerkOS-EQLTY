@@ -8,6 +8,10 @@ import {
 } from "react";
 import { loadFleetPolicy } from "../lib/fleet-api";
 import type { FleetPolicy } from "../lib/fleet-types";
+import {
+  loadIntegrationHealth,
+  type GraphIntegrationHealth,
+} from "../lib/market-api";
 import { authorizeDecisionFee } from "../lib/decision-fee";
 import {
   goalDecisionFeeResource,
@@ -42,6 +46,9 @@ export type GoalAnalysisState = {
   policy?: FleetPolicy;
   policyLoading: boolean;
   policyError?: string;
+  graphHealth?: GraphIntegrationHealth;
+  graphHealthLoading: boolean;
+  graphHealthError?: string;
   feeConfig?: DecisionFeeConfig;
   session?: AutonomousGoal;
   busy: boolean;
@@ -56,6 +63,7 @@ export type GoalAnalysisState = {
   setWindowMinutes: (value: number) => void;
   setCandidateTicker: (value: string) => void;
   setProfile: (value: FinancialGoalProfile) => void;
+  refreshGraphHealth: () => void;
   analyze: () => void;
   payDecisionFee: () => void;
 };
@@ -74,6 +82,9 @@ export function useGoalAnalysis(
   const [policy, setPolicy] = useState<FleetPolicy>();
   const [policyLoading, setPolicyLoading] = useState(false);
   const [policyError, setPolicyError] = useState<string>();
+  const [graphHealth, setGraphHealth] = useState<GraphIntegrationHealth>();
+  const [graphHealthLoading, setGraphHealthLoading] = useState(true);
+  const [graphHealthError, setGraphHealthError] = useState<string>();
   const [feeConfig, setFeeConfig] = useState<DecisionFeeConfig>();
   const [policyRevision, setPolicyRevision] = useState(0);
   const [session, setSession] = useState<AutonomousGoal>();
@@ -85,6 +96,26 @@ export function useGoalAnalysis(
   >("idle");
   const [error, setError] = useState<string>();
   const [workflowError, setWorkflowError] = useState<string>();
+
+  const refreshGraphHealth = useCallback(async () => {
+    setGraphHealthLoading(true);
+    setGraphHealthError(undefined);
+    try {
+      const next = await loadIntegrationHealth();
+      setGraphHealth(next);
+      return next;
+    } catch (cause) {
+      const message =
+        cause instanceof Error
+          ? cause.message
+          : "The Graph readiness is unavailable";
+      setGraphHealth(undefined);
+      setGraphHealthError(message);
+      return undefined;
+    } finally {
+      setGraphHealthLoading(false);
+    }
+  }, []);
 
   const analyze = useCallback(async () => {
     if (!wallet.connected) {
@@ -103,18 +134,24 @@ export function useGoalAnalysis(
 
     const run = activeRun.current + 1;
     activeRun.current = run;
-    setRunKey(run);
+    setRunKey(0);
     setBusy(true);
     setError(undefined);
     setWorkflowError(undefined);
     setSession(undefined);
 
+    let workflowStarted = false;
     try {
-      if (ensureFleetReady && !(await ensureFleetReady())) {
-        throw new Error(
-          "The fleet could not become ready. Retry the consultation in a moment.",
-        );
+      const evidence = await refreshGraphHealth();
+      if (!evidence || evidence.status !== "ready") {
+        setError(graphReadinessMessage(evidence));
+        return;
       }
+      if (ensureFleetReady && !(await ensureFleetReady())) {
+        return;
+      }
+      setRunKey(run);
+      workflowStarted = true;
       const next = await startGoal({
         goal: goalText.trim(),
         profile,
@@ -136,7 +173,7 @@ export function useGoalAnalysis(
         const message =
           cause instanceof Error ? cause.message : "Goal analysis failed";
         setError(message);
-        setWorkflowError(message);
+        setWorkflowError(workflowStarted ? message : undefined);
       }
     } finally {
       if (activeRun.current === run) {
@@ -150,6 +187,7 @@ export function useGoalAnalysis(
     goalText,
     policy?.allowedTickers.length,
     profile,
+    refreshGraphHealth,
     wallet.connected,
     windowMinutes,
   ]);
@@ -193,7 +231,8 @@ export function useGoalAnalysis(
     void readDecisionFeeConfig()
       .then(setFeeConfig)
       .catch(() => undefined);
-  }, []);
+    void refreshGraphHealth();
+  }, [refreshGraphHealth]);
 
   useEffect(() => {
     const refresh = () => setPolicyRevision((current) => current + 1);
@@ -312,6 +351,9 @@ export function useGoalAnalysis(
     policy,
     policyLoading,
     policyError,
+    graphHealth,
+    graphHealthLoading,
+    graphHealthError,
     feeConfig,
     session,
     busy,
@@ -326,9 +368,25 @@ export function useGoalAnalysis(
     setWindowMinutes,
     setCandidateTicker,
     setProfile,
+    refreshGraphHealth: () => void refreshGraphHealth(),
     analyze: () => void analyze(),
     payDecisionFee: () => void payDecisionFee(),
   };
+}
+
+function graphReadinessMessage(
+  health?: GraphIntegrationHealth,
+): string {
+  if (!health) {
+    return "The Graph readiness could not be verified. No agents were started and no fee was requested.";
+  }
+  if (health.reason === "quota-exhausted") {
+    return "The Graph provider quota is exhausted. No agents were started and no fee was requested.";
+  }
+  if (health.reason === "lagging") {
+    return "The Graph evidence is still catching up. No agents were started and no fee was requested.";
+  }
+  return "The Graph evidence is unavailable. No agents were started and no fee was requested.";
 }
 
 export function parseUsdG(value: string): bigint | undefined {

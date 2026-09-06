@@ -864,6 +864,64 @@
   line-height: 1.45;
 }
 
+.goalEvidenceReadiness {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid #294633;
+  border-radius: 11px;
+  background: #0e1712;
+}
+
+.goalEvidenceReadiness > div {
+  display: grid;
+  gap: 3px;
+}
+
+.goalEvidenceReadiness span,
+.goalEvidenceReadiness small {
+  color: #829087;
+  font-size: 12px;
+}
+
+.goalEvidenceReadiness strong {
+  color: #a4e9b8;
+  font-size: 14px;
+}
+
+.goalEvidenceReadiness.blocked {
+  border-color: #70443d;
+  background: #1c1211;
+}
+
+.goalEvidenceReadiness.blocked strong {
+  color: #f1978d;
+}
+
+.goalEvidenceReadiness button {
+  min-height: 36px;
+  padding: 0 13px;
+  border: 1px solid #3b6248;
+  border-radius: 8px;
+  background: transparent;
+  color: #9fe5b2;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.goalEvidenceReadiness.blocked button {
+  border-color: #70443d;
+  color: #f0a198;
+}
+
+.goalEvidenceReadiness button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
 .amountInput {
   position: relative;
 }

@@ -108,7 +108,7 @@ export function useGoalAnalysis(
       const message =
         cause instanceof Error
           ? cause.message
-          : "The Graph readiness is unavailable";
+          : "Onchain evidence readiness is unavailable";
       setGraphHealth(undefined);
       setGraphHealthError(message);
       return undefined;
@@ -378,15 +378,15 @@ function graphReadinessMessage(
   health?: GraphIntegrationHealth,
 ): string {
   if (!health) {
-    return "The Graph readiness could not be verified. No agents were started and no fee was requested.";
+    return "Onchain evidence readiness could not be verified. No agents were started and no fee was requested.";
   }
   if (health.reason === "quota-exhausted") {
-    return "The Graph provider quota is exhausted. No agents were started and no fee was requested.";
+    return "The selected evidence provider quota is exhausted. No agents were started and no fee was requested.";
   }
   if (health.reason === "lagging") {
-    return "The Graph evidence is still catching up. No agents were started and no fee was requested.";
+    return "Onchain evidence is still catching up. No agents were started and no fee was requested.";
   }
-  return "The Graph evidence is unavailable. No agents were started and no fee was requested.";
+  return "Onchain evidence is unavailable. No agents were started and no fee was requested.";
 }
 
 export function parseUsdG(value: string): bigint | undefined {

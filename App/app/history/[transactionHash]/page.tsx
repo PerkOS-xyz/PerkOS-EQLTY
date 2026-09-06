@@ -79,6 +79,9 @@ export default function PurchaseAuditPage() {
 
 function PurchaseAudit({ bundle }: { bundle: PurchaseAuditBundle }) {
   const graph = bundle.graph.response;
+  const evidenceName = graph.source === "robinhood-rpc"
+    ? "Robinhood Chain RPC"
+    : "The Graph Substreams";
   const graphPoolRelationship =
     bundle.uniswap.graphPoolRelationship ??
     (bundle.uniswap.poolMatchedGraphEvidence
@@ -118,7 +121,7 @@ function PurchaseAudit({ bundle }: { bundle: PurchaseAuditBundle }) {
         <AuditCheck copy="Router, PoolManager and poolId" label="Uniswap V4" />
         <AuditCheck
           copy="Pre-trade market evidence and checkpoint"
-          label="Substreams"
+          label={evidenceName}
         />
         <AuditCheck copy="Wallet-scoped immutable document" label="Firestore" />
       </section>
@@ -184,7 +187,7 @@ function PurchaseAudit({ bundle }: { bundle: PurchaseAuditBundle }) {
           />
           <EvidenceRow label="Pool ID" value={bundle.uniswap.poolId} />
           <EvidenceRow
-            label="Graph evidence"
+            label="Onchain evidence"
             value={
               graphPoolRelationship === "same-pool"
                 ? "Same V4 pool"
@@ -212,7 +215,7 @@ function PurchaseAudit({ bundle }: { bundle: PurchaseAuditBundle }) {
         <section className="auditEvidenceCard graph">
           <header>
             <span>Risk evidence</span>
-            <strong>The Graph Substreams</strong>
+            <strong>{evidenceName}</strong>
             <b>{graph.module ?? "map_pool_events"}</b>
           </header>
           <div className="graphCall">
@@ -224,13 +227,13 @@ function PurchaseAudit({ bundle }: { bundle: PurchaseAuditBundle }) {
             </code>
           </div>
           <p>
-            Substreams supplied the pre-trade liquidity and price evidence used
-            by the agents. The confirmed receipt independently records the V4
-            pool selected by Uniswap for execution.
+            {evidenceName} supplied the pre-trade liquidity and price evidence
+            used by the agents. The confirmed receipt independently records
+            the V4 pool selected by Uniswap for execution.
           </p>
           <EvidenceRow
-            label="Package"
-            value={graph.package ?? "eqlty_robinhood_stock_v4@v0.1.0"}
+            label="Evidence source"
+            value={graph.package ?? graph.module ?? evidenceName}
           />
           <EvidenceRow label="Provider" value={graph.provider ?? "Configured"} />
           <EvidenceRow label="Evidence block" value={graph.evidenceBlock} />

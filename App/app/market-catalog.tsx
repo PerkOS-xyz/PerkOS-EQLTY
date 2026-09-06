@@ -58,9 +58,9 @@ export function MarketCatalog() {
           <p>
             Real Uniswap 1D market curves, live market coverage and{" "}
             {seriesState === "ready"
-              ? "live Substreams evidence"
+              ? "live onchain evidence"
               : graphIntegration?.status === "degraded"
-                ? "fail-closed Graph evidence"
+                ? "fail-closed onchain evidence"
                 : "verifiable execution evidence"}.
           </p>
         </div>
@@ -184,7 +184,7 @@ export function MarketCatalog() {
               : "unavailable"}
         </small>
         <small>
-          The Graph{" "}
+          Onchain evidence{" "}
           {graphIntegration?.status === "degraded"
             ? "degraded"
             : seriesState === "ready"

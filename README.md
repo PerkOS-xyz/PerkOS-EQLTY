@@ -32,7 +32,7 @@ EQLTY coordinates four specialized roles:
 | Scout | Discovers supported stock tokens and gathers market evidence |
 | Risk | Checks policy, freshness, liquidity and execution limits |
 | Trader | Prepares and executes an approved Uniswap trade |
-| Auditor | Reconciles the decision with indexed transaction evidence |
+| Auditor | Reconciles the decision with onchain transaction evidence |
 
 The fleet uses PerkOS infrastructure for managed Hermes runtimes. EQLTY gives
 each owner an isolated server wallet for guarded execution and sponsors its
@@ -46,8 +46,8 @@ require the Trader rail to be linked.
 The product focuses on three sponsor integrations:
 
 - **Uniswap** provides stock token discovery, quotes and guarded execution.
-- **The Graph** provides Substreams based evidence for market and transaction
-  activity.
+- **The Graph** provides the reusable Substreams package and remains an
+  optional evidence provider when its hosted adapter is enabled.
 - **ENS** provides the public behavior and policy records used by the fleet.
 
 ### How we use Uniswap
@@ -71,32 +71,37 @@ to the exact Trading API quote and is enforced by the vault on chain, and
 market intelligence, where official RWA series power the charts and reference
 prices the fleet reasons over.
 
-### How we use The Graph
+### How we use onchain evidence
+
+The production MVP reads Uniswap V4 Swap events directly from Robinhood Chain.
+The same validation boundary can use The Graph Substreams again by setting
+`EQLTY_EVIDENCE_PROVIDER=graph`; recommendations and audit bundles always name
+the provider that produced their evidence.
 
 - [`lib.rs`](Plugins/EQLTY-The-Graph-Plugin/substreams/src/lib.rs#L13) is the
   parameterized Rust Substreams module that filters Uniswap V4 stock token
   pool events on Robinhood Chain.
-- [`graph-evidence.ts`](API/src/graph-evidence.ts#L7) accepts only strict
-  `the-graph-substreams` provenance for market evidence.
-- [`graph-evidence.ts`](API/src/graph-evidence.ts#L80) validates ticker,
-  freshness and block lag before evidence reaches the Risk role.
+- [`rpc-evidence.ts`](API/src/rpc-evidence.ts) reads the same pool events with
+  bounded `eth_getLogs` requests and fails closed when no fresh event exists.
+- [`market-evidence.ts`](API/src/market-evidence.ts) selects the configured
+  provider without changing the agent workflow.
+- [`graph-evidence.ts`](API/src/graph-evidence.ts#L7) validates strict
+  `the-graph-substreams` provenance when the Graph adapter is selected.
 - [`hermes-consultation.ts`](API/src/hermes-consultation.ts) sends the sealed
   candidate set to the user's live Scout and Risk runtimes over PerkOS A2A.
 - [`hermes-consultation-verifier.ts`](API/src/hermes-consultation-verifier.ts)
   binds their selection and cited facts back to canonical Graph, Uniswap and
   ENS values before the recommendation can change.
-- [`proof-run.ts`](API/src/proof-run.ts#L220) is the Graph risk gate inside
-  the four agent proof.
+- [`proof-run.ts`](API/src/proof-run.ts#L220) binds the selected evidence
+  source, block and event to the four-agent proof.
 - [`stock-substreams.mjs`](Plugins/EQLTY-The-Graph-Plugin/skills/robinhood-stock-substreams/scripts/stock-substreams.mjs)
   exposes the 94 pool catalog, snapshots and direct streaming as an agent
   tool.
 
-The Graph does two jobs inside EQLTY. As a data source, Substreams provenance
-is the load bearing input that the live agents reason over and that gates
-every decision. As tooling, the Substreams package, the pool registry and the
-agent skill are self contained and reusable by any project that needs
-verifiable Uniswap V4 stock token evidence, with or without the rest of
-EQLTY.
+Onchain evidence remains load bearing: missing or stale events block a
+candidate. Direct RPC keeps that safety boundary available for the MVP without
+a recurring indexing bill. The Substreams package, pool registry and agent
+skill remain self contained for teams that want the hosted Graph rail later.
 
 ### How we use ENS
 
@@ -137,7 +142,7 @@ flowchart LR
   subgraph PROTOCOLS["Protocols"]
     ENS["ENS, Durin L2 records<br/>policy control plane"]
     UNI["Uniswap Trading API<br/>quotes, calldata, RWA series"]
-    GRAPH["The Graph Substreams<br/>swap evidence, price series"]
+    EVIDENCE["Onchain evidence<br/>Robinhood RPC or Graph Substreams"]
     CLAW["1Claw<br/>optional HSM policy rail"]
   end
 
@@ -149,7 +154,7 @@ flowchart LR
   API --> FLEET
   API --> ENS
   API --> UNI
-  API --> GRAPH
+  API --> EVIDENCE
   API --> CLAW
   ENS -. "policy injected into agent prompts" .-> FLEET
   API --> VAULT
@@ -163,7 +168,8 @@ flowchart LR
 | PerkOS | Creates, locates and wakes the four managed Hermes runtimes |
 | ENS (Durin L2) | Behavior source of truth: owner, manifest and per role policy records |
 | Uniswap | Stock token discovery, V4 quotes, swap calldata and RWA market series |
-| The Graph | Substreams evidence gating every decision and feeding price history |
+| Onchain evidence | Fresh Uniswap V4 events from Robinhood RPC, or Graph Substreams when enabled |
+| The Graph | Optional hosted evidence rail and reusable Substreams agent tooling |
 | EQLTY server wallet | Isolated per owner; submits guarded swaps while EQLTY sponsors gas |
 | 1Claw | Optional HSM policy rail required for purchases at or above the configured lock |
 | Robinhood Chain | Stock token assets, receipts and the execution network |
@@ -179,7 +185,7 @@ sequenceDiagram
   participant ENS as ENS Durin L2
   participant Fleet as Hermes fleet
   participant Uniswap as Uniswap APIs
-  participant Graph as The Graph Substreams
+  participant Evidence as Onchain evidence
   participant Trader as Isolated server wallet
   participant Vault as EQLTY Vault
 
@@ -191,7 +197,7 @@ sequenceDiagram
   loop Consultation cycle inside the two minute window
     API->>ENS: Re-read the policy manifest
     API->>Uniswap: Stock token quotes and RWA market series
-    API->>Graph: Substreams evidence with block, liquidity and lag
+    API->>Evidence: Fresh V4 event with block, liquidity and provenance
     API->>Fleet: Scout prompt with goal, candidates and ENS policy
     Fleet-->>API: Scout recommendation, verified
     API->>Fleet: Risk prompt with evidence and ENS policy
@@ -208,7 +214,7 @@ sequenceDiagram
   API->>Vault: Risk signed EIP-712 execution
   Vault->>Vault: Enforce limits, nonce and calldata hash
   Vault-->>API: Swap receipt
-  API->>Graph: Auditor reconciles the indexed swap
+  API->>Evidence: Auditor reconciles the onchain swap
   API-->>App: Stored audit bundle in History
 ```
 
@@ -225,7 +231,7 @@ flowchart TD
   S2 -- no --> REJECT
   S2 -- yes --> S3{Robinhood asset and market data valid?}
   S3 -- no --> REJECT
-  S3 -- yes --> S4{Graph evidence live and fresh?}
+  S3 -- yes --> S4{Onchain evidence live and fresh?}
   S4 -- no --> REJECT
   S4 -- yes --> S5{Executable Uniswap V4 route?}
   S5 -- no --> REJECT

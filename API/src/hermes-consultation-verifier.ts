@@ -438,15 +438,15 @@ function evidenceFact(
 ): ConsultationFact | undefined {
   if (key === "graphLiquidity" && candidate.graphEvidence) {
     return {
-      source: "the-graph",
-      label: "Indexed liquidity",
+      source: evidenceFactSource(candidate),
+      label: "Onchain liquidity",
       value: `$${candidate.graphEvidence.liquidityUsd.toLocaleString("en-US")}`,
     };
   }
   if (key === "graphBlock" && candidate.graphEvidence) {
     return {
-      source: "the-graph",
-      label: "Indexed block",
+      source: evidenceFactSource(candidate),
+      label: "Onchain block",
       value: candidate.graphEvidence.blockNumber,
     };
   }
@@ -502,13 +502,22 @@ function policyFact(
     };
   }
   return {
-    source: "the-graph",
-    label: "Graph evidence",
+    source: evidenceFactSource(candidate),
+    label: "Onchain evidence",
     value: candidate.graphEvidence
       ? `block ${candidate.graphEvidence.blockNumber}`
       : "missing",
     passed: Boolean(candidate.graphEvidence),
   };
+}
+
+function evidenceFactSource(
+  candidate: OpportunityCandidate,
+): "the-graph" | "onchain" {
+  return candidate.graphEvidence?.source === "the-graph-substreams"
+    || !candidate.graphEvidence?.source
+    ? "the-graph"
+    : "onchain";
 }
 
 function traderFact(

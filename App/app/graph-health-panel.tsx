@@ -16,13 +16,13 @@ export function GraphHealthPanel({ compact, health, onRefresh }: Props) {
 
   return (
     <aside
-      aria-label="The Graph evidence status"
+      aria-label="Onchain evidence status"
       className={`graphHealthPanel ${state} ${compact ? "compact" : ""}`}
     >
       <div className="graphHealthLead">
         <span aria-hidden="true" className="graphHealthSignal" />
         <div>
-          <small>The Graph Substreams</small>
+          <small>{providerLabel(health)}</small>
           <strong>{title}</strong>
           <p>{message}</p>
         </div>
@@ -58,7 +58,7 @@ export function GraphHealthPanel({ compact, health, onRefresh }: Props) {
             <b>{progress.toFixed(2)}%</b>
           </span>
           <div
-            aria-label="The Graph synchronization progress"
+            aria-label="Onchain evidence synchronization progress"
             aria-valuemax={100}
             aria-valuemin={0}
             aria-valuenow={progress}
@@ -107,11 +107,20 @@ function healthTitle(health?: GraphIntegrationHealth): string {
 }
 
 function healthMessage(health?: GraphIntegrationHealth): string {
-  if (!health) return "Reading the live adapter checkpoint.";
+  if (!health) return "Reading the current onchain checkpoint.";
   if (health.status === "ready") {
-    return "Live Substreams evidence is synchronized.";
+    return health.evidenceProvider === "the-graph-substreams"
+      ? "Live Substreams evidence is synchronized."
+      : "Robinhood Chain evidence is current.";
   }
   return "Decisions remain safely closed until evidence is current.";
+}
+
+function providerLabel(health?: GraphIntegrationHealth): string {
+  if (health?.evidenceProvider === "the-graph-substreams") {
+    return "The Graph Substreams";
+  }
+  return "Robinhood Chain · Onchain evidence";
 }
 
 function number(value: number): string {

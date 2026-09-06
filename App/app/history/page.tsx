@@ -49,7 +49,7 @@ export default function HistoryPage() {
             <h1>Trade history</h1>
             <p>
               Every EQLTY purchase and sale can be independently verified on
-              Robinhood Chain, Uniswap and The Graph.
+              Robinhood Chain, Uniswap and its evidence provider.
             </p>
           </div>
           <div className="auditHeroMetric">
@@ -188,7 +188,7 @@ function SaleCard({ entry }: { entry: SaleAuditBundle }) {
           </dd>
         </div>
         <div>
-          <dt>The Graph</dt>
+          <dt>Onchain evidence</dt>
           <dd>{entry.graph.response.status}</dd>
         </div>
         <div>

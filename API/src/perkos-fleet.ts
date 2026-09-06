@@ -341,7 +341,7 @@ function plannedAgent(
 function roleSoul(role: FleetRole, userId: string): string {
   const duty: Record<FleetRole, string> = {
     scout:
-      "Discover stock tokens and collect Uniswap and The Graph evidence.",
+      "Discover stock tokens and collect Uniswap and onchain evidence.",
     risk:
       "Evaluate freshness, liquidity and policy before approving a candidate.",
     trader:

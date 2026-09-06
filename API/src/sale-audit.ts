@@ -110,7 +110,7 @@ export class SaleAuditService {
     transactionHash: `0x${string}`,
   ): Promise<GraphEvidence | Error> {
     let latest: GraphEvidence | Error = new Error(
-      "The Graph evidence has not been observed",
+      "Onchain evidence has not been observed",
     );
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
@@ -125,7 +125,7 @@ export class SaleAuditService {
         latest =
           error instanceof Error
             ? error
-            : new Error("The Graph evidence failed");
+            : new Error("Onchain evidence failed");
       }
       if (attempt < 2) await wait(1_500);
     }
@@ -198,6 +198,11 @@ export function buildSaleRecord(
     throw new Error("Sale token transfers are incomplete");
   }
   const graphError = graph instanceof Error;
+  const evidenceSource = graphError
+    ? config.EQLTY_EVIDENCE_PROVIDER === "rpc"
+      ? "robinhood-rpc"
+      : "the-graph-substreams"
+    : graph.source;
   const saleObserved =
     !graphError &&
     same(graph.transactionHash, input.transactionHash);
@@ -226,12 +231,13 @@ export function buildSaleRecord(
     },
     graph: {
       request: {
-        method: "POST",
-        endpoint:
-          config.EQLTY_GRAPH_ADAPTER_URL ??
-          config.GRAPH_RISK_URL ??
-          "unconfigured",
-        authorization: "Bearer [server credential]",
+        method:
+          evidenceSource === "robinhood-rpc" ? "eth_getLogs" : "POST",
+        endpoint: evidenceEndpoint(config, evidenceSource),
+        authorization:
+          evidenceSource === "robinhood-rpc"
+            ? "Server managed"
+            : "Bearer [server credential]",
         body: { ticker: input.ticker.toUpperCase(), chainId: "eip155:4663" },
       },
       response: {
@@ -240,7 +246,7 @@ export function buildSaleRecord(
           : saleObserved
             ? "observed"
             : "indexed-nearby",
-        source: "the-graph-substreams",
+        source: evidenceSource,
         provider: graphError ? undefined : graph.stream.provider,
         package: graphError ? undefined : graph.stream.package,
         module: graphError ? undefined : graph.stream.module,
@@ -281,6 +287,23 @@ export function buildSaleRecord(
     },
     transfers,
   };
+}
+
+function evidenceEndpoint(
+  config: ApiConfig,
+  source: "the-graph-substreams" | "robinhood-rpc",
+): string {
+  if (source === "the-graph-substreams") {
+    return config.EQLTY_GRAPH_ADAPTER_URL ??
+      config.GRAPH_RISK_URL ??
+      "unconfigured";
+  }
+  if (!config.ROBINHOOD_MAINNET_RPC_URL) return "unconfigured";
+  try {
+    return new URL(config.ROBINHOOD_MAINNET_RPC_URL).hostname;
+  } catch {
+    return "configured-rpc";
+  }
 }
 
 function tokenTransfer(

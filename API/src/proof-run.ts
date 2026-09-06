@@ -238,18 +238,19 @@ export class ProofRunService {
       rationale:
         `${decisionReceipt.selection.rationale} Current revalidation: ` +
         `${strategy.ticker} is allowed by ENS policy v${manifest.version}; ` +
-        `Substreams block ${graph.blockNumber} reports $${graph.liquidityUsd} liquidity with ${graph.lagBlocks} blocks of lag, ` +
+        `${graph.source === "robinhood-rpc" ? "Onchain" : "Substreams"} block ${graph.blockNumber} reports $${graph.liquidityUsd} liquidity with ${graph.lagBlocks} blocks of lag, ` +
         `and Uniswap ${asset.uniswapRouting} deviates ${asset.deviationBps} bps from the Robinhood reference.`,
       payment: input.authorization.payment,
     };
 
     run.market = {
+      evidenceSource: graph.source,
       liquidityUsd: graph.liquidityUsd,
       lastSwapPrice: graph.lastSwapPrice,
       oraclePrice: asset.referencePrice!,
       graphMode: "live",
       blockNumber: graph.blockNumber,
-      graphProvider: "the-graph-substreams",
+      graphProvider: graph.provider,
       graphLagBlocks: graph.lagBlocks,
       graphPackage: graph.package,
       graphModule: graph.module,

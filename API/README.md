@@ -37,8 +37,14 @@ Current endpoints:
 
 Executed runs create a wallet-scoped Firestore audit bundle through the
 existing PerkOS Firebase session. The bundle stores no credential values. It
-preserves the Graph request and response, Uniswap pool evidence, proof hashes,
-receipt and decoded token transfers.
+preserves the selected onchain evidence request and response, Uniswap pool
+evidence, proof hashes, receipt and decoded token transfers.
+
+`EQLTY_EVIDENCE_PROVIDER` selects the market evidence rail. The default `rpc`
+reads Uniswap V4 Swap events from `ROBINHOOD_MAINNET_RPC_URL` with bounded log
+ranges. Set it to `graph` to use `GRAPH_RISK_URL` and the Substreams adapter.
+Both modes apply the same freshness and fail-closed checks, and every response
+reports its actual source.
 
 ENS policy preparation returns hash-bound records for review. It does not
 publish changes before owner-wallet authorization is complete.

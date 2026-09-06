@@ -118,13 +118,13 @@ export class OpportunityAnalysisService {
             ticker,
             result?.status === "rejected"
               ? `Market assessment failed: ${message(result.reason)}`
-              : "Robinhood, Uniswap or The Graph evidence is unavailable",
+              : "Robinhood, Uniswap or onchain evidence is unavailable",
           );
         }
         if (!result.value) {
           return rejected(
             ticker,
-            "Robinhood, Uniswap or The Graph evidence is unavailable",
+            "Robinhood, Uniswap or onchain evidence is unavailable",
           );
         }
         return score(result.value, manifest.policy, this.now());
@@ -251,7 +251,7 @@ function decisionOutcomes(
       title: `${alternative.ticker} is an evidence-backed alternative`,
       summary: alternative.reason,
       reasons: [
-        "It passed deterministic ENS, Uniswap and The Graph gates.",
+        "It passed deterministic ENS, Uniswap and onchain evidence gates.",
         winner
           ? "It was not selected by the verified consultation."
           : "Agent reasoning was unavailable, so this is not a recommendation.",
@@ -291,6 +291,7 @@ function score(
     uniswapRouting: asset.uniswapRouting,
     graphEvidence: asset.graphEvidence
       ? {
+          source: asset.graphEvidence.source,
           blockNumber: asset.graphEvidence.blockNumber,
           transactionHash: asset.graphEvidence.transactionHash,
           poolIdentifier: asset.graphEvidence.poolIdentifier,
@@ -314,7 +315,7 @@ function score(
         : asset.deviationBps > policy.maxDeviationBps
           ? `Price deviation exceeds ${policy.maxDeviationBps} bps`
           : !asset.graphEvidence?.healthy
-            ? "The Graph evidence is not healthy"
+            ? "Onchain evidence is not healthy"
             : asset.graphEvidence.liquidityUsd < policy.minLiquidityUsd
               ? `Indexed liquidity is below $${policy.minLiquidityUsd}`
               : evidenceAge > policy.maxOracleAgeSeconds
@@ -361,7 +362,7 @@ function rejected(
 function dynamicRationale(candidate: OpportunityCandidate): string {
   const liquidity = candidate.graphEvidence
     ? `liquidity ${numberMoney(candidate.graphEvidence.liquidityUsd)}`
-    : "graph liquidity unavailable";
+    : "onchain liquidity unavailable";
   const deviation = candidate.deviationBps ?? "deviation unavailable";
   const deviationText =
     deviation === "deviation unavailable" ? deviation : `${deviation} bps`;

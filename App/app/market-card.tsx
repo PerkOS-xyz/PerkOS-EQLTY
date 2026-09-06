@@ -90,12 +90,12 @@ export function MarketCard({
             target="_blank"
           >
             <i />
-            The Graph block {latestGraphPoint.blockNumber}
+            Onchain block {latestGraphPoint.blockNumber}
           </a>
         ) : asset.graphEvidence ? (
           <span className={asset.graphEvidence.healthy ? "verified" : ""}>
             <i />
-            The Graph block {asset.graphEvidence.blockNumber}
+            Onchain block {asset.graphEvidence.blockNumber}
           </span>
         ) : null}
       </footer>

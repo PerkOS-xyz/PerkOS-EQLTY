@@ -77,6 +77,7 @@ export type OpportunityCandidate = {
   uniswapRequestId?: string;
   uniswapRouting?: string;
   graphEvidence?: {
+    source?: "the-graph-substreams" | "robinhood-rpc";
     blockNumber: string;
     transactionHash: `0x${string}`;
     poolIdentifier: string;
@@ -97,7 +98,7 @@ export type GoalPolicy = {
 };
 
 export type ConsultationFact = {
-  source: "ens" | "the-graph" | "uniswap";
+  source: "ens" | "the-graph" | "onchain" | "uniswap";
   label: string;
   value: string;
 };

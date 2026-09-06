@@ -6,7 +6,7 @@ export type UniswapCoverageStatus =
   | "quote_verified";
 
 export type GraphEvidenceSummary = {
-  source: "the-graph-substreams";
+  source: "the-graph-substreams" | "robinhood-rpc";
   healthy: boolean;
   protocol: "v3" | "v4";
   blockNumber: string;
@@ -23,7 +23,7 @@ export type GraphEvidenceSummary = {
   lagBlocks: number;
   provider?: string;
   package?: string;
-  module?: "map_pool_events";
+  module?: "map_pool_events" | "eth_getLogs";
   startedAt?: string;
   updatedAt?: string;
   checkpointBlock?: string;

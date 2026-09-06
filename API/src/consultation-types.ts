@@ -1,5 +1,5 @@
 export type ConsultationFact = {
-  source: "ens" | "the-graph" | "uniswap";
+  source: "ens" | "the-graph" | "onchain" | "uniswap";
   label: string;
   value: string;
 };

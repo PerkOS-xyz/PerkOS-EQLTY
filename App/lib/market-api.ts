@@ -9,14 +9,14 @@ export type MarketSeriesPoint = {
 };
 
 export type MarketSeriesResponse = {
-  source: "the-graph-substreams";
+  source: "the-graph-substreams" | "robinhood-rpc";
   chainId: "eip155:4663";
   observedAt: string;
   stream: {
     mode: "live";
     provider: string;
-    package: string;
-    module: "map_pool_events";
+    package?: string;
+    module: "map_pool_events" | "eth_getLogs";
     processedBlock: string;
     providerHeadBlock: string;
     lagBlocks: number;
@@ -51,6 +51,8 @@ export type GraphIntegrationHealth = {
   configured: boolean;
   status: "ready" | "degraded" | "pending";
   checkedAt: string;
+  evidenceProvider?: "the-graph-substreams" | "robinhood-rpc";
+  providerName?: string;
   running?: boolean;
   processedBlock?: string;
   providerHeadBlock?: string;
@@ -150,16 +152,20 @@ export async function loadIntegrationHealth(
   ) {
     throw new Error("Integration health is unavailable");
   }
-  const health = (
+  const integration = (
     body as {
-      integrationHealth?: { theGraph?: GraphIntegrationHealth };
+      integrationHealth?: {
+        marketEvidence?: GraphIntegrationHealth;
+        theGraph?: GraphIntegrationHealth;
+      };
     }
-  ).integrationHealth?.theGraph;
+  ).integrationHealth;
+  const health = integration?.marketEvidence ?? integration?.theGraph;
   if (
     !health ||
     !["ready", "degraded", "pending"].includes(health.status)
   ) {
-    throw new Error("The Graph health response is incomplete");
+    throw new Error("Onchain evidence health response is incomplete");
   }
   return health;
 }
@@ -246,11 +252,11 @@ async function loadSeriesChunk(
   const body: unknown = await response.json().catch(() => undefined);
   if (!response.ok) {
     throw new Error(
-      `The Graph series request failed with status ${response.status}`,
+      `Onchain evidence series failed with status ${response.status}`,
     );
   }
   if (!isMarketSeries(body)) {
-    throw new Error("The Graph series response is incomplete");
+    throw new Error("The onchain evidence series is incomplete");
   }
   return body;
 }
@@ -288,7 +294,9 @@ function isMarketSeries(value: unknown): value is MarketSeriesResponse {
   if (!value || typeof value !== "object") return false;
   const result = value as Partial<MarketSeriesResponse>;
   return (
-    result.source === "the-graph-substreams" &&
+    ["the-graph-substreams", "robinhood-rpc"].includes(
+      String(result.source),
+    ) &&
     result.chainId === "eip155:4663" &&
     typeof result.observedAt === "string" &&
     Array.isArray(result.series) &&

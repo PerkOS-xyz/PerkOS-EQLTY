@@ -144,6 +144,8 @@ export function buildAuditRecord(
   const poolId = swap.topics[1];
   if (!poolId) throw new Error("Uniswap V4 swap pool id is missing");
   const ensStep = run.steps.find((step) => step.id === "ens");
+  const evidenceSource =
+    market.evidenceSource ?? "the-graph-substreams";
   return {
     schema: "urn:eqlty:purchase-audit:v1",
     recordedAt: run.createdAt,
@@ -174,16 +176,17 @@ export function buildAuditRecord(
     },
     graph: {
       request: {
-        method: "POST",
-        endpoint:
-          config.EQLTY_GRAPH_ADAPTER_URL ??
-          config.GRAPH_RISK_URL ??
-          "unconfigured",
-        authorization: "Bearer [server credential]",
+        method:
+          evidenceSource === "robinhood-rpc" ? "eth_getLogs" : "POST",
+        endpoint: evidenceEndpoint(config, evidenceSource),
+        authorization:
+          evidenceSource === "robinhood-rpc"
+            ? "Server managed"
+            : "Bearer [server credential]",
         body: { ticker: run.ticker, chainId: "eip155:4663" },
       },
       response: {
-        source: "the-graph-substreams",
+        source: evidenceSource,
         evidenceScope: "pre-trade-market",
         provider: market.graphProvider,
         package: market.graphPackage,
@@ -247,6 +250,23 @@ export function buildAuditRecord(
       oneclaw: run.oneclaw,
     },
   };
+}
+
+function evidenceEndpoint(
+  config: ApiConfig,
+  source: "the-graph-substreams" | "robinhood-rpc",
+): string {
+  if (source === "the-graph-substreams") {
+    return config.EQLTY_GRAPH_ADAPTER_URL ??
+      config.GRAPH_RISK_URL ??
+      "unconfigured";
+  }
+  if (!config.ROBINHOOD_MAINNET_RPC_URL) return "unconfigured";
+  try {
+    return new URL(config.ROBINHOOD_MAINNET_RPC_URL).hostname;
+  } catch {
+    return "configured-rpc";
+  }
 }
 
 function tradeEvent(

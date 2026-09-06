@@ -62,7 +62,7 @@ export class DecisionFeeService {
       ? this.config.EQLTY_DECISION_FEE_COMPLETE_AMOUNT
       : this.config.EQLTY_DECISION_FEE_NO_CANDIDATE_AMOUNT;
     const reason = hasCandidate
-      ? "Verified four-agent recommendation with ENS, Uniswap and The Graph evidence."
+      ? "Verified four-agent recommendation with ENS, Uniswap and onchain evidence."
       : "Verified four-agent consultation with no candidate advancing.";
 
     if (this.config.EQLTY_DECISION_FEE_MODE === "preview") {

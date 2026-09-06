@@ -13,7 +13,7 @@ import type { DecisionFeePaymentPayload } from "./decision-fee-types.js";
 import { FleetActivationService } from "./fleet-activation.js";
 import type { FleetAgent, FleetRole } from "./fleet-types.js";
 import { FirestoreGoalStore } from "./firestore-goal.js";
-import { GraphEvidenceService } from "./graph-evidence.js";
+import { MarketEvidenceService } from "./market-evidence.js";
 import { OwnerAuth, OwnerFundingRequiredError } from "./owner-auth.js";
 import { OpportunityAnalysisService } from "./opportunity-analysis.js";
 import {
@@ -322,8 +322,8 @@ type AppDependencies = {
     Partial<Pick<PerkosFundingService, "status">>;
   oneclawFleet?: Pick<OneClawFleetProvisioner, "provision" | "ready"> &
     Partial<Pick<OneClawFleetProvisioner, "authorization" | "status">>;
-  graphEvidence?: Pick<GraphEvidenceService, "evidence"> &
-    Partial<Pick<GraphEvidenceService, "series" | "status">>;
+  graphEvidence?: Pick<MarketEvidenceService, "evidence"> &
+    Partial<Pick<MarketEvidenceService, "series" | "status" | "ready">>;
   uniswapRwaMarket?: Pick<UniswapRwaMarketService, "series"> &
     Partial<Pick<UniswapRwaMarketService, "coverage">>;
   goals?: Pick<AutonomousGoalService, "read" | "start" | "tick"> &
@@ -353,9 +353,18 @@ export function createApp(
   const app = express();
   const uniswapRwaMarket =
     dependencies.uniswapRwaMarket ?? new UniswapRwaMarketService(config);
+  const graphEvidence =
+    dependencies.graphEvidence ?? new MarketEvidenceService(config);
   const stockCatalog =
     dependencies.stockCatalog ??
     new StockCatalogService(config, {
+      evidence:
+        "ready" in graphEvidence && graphEvidence.ready
+          ? {
+              ready: graphEvidence.ready.bind(graphEvidence),
+              evidence: graphEvidence.evidence.bind(graphEvidence),
+            }
+          : undefined,
       uniswapMarket: uniswapRwaMarket.coverage
         ? { coverage: uniswapRwaMarket.coverage.bind(uniswapRwaMarket) }
         : new UniswapRwaMarketService(config),
@@ -397,8 +406,6 @@ export function createApp(
       return [];
     }
   };
-  const graphEvidence =
-    dependencies.graphEvidence ?? new GraphEvidenceService(config);
   const goals =
     dependencies.goals ??
     new AutonomousGoalService(
@@ -943,7 +950,7 @@ export function createApp(
       return response.json(await graphEvidence.evidence(parsed.data));
     } catch (error) {
       return response.status(503).json({
-        error: "graph_evidence_unavailable",
+        error: "onchain_evidence_unavailable",
         message: safeMessage(error),
       });
     }
@@ -1530,7 +1537,7 @@ export function createApp(
     }
     try {
       if (!graphEvidence.series) {
-        throw new Error("The Graph series provider is not configured");
+        throw new Error("Onchain evidence series is not configured");
       }
       response.setHeader("cache-control", "no-store");
       return response.json(
@@ -1538,7 +1545,7 @@ export function createApp(
       );
     } catch (error) {
       return response.status(503).json({
-        error: "graph_series_unavailable",
+        error: "onchain_series_unavailable",
         message: safeMessage(error),
       });
     }

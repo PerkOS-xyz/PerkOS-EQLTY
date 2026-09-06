@@ -178,12 +178,16 @@ describe("HermesConsultationService", () => {
     const traderRequest = JSON.parse(
       String(fetchFn.mock.calls[2]?.[1]?.body),
     ) as { prompt: string; timeoutMs: number };
+    const auditorRequest = JSON.parse(
+      String(fetchFn.mock.calls[3]?.[1]?.body),
+    ) as { prompt: string; timeoutMs: number };
     expect(scoutRequest.prompt).toContain('"recommendedTicker":"TICKER"');
     expect(scoutRequest.timeoutMs).toBe(40_000);
     expect(scoutRequest.prompt).toContain('"graphBlockNumber":"12345"');
     expect(scoutRequest.prompt).not.toContain('"tokenAddress"');
     expect(traderRequest.prompt).toContain('"decision":"prepare"');
     expect(traderRequest.timeoutMs).toBe(55_000);
+    expect(auditorRequest.timeoutMs).toBe(60_000);
     expect(traderRequest.prompt).toContain('"uniswapRouting":"CLASSIC"');
     expect(traderRequest.prompt).toContain('"uniswapRequestId":"NVDA-request"');
     expect(traderRequest.prompt).not.toContain('"graphEvidence"');

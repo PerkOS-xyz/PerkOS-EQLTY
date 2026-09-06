@@ -48,6 +48,7 @@ export type FleetActivationState = {
 export function useFleetActivation(): FleetActivationState {
   const wallet = useWalletAccess();
   const activeRun = useRef(0);
+  const observedWallet = useRef<string | undefined>(undefined);
   const startedFor = useRef<string | undefined>(undefined);
   const pendingOwnerProof = useRef<{
     address: `0x${string}`;
@@ -80,7 +81,9 @@ export function useFleetActivation(): FleetActivationState {
     }
   }, []);
 
-  const begin = useCallback(async (): Promise<boolean> => {
+  const begin = useCallback(async (
+    preserveFundingReceipt = false,
+  ): Promise<boolean> => {
     if (!wallet.connected || !wallet.address) {
       return false;
     }
@@ -89,6 +92,10 @@ export function useFleetActivation(): FleetActivationState {
     startedFor.current = wallet.address;
     setActivation(undefined);
     setFunding(undefined);
+    if (!preserveFundingReceipt) {
+      setFundingReceipt(undefined);
+    }
+    setCompute(undefined);
     setError(undefined);
     setBusy(true);
     setPhase("locating");
@@ -209,7 +216,7 @@ export function useFleetActivation(): FleetActivationState {
         pendingOwnerProof.current = undefined;
       }
       setFundingPhase("activating");
-      const ready = await begin();
+      const ready = await begin(true);
       void refreshCompute();
       return ready;
     } catch (cause) {
@@ -248,23 +255,26 @@ export function useFleetActivation(): FleetActivationState {
   }, [refreshCompute, wallet.address, wallet.connected]);
 
   useEffect(() => {
-    if (!wallet.connected || !wallet.address) {
-      activeRun.current += 1;
-      startedFor.current = undefined;
-      pendingOwnerProof.current = undefined;
-      setActivation(undefined);
-      setSession(undefined);
-      setFunding(undefined);
-      setFundingReceipt(undefined);
-      setCompute(undefined);
-      setError(undefined);
-      setBusy(false);
-      setFundingBusy(false);
-      setFundingPhase("idle");
-      setComputeLoading(false);
-      setPhase("idle");
-      return;
-    }
+    const owner =
+      wallet.connected && wallet.address
+        ? wallet.address.toLowerCase()
+        : undefined;
+    if (observedWallet.current === owner) return;
+    observedWallet.current = owner;
+    activeRun.current += 1;
+    startedFor.current = undefined;
+    pendingOwnerProof.current = undefined;
+    setActivation(undefined);
+    setSession(undefined);
+    setFunding(undefined);
+    setFundingReceipt(undefined);
+    setCompute(undefined);
+    setError(undefined);
+    setBusy(false);
+    setFundingBusy(false);
+    setFundingPhase("idle");
+    setComputeLoading(false);
+    setPhase("idle");
   }, [wallet.address, wallet.connected]);
 
   return {

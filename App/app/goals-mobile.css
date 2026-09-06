@@ -63,6 +63,14 @@
     width: 100%;
   }
 
+  .goalEvidenceReadiness {
+    grid-template-columns: 1fr;
+  }
+
+  .goalEvidenceReadiness button {
+    width: 100%;
+  }
+
   .decisionWizardSteps {
     grid-template-columns: repeat(6, 62px);
     overflow-x: auto;

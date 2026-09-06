@@ -70,11 +70,13 @@ export function GoalAnalyzer({
   const [formStep, setFormStep] = useState<1 | 2>(1);
   const [setupOpen, setSetupOpen] = useState(false);
   const [marketTotal, setMarketTotal] = useState<number>();
+  const graphReady = state.graphHealth?.status === "ready";
   const proof = useProofRun(state.session, fleet.activate);
   const hasRecommendation = Boolean(
     analysis?.candidates.some((candidate) => candidate.status === "recommended"),
   );
-  const processStarted = state.runKey > 0 || Boolean(fleet.fundingReceipt);
+  const processStarted =
+    state.runKey > 0 || state.busy || fleet.busy || fleet.fundingBusy;
   const activationBusy = fleet.busy || fleet.fundingBusy;
   const processFinished = Boolean(
     (state.session &&
@@ -413,6 +415,33 @@ export function GoalAnalyzer({
               </label>
             </div>
 
+            <div
+              aria-live="polite"
+              className={`goalEvidenceReadiness ${
+                graphReady ? "ready" : "blocked"
+              }`}
+              role={graphReady ? "status" : "alert"}
+            >
+              <div>
+                <span>The Graph preflight</span>
+                <strong>
+                  {state.graphHealthLoading
+                    ? "Checking live evidence"
+                    : graphReady
+                      ? "Evidence is synchronized"
+                      : "Agent decisions are paused"}
+                </strong>
+                <small>{graphPreflightCopy(state)}</small>
+              </div>
+              <button
+                disabled={state.graphHealthLoading}
+                onClick={state.refreshGraphHealth}
+                type="button"
+              >
+                {state.graphHealthLoading ? "Checking…" : "Refresh status"}
+              </button>
+            </div>
+
             <div className="goalWizardActions">
               <button
                 className="wizardBack"
@@ -427,6 +456,8 @@ export function GoalAnalyzer({
                 disabled={
                   state.busy ||
                   Boolean(fleet.funding) ||
+                  state.graphHealthLoading ||
+                  !graphReady ||
                   state.goalText.trim().length < 10
                 }
                 onClick={state.analyze}
@@ -434,6 +465,10 @@ export function GoalAnalyzer({
               >
                 {state.busy
                   ? "Starting your agent fleet…"
+                  : state.graphHealthLoading
+                    ? "Checking The Graph evidence…"
+                    : !graphReady
+                      ? "Evidence unavailable · refresh"
                   : fleet.funding
                     ? "Activate fleet to continue"
                     : state.connected
@@ -461,6 +496,9 @@ export function GoalAnalyzer({
 
             {state.error && !fleet.busy && !fleet.fundingBusy && (
               <p className="goalError">{state.error}</p>
+            )}
+            {fleet.error && !fleet.busy && !fleet.fundingBusy && !fleet.funding && (
+              <p className="goalError">{fleet.error}</p>
             )}
           </div>}
         </div>}
@@ -516,6 +554,26 @@ export function GoalAnalyzer({
 
     </section>
   );
+}
+
+function graphPreflightCopy(state: GoalAnalysisState): string {
+  const health = state.graphHealth;
+  if (state.graphHealthLoading) {
+    return "The fleet will not wake until live Substreams evidence is current.";
+  }
+  if (health?.status === "ready") {
+    const checkpoint = health.processedBlock
+      ? ` at block ${Number(health.processedBlock).toLocaleString("en-US")}`
+      : "";
+    return `Live Substreams evidence is ready${checkpoint}.`;
+  }
+  if (health?.reason === "quota-exhausted") {
+    return "Provider capacity is exhausted. No compute or decision fee will be requested.";
+  }
+  if (health?.reason === "lagging") {
+    return `Evidence is ${Math.max(0, health.lagBlocks ?? 0).toLocaleString("en-US")} blocks behind. No compute or decision fee will be requested.`;
+  }
+  return `${state.graphHealthError ?? "Live evidence is unavailable."} No compute or decision fee will be requested.`;
 }
 
 function FleetWakeProgress({ fleet }: { fleet: FleetActivationState }) {

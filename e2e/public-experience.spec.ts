@@ -67,7 +67,9 @@ test("explains the agent decision workflow", async ({ page }) => {
     /Stock Token markets are available.*ENS policy/i,
   );
   await expect(
-    page.getByRole("button", { name: "Connect wallet to begin" }),
+    page.getByRole("button", {
+      name: /Connect wallet to begin|Evidence unavailable · refresh/,
+    }),
   ).toBeVisible();
   await expect(page.getByText(/Onboarding cannot move funds/)).toBeVisible();
   await expect(page.getByText("ENS Rules", { exact: true })).toBeVisible();
@@ -208,6 +210,62 @@ test("publishes safe 1Claw readiness", async ({ request }) => {
   expect(JSON.stringify(body.integrationHealth?.oneclaw)).not.toMatch(
     /1ck_|plt_|ocv_|email/i,
   );
+});
+
+test("blocks paid consultation before compute when Graph evidence is stale", async ({
+  page,
+}) => {
+  await page.route("**/api/config", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      json: {
+        decisionFee: {
+          mode: "live",
+          scheme: "exact",
+          maximumAmount: "250000",
+          completeAmount: "200000",
+          noCandidateAmount: "50000",
+          decimals: 6,
+          symbol: "USDG",
+        },
+        integrationHealth: {
+          oneclaw: {
+            configured: true,
+            status: "ready",
+            checkedAt: "2026-09-06T13:29:20.125Z",
+            platformApi: true,
+          },
+          theGraph: {
+            configured: true,
+            status: "degraded",
+            checkedAt: "2026-09-06T13:29:20.059Z",
+            running: false,
+            lagBlocks: 1_246_836,
+            reason: "quota-exhausted",
+            recovery: {
+              state: "action-required",
+              action: "renew-quota",
+              automatic: false,
+              message: "Provider quota is exhausted.",
+            },
+          },
+        },
+      },
+    });
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Start guided consultation" }).click();
+  await page.getByRole("button", { name: "Continue · Set budget" }).click();
+
+  const preflight = page
+    .getByRole("dialog", { name: "Set up your agent consultation" })
+    .locator(".goalEvidenceReadiness");
+  await expect(preflight).toContainText("Agent decisions are paused");
+  await expect(preflight).toContainText("No compute or decision fee");
+  await expect(
+    page.getByRole("button", { name: "Evidence unavailable · refresh" }),
+  ).toBeDisabled();
 });
 
 async function expectNoPageOverflow(

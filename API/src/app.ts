@@ -464,7 +464,8 @@ export function createApp(
     response.json({
       ok: true,
       service: config.PUBLIC_SERVICE_SLUG,
-      mode: config.DEMO_MODE ? "preview" : "live",
+      mode: config.REQUIRE_LIVE_DATA ? "live" : "preview",
+      demoMode: config.DEMO_MODE,
     });
   });
 

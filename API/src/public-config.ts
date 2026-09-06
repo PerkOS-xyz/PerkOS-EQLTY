@@ -30,11 +30,13 @@ export type PublicApiConfig = {
     execution: "ready" | "pending";
     oneclaw: "ready" | "degraded" | "pending";
     perkos: "disabled" | "live" | "preview";
+    marketEvidence: "ready" | "degraded" | "pending";
     theGraph: "ready" | "degraded" | "pending";
     uniswap: "ready" | "pending";
   };
   integrationHealth: {
     oneclaw: OneClawIntegrationStatus;
+    marketEvidence: GraphIntegrationStatus;
     theGraph: GraphIntegrationStatus;
   };
   decisionFee: {
@@ -55,7 +57,7 @@ export type PublicApiConfig = {
 
 export function publicConfig(
   config: ApiConfig,
-  graphStatus?: GraphIntegrationStatus,
+  evidenceStatus?: GraphIntegrationStatus,
   oneclawStatus?: OneClawIntegrationStatus,
   executionReady = false,
 ): PublicApiConfig {
@@ -63,34 +65,15 @@ export function publicConfig(
     config.ROBINHOOD_CHAIN_ID === 46630
       ? "Robinhood Testnet"
       : "Robinhood";
-  const theGraph =
-    graphStatus ??
-    ({
-      configured: Boolean(
-        config.EQLTY_GRAPH_ADAPTER_URL ?? config.GRAPH_RISK_URL,
-      ),
-      status:
-        config.EQLTY_GRAPH_ADAPTER_URL || config.GRAPH_RISK_URL
-          ? "degraded"
-          : "pending",
-      checkedAt: new Date().toISOString(),
-      reason:
-        config.EQLTY_GRAPH_ADAPTER_URL || config.GRAPH_RISK_URL
-          ? "unreachable"
-          : "not-configured",
-      recovery: {
-        state: "action-required",
-        action:
-          config.EQLTY_GRAPH_ADAPTER_URL || config.GRAPH_RISK_URL
-            ? "check-provider"
-            : "configure-provider",
-        automatic: false,
-        message:
-          config.EQLTY_GRAPH_ADAPTER_URL || config.GRAPH_RISK_URL
-            ? "The provider cannot supply verified evidence. Check connectivity and credentials."
-            : "Configure a live Substreams provider before enabling decisions.",
-      },
-    } satisfies GraphIntegrationStatus);
+  const marketEvidence =
+    evidenceStatus ?? defaultEvidenceStatus(config);
+  const graphSelected =
+    marketEvidence.evidenceProvider === "the-graph-substreams" ||
+    (!marketEvidence.evidenceProvider &&
+      config.EQLTY_EVIDENCE_PROVIDER === "graph");
+  const theGraph = graphSelected
+    ? marketEvidence
+    : inactiveGraphStatus(config);
   const oneclaw =
     oneclawStatus ??
     ({
@@ -149,6 +132,7 @@ export function publicConfig(
       execution: executionReady ? "ready" : "pending",
       oneclaw: oneclaw.status,
       perkos: config.PERKOS_FLEET_MODE,
+      marketEvidence: marketEvidence.status,
       theGraph: theGraph.status,
       uniswap:
         config.UNISWAP_API_KEY && config.SWAPPER_ADDRESS
@@ -157,6 +141,7 @@ export function publicConfig(
     },
     integrationHealth: {
       oneclaw,
+      marketEvidence,
       theGraph,
     },
     decisionFee: {
@@ -175,6 +160,55 @@ export function publicConfig(
       protectedPurchases: config.EQLTY_ONECLAW_LIVE_AUTHORIZATION
         ? "enabled"
         : "blocked",
+    },
+  };
+}
+
+function defaultEvidenceStatus(config: ApiConfig): GraphIntegrationStatus {
+  const graph = config.EQLTY_EVIDENCE_PROVIDER === "graph";
+  const configured = graph
+    ? Boolean(config.EQLTY_GRAPH_ADAPTER_URL ?? config.GRAPH_RISK_URL)
+    : Boolean(config.ROBINHOOD_MAINNET_RPC_URL);
+  return {
+    configured,
+    status: configured ? "degraded" : "pending",
+    checkedAt: new Date().toISOString(),
+    evidenceProvider: graph
+      ? "the-graph-substreams"
+      : "robinhood-rpc",
+    reason: configured ? "unreachable" : "not-configured",
+    recovery: {
+      state: "action-required",
+      action: configured ? "check-provider" : "configure-provider",
+      automatic: false,
+      message: graph
+        ? configured
+          ? "The Graph cannot supply verified evidence."
+          : "Configure a live Substreams provider before enabling decisions."
+        : configured
+          ? "The Robinhood Chain RPC cannot supply current evidence."
+          : "Configure the Robinhood Chain RPC before enabling decisions.",
+    },
+  };
+}
+
+function inactiveGraphStatus(config: ApiConfig): GraphIntegrationStatus {
+  const configured = Boolean(
+    config.EQLTY_GRAPH_ADAPTER_URL ?? config.GRAPH_RISK_URL,
+  );
+  return {
+    configured,
+    status: "pending",
+    checkedAt: new Date().toISOString(),
+    evidenceProvider: "the-graph-substreams",
+    providerName: "The Graph Substreams",
+    recovery: {
+      state: "recovering",
+      action: "none",
+      automatic: true,
+      message: configured
+        ? "The Graph is configured but the RPC evidence provider is currently selected."
+        : "The Graph can be enabled later without changing the decision flow.",
     },
   };
 }

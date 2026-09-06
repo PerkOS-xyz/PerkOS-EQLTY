@@ -122,6 +122,27 @@ const schema = z.object({
     .min(60)
     .max(172_800)
     .default(86_400),
+  EQLTY_EVIDENCE_PROVIDER: z
+    .enum(["rpc", "graph"])
+    .default("rpc"),
+  EQLTY_RPC_EVIDENCE_LOOKBACK_BLOCKS: z.coerce
+    .number()
+    .int()
+    .min(100)
+    .max(100_000)
+    .default(5_000),
+  EQLTY_RPC_EVIDENCE_BLOCK_RANGE: z.coerce
+    .number()
+    .int()
+    .min(100)
+    .max(10_000)
+    .default(1_000),
+  EQLTY_RPC_EVIDENCE_CACHE_SECONDS: z.coerce
+    .number()
+    .int()
+    .min(5)
+    .max(300)
+    .default(30),
   GRAPH_RISK_URL: optional(z.string().url()),
   EQLTY_GRAPH_ADAPTER_URL: optional(z.string().url()),
   EQLTY_GRAPH_ACCESS_TOKEN: optional(z.string().min(32)),

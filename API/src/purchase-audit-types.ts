@@ -37,17 +37,17 @@ export type PurchaseAuditBundle = {
   };
   graph: {
     request: {
-      method: "POST";
+      method: "POST" | "eth_getLogs";
       endpoint: string;
-      authorization: "Bearer [server credential]";
+      authorization: "Bearer [server credential]" | "Server managed";
       body: { ticker: string; chainId: "eip155:4663" };
     };
     response: {
-      source: "the-graph-substreams";
+      source: "the-graph-substreams" | "robinhood-rpc";
       evidenceScope: "pre-trade-market";
       provider?: string;
       package?: string;
-      module?: "map_pool_events";
+      module?: "map_pool_events" | "eth_getLogs";
       evidenceTransaction?: `0x${string}`;
       evidenceBlock: string;
       checkpointBlock?: string;

@@ -97,6 +97,7 @@ export type TradeRun = {
     payment: GoalExecutionAuthorization["payment"];
   };
   market?: {
+    evidenceSource?: "the-graph-substreams" | "robinhood-rpc";
     liquidityUsd: number;
     lastSwapPrice: number;
     oraclePrice: number;
@@ -105,7 +106,7 @@ export type TradeRun = {
     graphProvider?: string;
     graphLagBlocks?: number;
     graphPackage?: string;
-    graphModule?: "map_pool_events";
+    graphModule?: "map_pool_events" | "eth_getLogs";
     graphCheckpointBlock?: string;
     graphProcessedBlock?: string;
     graphHeadBlock?: string;

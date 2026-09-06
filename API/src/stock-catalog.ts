@@ -1,8 +1,8 @@
 import type { ApiConfig } from "./config.js";
 import {
-  GraphEvidenceService,
   type GraphEvidence,
 } from "./graph-evidence.js";
+import { MarketEvidenceService } from "./market-evidence.js";
 import type {
   EvmAddress,
   RobinhoodAsset,
@@ -30,7 +30,8 @@ type Dependencies = {
   wait?: (milliseconds: number) => Promise<void>;
   uniswap?: Pick<UniswapClient, "quote" | "ready">;
   uniswapMarket?: Pick<UniswapRwaMarketService, "coverage">;
-  graph?: Pick<GraphEvidenceService, "evidence" | "ready">;
+  evidence?: Pick<MarketEvidenceService, "evidence" | "ready">;
+  graph?: Pick<MarketEvidenceService, "evidence" | "ready">;
 };
 
 export class StockCatalogService {
@@ -44,7 +45,10 @@ export class StockCatalogService {
     UniswapRwaMarketService,
     "coverage"
   >;
-  private readonly graph: Pick<GraphEvidenceService, "evidence" | "ready">;
+  private readonly evidence: Pick<
+    MarketEvidenceService,
+    "evidence" | "ready"
+  >;
 
   constructor(
     private readonly config: ApiConfig,
@@ -58,12 +62,10 @@ export class StockCatalogService {
     this.uniswapMarket =
       dependencies.uniswapMarket ??
       new UniswapRwaMarketService(config, { fetch: this.fetchFn });
-    this.graph =
+    this.evidence =
+      dependencies.evidence ??
       dependencies.graph ??
-      new GraphEvidenceService(config, {
-        fetchFn: this.fetchFn,
-        now: this.now,
-      });
+      new MarketEvidenceService(config);
   }
 
   async catalog(force = false): Promise<StockCatalog> {
@@ -110,10 +112,10 @@ export class StockCatalogService {
         entry.tokenAddress,
         catalog.quoteAmount,
       ),
-      this.graph.ready()
-        ? this.graph.evidence(normalized)
+      this.evidence.ready()
+        ? this.evidence.evidence(normalized)
         : Promise.reject(
-            new Error("The Graph evidence provider is not configured"),
+            new Error("Onchain evidence provider is not configured"),
           ),
     ]);
     if (quoteResult.status === "rejected") {
@@ -171,7 +173,7 @@ export class StockCatalogService {
           const reason =
             `swap price differs from the executable quote by ` +
             `${graphPriceDeviationBps.toFixed(1)} bps`;
-          reasons.push(`The Graph: ${reason}`);
+          reasons.push(`${evidenceLabel(graphResult.value)}: ${reason}`);
           graphEvidence = {
             ...graphEvidence,
             healthy: false,
@@ -181,7 +183,8 @@ export class StockCatalogService {
         if (!graphResult.value.health.healthy) {
           reasons.push(
             ...graphResult.value.health.reasons.map(
-              (reason) => `The Graph: ${reason}`,
+              (reason) =>
+                `${evidenceLabel(graphResult.value)}: ${reason}`,
             ),
           );
         }
@@ -468,7 +471,13 @@ function isAddress(value: string): value is EvmAddress {
 }
 
 function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "The Graph evidence failed";
+  return error instanceof Error ? error.message : "Onchain evidence failed";
+}
+
+function evidenceLabel(evidence: GraphEvidence): string {
+  return evidence.source === "the-graph-substreams"
+    ? "The Graph"
+    : "Onchain RPC";
 }
 
 function priceDeviationBps(price: number, reference: number): number {

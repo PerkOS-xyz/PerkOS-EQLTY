@@ -177,7 +177,10 @@ describe("API foundation", () => {
         },
       },
       undefined,
-      { GRAPH_RISK_URL: "https://graph.example/api/graph-risk" },
+      {
+        EQLTY_EVIDENCE_PROVIDER: "graph",
+        GRAPH_RISK_URL: "https://graph.example/api/graph-risk",
+      },
     );
 
     expect(response.status).toBe(200);

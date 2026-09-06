@@ -44,6 +44,7 @@ export type DecisionReceipt = {
   };
   evidence?: {
     graph?: {
+      source?: "the-graph-substreams" | "robinhood-rpc";
       blockNumber: string;
       transactionHash: `0x${string}`;
       poolIdentifier: string;
@@ -69,7 +70,7 @@ export type DecisionReceipt = {
       summary?: string;
       responseHash?: `0x${string}`;
       facts: Array<{
-        source: "ens" | "the-graph" | "uniswap";
+        source: "ens" | "the-graph" | "onchain" | "uniswap";
         label: string;
         value: string;
       }>;
@@ -95,6 +96,7 @@ export type OpportunityCandidate = {
   uniswapRequestId?: string;
   uniswapRouting?: string;
   graphEvidence?: {
+    source?: "the-graph-substreams" | "robinhood-rpc";
     blockNumber: string;
     transactionHash: `0x${string}`;
     poolIdentifier: string;

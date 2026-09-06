@@ -54,7 +54,22 @@ export type GraphProviderEvidence = z.infer<
   typeof graphEvidenceProviderSchema
 >;
 
-export type GraphEvidence = Omit<GraphProviderEvidence, "health"> & {
+export type OnchainEvidenceSource =
+  | "the-graph-substreams"
+  | "robinhood-rpc";
+
+export type GraphEvidence = Omit<
+  GraphProviderEvidence,
+  "source" | "stream" | "health"
+> & {
+  source: OnchainEvidenceSource;
+  stream: Omit<
+    GraphProviderEvidence["stream"],
+    "package" | "module"
+  > & {
+    package?: string;
+    module: "map_pool_events" | "eth_getLogs";
+  };
   evaluatedAt: string;
   health: GraphProviderEvidence["health"];
 };
@@ -106,6 +121,17 @@ const graphSeriesSchema = z
 
 export type GraphPriceSeries = z.infer<typeof graphSeriesSchema>;
 
+export type OnchainPriceSeries = Omit<
+  GraphPriceSeries,
+  "source" | "stream"
+> & {
+  source: OnchainEvidenceSource;
+  stream: Omit<GraphPriceSeries["stream"], "package" | "module"> & {
+    package?: string;
+    module: "map_pool_events" | "eth_getLogs";
+  };
+};
+
 const graphAdapterHealthSchema = z
   .object({
     running: z.boolean(),
@@ -127,6 +153,8 @@ export type GraphIntegrationStatus = {
   configured: boolean;
   status: "ready" | "degraded" | "pending";
   checkedAt: string;
+  evidenceProvider?: OnchainEvidenceSource;
+  providerName?: string;
   running?: boolean;
   processedBlock?: string;
   providerHeadBlock?: string;

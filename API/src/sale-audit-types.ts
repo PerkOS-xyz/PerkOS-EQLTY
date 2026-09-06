@@ -22,17 +22,17 @@ export type SaleAuditRecord = {
   };
   graph: {
     request: {
-      method: "POST";
+      method: "POST" | "eth_getLogs";
       endpoint: string;
-      authorization: "Bearer [server credential]";
+      authorization: "Bearer [server credential]" | "Server managed";
       body: { ticker: string; chainId: "eip155:4663" };
     };
     response: {
       status: "observed" | "indexed-nearby" | "unavailable";
-      source: "the-graph-substreams";
+      source: "the-graph-substreams" | "robinhood-rpc";
       provider?: string;
       package?: string;
-      module?: "map_pool_events";
+      module?: "map_pool_events" | "eth_getLogs";
       evidenceTransaction?: `0x${string}`;
       saleTransaction: `0x${string}`;
       saleObserved: boolean;

@@ -11,7 +11,7 @@ Dynamic wallet
   -> PerkOS Hermes fleet activation
   -> ENS policy resolved for the owner
   -> Robinhood Stock Token universe
-  -> Uniswap V4 quote + The Graph evidence
+  -> Uniswap V4 quote + onchain evidence
   -> Scout -> Risk -> Trader -> Auditor proof
   -> EQLTY Vault execution when every live gate is configured
 ```
@@ -27,9 +27,11 @@ App/
   app/proof-run-panel.tsx           Four-agent proof and verification logs
   app/history/[transactionHash]/    Stored purchase evidence for judges
 API/
-  src/stock-catalog.ts              Robinhood, Uniswap and Graph composition
+  src/stock-catalog.ts              Robinhood, Uniswap and evidence composition
   src/uniswap-client.ts             Uniswap Trading API quotes
-  src/graph-evidence.ts             Substreams provenance and freshness
+  src/market-evidence.ts            Evidence provider selection
+  src/rpc-evidence.ts               Direct Robinhood V4 event evidence
+  src/graph-evidence.ts             Optional Substreams evidence
   src/ens-control-plane.ts          ENS policy resolution
   src/ens-policy-preparation.ts     Hash-bound settings changes
   src/perkos-fleet.ts               Hermes provisioning and wake-up
@@ -64,24 +66,27 @@ The API keeps the Uniswap request ID and quoted output in the proof run. A dry
 run is never described as an executed swap. The 1D chart uses Uniswap RWA
 sparkline points; Substreams swaps remain separate execution evidence.
 
-### The Graph
+### Onchain evidence
 
 | Evidence | Location |
 |---|---|
-| Strict Substreams evidence and provider schema | `API/src/graph-evidence.ts:7-46` |
-| Freshness, lag and ticker validation | `API/src/graph-evidence.ts:80-153` |
+| Explicit RPC or Graph provider selection | `API/src/market-evidence.ts` |
+| Bounded Robinhood Chain log reads | `API/src/rpc-evidence.ts` |
+| Strict optional Substreams provider schema | `API/src/graph-evidence.ts:7-46` |
+| Freshness, provenance and ticker validation | `API/src/rpc-evidence.ts`, `API/src/graph-evidence.ts` |
 | Live Hermes Scout and Risk A2A consultation | `API/src/hermes-consultation.ts` |
 | Agent response and evidence verification | `API/src/hermes-consultation-verifier.ts` |
-| Graph risk handoff and transaction evidence | `API/src/proof-run.ts:204-226` |
-| Stored request, stream, package and checkpoint | `API/src/purchase-audit.ts` |
-| Judge-facing Substreams call and response | `App/app/history/[transactionHash]/page.tsx` |
+| Evidence handoff and transaction proof | `API/src/proof-run.ts:204-226` |
+| Stored source, request, event and block | `API/src/purchase-audit.ts` |
+| User-facing formatted evidence | `App/app/history/[transactionHash]/page.tsx` |
 | Agent decision log with event and block links | `App/app/decision-room.tsx` |
 | Robinhood Uniswap V4 event module | `Plugins/EQLTY-The-Graph-Plugin/substreams/src/lib.rs:1-56` |
 | Parameterized 94-pool agent tool | `Plugins/EQLTY-The-Graph-Plugin/skills/robinhood-stock-substreams/scripts/stock-substreams.mjs` |
 
-RPC-only or cached data is not labeled as The Graph evidence. The risk gate
-requires live provider provenance, a canonical transaction hash and acceptable
-freshness.
+The MVP defaults to direct Robinhood RPC. The Graph Substreams adapter can be
+selected explicitly when hosted capacity is available. The risk gate requires
+valid provider provenance, a canonical transaction hash and acceptable
+freshness in both modes; the UI and audit never relabel RPC as The Graph.
 
 ### ENS
 
@@ -124,10 +129,9 @@ wallets/{owner}/eqlty_audits/{transactionHash}
 ```
 
 The document contains the wallet setup transactions, ENS manifest hash,
-Substreams request and response, stream package and module, Uniswap quote
-request, router, PoolManager, poolId, proof commitments, confirmed receipt and
-decoded ERC-20 transfers. Authorization headers are represented as redacted
-metadata and credential values are never stored.
+evidence source, request and response, Uniswap quote request, router,
+PoolManager, poolId, proof commitments, confirmed receipt and decoded ERC-20
+transfers. Provider credentials are never stored.
 
 The chain remains the source of truth for execution. Firestore preserves the
 human-readable inputs needed to explain why the transaction was allowed.
@@ -140,7 +144,7 @@ The following path is implemented and testable now:
 2. fleet locate, provision or wake;
 3. ENS policy resolution;
 4. Robinhood Stock Token discovery;
-5. Uniswap quote and The Graph evidence;
+5. Uniswap quote and fresh onchain evidence;
 6. repeated two-minute recommendation;
 7. x402 settlement for the verified recommendation;
 8. wallet-owned strategy creation and funding;
@@ -152,9 +156,10 @@ proof root, ENS manifest hash and x402 receipt become part of the sealed Scout
 signal. A different strategy or amount cannot reuse that authorization. Live
 execution fails closed when the decision fee is only previewed.
 
-The proof panel exposes the indexed Swap event, source block, PoolManager,
-Substreams JSON and final purchase receipt when present. Explorer links are
-kept separate from quote request IDs and offchain proof hashes.
+The proof panel exposes the Swap event, source block, evidence provider,
+PoolManager, formatted response and final purchase receipt when present.
+Explorer links are kept separate from quote request IDs and offchain proof
+hashes.
 
 Purchases of 3 USDG or more remain fail-closed until the Trader rail is linked
 and authorized by the user's live 1Claw policy.

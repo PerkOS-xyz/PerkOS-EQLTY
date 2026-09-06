@@ -54,6 +54,8 @@ can be executed with a clear evidence trail.
 - [x] Record the resulting transaction and explorer link.
 - [x] Expose indexed event, block and evidence links.
 - [x] Index transaction evidence with The Graph Substreams.
+- [x] Add provider-neutral evidence with direct Robinhood RPC for the MVP.
+- [x] Preserve The Graph as an explicit, reversible hosted provider.
 - [x] Reconcile the proof bundle through the Auditor role.
 
 ### 7. Owner control
@@ -61,13 +63,14 @@ can be executed with a clear evidence trail.
 - [x] Require the authenticated owner wallet for settings changes.
 - [x] Keep wallet challenges and private signing material out of the public API.
 
-### 8. Graph operations
+### 8. Evidence operations
 
 - [x] Expose adapter checkpoint, lag and recovery state.
 - [x] Retry failed streams with controlled backoff.
 - [x] Explain fail-closed Graph status in the application.
 - [x] Restore production provider quota.
 - [x] Verify production catch-up within the configured lag limit.
+- [x] Add bounded RPC log reads, caching and provider-safe health output.
 
 ### 9. Demonstration readiness
 

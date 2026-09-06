@@ -7,8 +7,8 @@ brokerage order form.
 
 EQLTY gives each user a persistent fleet of four agents. The user states an
 objective once; the fleet repeatedly compares Robinhood Stock Tokens, follows
-behavior stored in ENS, checks Uniswap routes and The Graph evidence, and stops
-when any security boundary fails.
+behavior stored in ENS, checks Uniswap routes and fresh onchain evidence, and
+stops when any security boundary fails.
 
 ## Run of show
 
@@ -48,7 +48,7 @@ Point to:
 - the live Scout and Risk runtime names and sealed A2A response hashes;
 - ENS policy version and manifest hash;
 - shortlist containing several Stock Tokens;
-- The Graph event, block and JSON links;
+- the onchain event, block, provider and formatted evidence;
 - Uniswap request ID and V4 contract link;
 - the final proof root and the explicit `no funds moved` state;
 - current 1Claw execution state.
@@ -66,14 +66,14 @@ Click **Run four agent proof**. Walk through the visible order:
 1. strategy limits;
 2. live ENS policy;
 3. Scout recommendation;
-4. The Graph risk gate;
+4. onchain evidence risk gate;
 5. Uniswap V4 quote;
 6. Auditor proof bundle.
 
 Review the 1 USDG purchase, sign the three wallet-owned setup operations and
 let Hermes submit the guarded swap. Open **Full audit** after execution. Show
-the Uniswap router, PoolManager and poolId, then the exact Substreams request,
-package, module, checkpoint and response used by Risk.
+the Uniswap router, PoolManager and poolId, then the exact event request,
+provider, block and response used by Risk.
 
 ### 2:35 — Close
 
@@ -84,7 +84,7 @@ Say:
 > can each be verified.
 
 Open the stored audit bundle from History. The judges can follow every setup
-transaction, the final swap, token transfers, Graph evidence and proof hashes
+transaction, the final swap, token transfers, onchain evidence and proof hashes
 without relying on narration.
 
 ## Live-purchase rule
@@ -98,7 +98,7 @@ bundle says `stored`, and the wallet receives the stock token.
 - Paused ENS policy: the fleet rejects every candidate before market calls.
 - Missing 1Claw link: analysis continues, but execution from 3 USDG stays
   locked.
-- Stale Graph stream: the candidate is blocked instead of using unverifiable
+- Stale onchain evidence: the candidate is blocked instead of using unverifiable
   evidence.
 - Missing Uniswap route: the token remains visible with a clear status, but
   cannot advance.
@@ -114,10 +114,10 @@ weaken the user's limits.
 - PerkOS returns four healthy Hermes agents.
 - ENS resolves an active, unexpired manifest for the wallet.
 - Robinhood returns multiple Stock Tokens.
-- At least two candidates have fresh Uniswap and Graph evidence.
+- At least two candidates have fresh Uniswap and onchain evidence.
 - The proof ends as `executed`.
 - History opens the stored purchase audit.
 - PoolManager, poolId and token transfers match the receipt.
-- The Graph request shows `map_pool_events`, its package and checkpoint.
+- The evidence view names the real provider and shows its event, block and pool.
 - Browser zoom and mobile layout have been checked.
 - No secret or private key appears in the browser, terminal or repository.

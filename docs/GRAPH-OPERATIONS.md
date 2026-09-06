@@ -1,8 +1,12 @@
 # The Graph operations
 
-EQLTY treats Substreams evidence as a required decision input. If the adapter
-is unavailable, behind the configured block limit or unable to authenticate,
-the fleet stops before preparing a Uniswap execution.
+The Graph Substreams adapter is an optional hosted provider for EQLTY's
+onchain evidence boundary. It becomes a required decision input only when
+`EQLTY_EVIDENCE_PROVIDER=graph`. The default MVP provider and switching
+procedure are documented in [`EVIDENCE-OPERATIONS.md`](EVIDENCE-OPERATIONS.md).
+
+When selected, an unavailable, stale or unauthenticated adapter stops the fleet
+before it prepares a Uniswap execution. EQLTY never falls back silently.
 
 ## Read the current state
 
@@ -11,7 +15,7 @@ provider token or the raw provider error.
 
 ```bash
 curl -sS https://eqlty-api.perkos.xyz/api/config \
-  | jq '.integrationHealth.theGraph'
+  | jq '{selected:.integrationHealth.marketEvidence,graph:.integrationHealth.theGraph}'
 ```
 
 The adapter health endpoint is useful when the API reports it as unreachable.

@@ -309,6 +309,9 @@ function errorMessage(
 ): string {
   if (typeof body.message === "string") return body.message;
   if (typeof body.error === "string") return body.error;
+  if (isRecord(body.error) && typeof body.error.message === "string") {
+    return body.error.message;
+  }
   return fallback;
 }
 

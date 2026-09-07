@@ -13,6 +13,7 @@ type ApiAgent = {
   name: string;
   runtime: "Hermes" | "OpenClaw";
   status: "provisioning" | "ready" | "failed" | "unknown";
+  llmModel?: string | null;
   integrations?: {
     oneclaw?: {
       configured?: boolean;
@@ -167,6 +168,32 @@ export class PerkosFleetService {
         oneclaw,
       };
     }
+    if (current.llmModel !== this.config.EQLTY_PERKOS_AGENT_LLM_MODEL) {
+      const update = await this.request<{
+        applied?: boolean;
+        applyError?: string;
+      }>(
+        `/agents/${encodeURIComponent(current.id)}`,
+        idToken,
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            llmModel: this.config.EQLTY_PERKOS_AGENT_LLM_MODEL,
+          }),
+        },
+      );
+      if (update.applied !== true) {
+        throw new Error(
+          update.applyError ?? "PerkOS did not apply the EQLTY agent model",
+        );
+      }
+      return {
+        ...plan,
+        agentId: current.id,
+        state: "waking",
+        oneclaw,
+      };
+    }
 
     const hibernation = await this.request<HibernationStatus>(
       `/agents/${encodeURIComponent(current.id)}/hibernation`,
@@ -245,6 +272,7 @@ export class PerkosFleetService {
           skills: definition.skillIds,
           deployMode: "perkos-managed",
           imageTag,
+          llmModel: this.config.EQLTY_PERKOS_AGENT_LLM_MODEL,
           soul: roleSoul(definition.role, userId),
           disabledTools: ["code-execution"],
         }),

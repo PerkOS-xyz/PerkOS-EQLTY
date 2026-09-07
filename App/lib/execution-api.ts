@@ -97,6 +97,21 @@ export type WalletReadiness = {
   nativeBalance: string;
   usdGBalance: string;
   amountIn: string;
+  costEstimate: {
+    model: "observed-mainnet-v1";
+    gasPriceWei: string;
+    safetyBufferBps: 2_000;
+    ownerSetupGas: {
+      gasUnits: string;
+      estimatedCostWei: string;
+    };
+    sponsoredExecutionGas: {
+      gasUnits: string;
+      estimatedCostWei: string;
+    };
+    agentWorkingBalanceTargetWei: string;
+    estimatedAt: string;
+  };
   ready: boolean;
   checks: {
     gas: boolean;

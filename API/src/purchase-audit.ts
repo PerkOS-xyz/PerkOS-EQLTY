@@ -46,6 +46,15 @@ type Dependencies = {
   ) => Promise<TransactionReceipt>;
 };
 
+type CostReceipts = {
+  strategy?: TransactionReceipt;
+  approval?: TransactionReceipt;
+  funding?: TransactionReceipt;
+  sponsorship?: TransactionReceipt;
+  execution: TransactionReceipt;
+  decision?: TransactionReceipt;
+};
+
 export class PurchaseAuditService {
   private readonly store: Pick<FirestoreAuditStore, "read" | "save">;
   private readonly receipt: (
@@ -79,12 +88,18 @@ export class PurchaseAuditService {
       throw new Error("Executed run evidence is incomplete");
     }
     const receipt = await this.receipt(input.run.transactionHash);
+    const costReceipts = await this.readCostReceipts(
+      input.run,
+      input.strategy,
+      receipt,
+    );
     const record = buildAuditRecord(
       this.config,
       input.owner,
       input.run,
       input.strategy,
       receipt,
+      costReceipts,
     );
     const bundle: PurchaseAuditBundle = {
       ...record,
@@ -122,6 +137,41 @@ export class PurchaseAuditService {
       return client.getTransactionReceipt({ hash });
     };
   }
+
+  private async readCostReceipts(
+    run: TradeRun,
+    strategy: ExecutionStrategy,
+    execution: TransactionReceipt,
+  ): Promise<CostReceipts> {
+    const onchain = strategy.onchain!;
+    const decision =
+      run.signal?.payment.mode === "live"
+        ? run.signal.payment.transaction
+        : undefined;
+    const [strategyReceipt, approval, funding, sponsorship, decisionReceipt] =
+      await Promise.all([
+        this.optionalReceipt(onchain.creationTransactionHash),
+        this.optionalReceipt(onchain.approvalTransactionHash),
+        this.optionalReceipt(onchain.fundingTransactionHash),
+        this.optionalReceipt(run.gasSponsorshipTransactionHash),
+        this.optionalReceipt(decision),
+      ]);
+    return {
+      strategy: strategyReceipt,
+      approval,
+      funding,
+      sponsorship,
+      execution,
+      decision: decisionReceipt,
+    };
+  }
+
+  private async optionalReceipt(
+    hash?: `0x${string}`,
+  ): Promise<TransactionReceipt | undefined> {
+    if (!hash) return undefined;
+    return this.receipt(hash).catch(() => undefined);
+  }
 }
 
 export function buildAuditRecord(
@@ -130,6 +180,7 @@ export function buildAuditRecord(
   run: TradeRun,
   strategy: ExecutionStrategy,
   receipt: TransactionReceipt,
+  costReceipts: CostReceipts = { execution: receipt },
 ): PurchaseAuditRecord {
   const market = run.market!;
   const quote = run.quote!;
@@ -241,6 +292,7 @@ export function buildAuditRecord(
       tradeLogIndex: trade.logIndex,
       swapLogIndex: Number(swap.logIndex),
     },
+    costs: buildCostSummary(config, run, strategy, costReceipts),
     transfers: receipt.logs.flatMap((log) =>
       tokenTransfer(log, strategy, run.ticker),
     ),
@@ -249,6 +301,71 @@ export function buildAuditRecord(
       handoffs: run.handoffs,
       oneclaw: run.oneclaw,
     },
+  };
+}
+
+function buildCostSummary(
+  config: ApiConfig,
+  run: TradeRun,
+  strategy: ExecutionStrategy,
+  receipts: CostReceipts,
+): NonNullable<PurchaseAuditRecord["costs"]> {
+  const onchain = strategy.onchain!;
+  const decisionHash =
+    run.signal?.payment.mode === "live"
+      ? run.signal.payment.transaction
+      : undefined;
+  const definitions = [
+    ["strategy", "Strategy creation", "owner", onchain.creationTransactionHash, receipts.strategy],
+    ["approval", "USDG approval", "owner", onchain.approvalTransactionHash, receipts.approval],
+    ["funding", "Strategy funding", "owner", onchain.fundingTransactionHash, receipts.funding],
+    ["sponsorship", "Agent gas top-up", "eqlty", run.gasSponsorshipTransactionHash, receipts.sponsorship],
+    ["execution", "Uniswap execution", "eqlty", run.transactionHash, receipts.execution],
+    ["decision", "x402 settlement", "stack", decisionHash, receipts.decision],
+  ] as const;
+  const expected = definitions.filter(([, , , hash]) => Boolean(hash));
+  const items = expected.flatMap(([id, label, payer, hash, receipt]) =>
+    hash && receipt
+      ? [costItem(id, label, payer, hash, receipt)]
+      : [],
+  );
+  const sum = (payers?: ReadonlySet<string>) =>
+    items
+      .filter((item) => !payers || payers.has(item.payer))
+      .reduce((total, item) => total + BigInt(item.gasCostWei), 0n)
+      .toString();
+  return {
+    status: items.length === expected.length ? "verified" : "partial",
+    investment: { amount: run.amountIn, symbol: "USDG" },
+    decisionFee: {
+      amount: config.EQLTY_DECISION_FEE_COMPLETE_AMOUNT,
+      symbol: "USDG",
+      transactionHash: decisionHash,
+    },
+    ownerGasWei: sum(new Set(["owner"])),
+    sponsoredGasWei: sum(new Set(["eqlty"])),
+    decisionSettlementGasWei: sum(new Set(["stack"])),
+    totalNetworkGasWei: sum(),
+    workingBalanceTargetWei: config.EQLTY_SERVER_WALLET_TARGET_GAS_WEI,
+    items,
+  };
+}
+
+function costItem(
+  id: NonNullable<PurchaseAuditRecord["costs"]>["items"][number]["id"],
+  label: string,
+  payer: NonNullable<PurchaseAuditRecord["costs"]>["items"][number]["payer"],
+  transactionHash: `0x${string}`,
+  receipt: TransactionReceipt,
+): NonNullable<PurchaseAuditRecord["costs"]>["items"][number] {
+  return {
+    id,
+    label,
+    payer,
+    transactionHash,
+    gasUsed: receipt.gasUsed.toString(),
+    gasPriceWei: receipt.effectiveGasPrice.toString(),
+    gasCostWei: (receipt.gasUsed * receipt.effectiveGasPrice).toString(),
   };
 }
 

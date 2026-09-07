@@ -79,6 +79,15 @@ describe("PurchaseAuditService", () => {
       body: { ticker: "AMZN", chainId: "eip155:4663" },
     });
     expect(bundle.proofs).toMatchObject({ signalHash, quoteHash });
+    expect(bundle.costs).toMatchObject({
+      status: "verified",
+      investment: { amount: "1000000", symbol: "USDG" },
+      decisionFee: { amount: "200000", symbol: "USDG" },
+      ownerGasWei: "1200000000000",
+      sponsoredGasWei: "400000000000",
+      totalNetworkGasWei: "1600000000000",
+    });
+    expect(bundle.costs?.items).toHaveLength(4);
     expect(bundle.transfers).toHaveLength(1);
     expect(loaded).toMatchObject({
       bundleHash: bundle.bundleHash,

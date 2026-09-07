@@ -21,7 +21,13 @@ type Dependencies = {
   nativeBalance?: (owner: Address) => Promise<bigint>;
   usdGBalance?: (owner: Address) => Promise<bigint>;
   vaultReady?: (vault: Address) => Promise<boolean>;
+  gasPrice?: () => Promise<bigint>;
+  now?: () => Date;
 };
+
+const observedOwnerSetupGas = 338_080n;
+const observedSponsoredExecutionGas = 323_495n;
+const estimateBufferBps = 2_000n;
 
 export type WalletReadiness = {
   chainId: 4663;
@@ -31,6 +37,21 @@ export type WalletReadiness = {
   nativeBalance: string;
   usdGBalance: string;
   amountIn: string;
+  costEstimate: {
+    model: "observed-mainnet-v1";
+    gasPriceWei: string;
+    safetyBufferBps: 2_000;
+    ownerSetupGas: {
+      gasUnits: string;
+      estimatedCostWei: string;
+    };
+    sponsoredExecutionGas: {
+      gasUnits: string;
+      estimatedCostWei: string;
+    };
+    agentWorkingBalanceTargetWei: string;
+    estimatedAt: string;
+  };
   ready: boolean;
   checks: {
     gas: boolean;
@@ -43,6 +64,8 @@ export class WalletReadinessService {
   private readonly nativeBalance: (owner: Address) => Promise<bigint>;
   private readonly usdGBalance: (owner: Address) => Promise<bigint>;
   private readonly vaultReady: (vault: Address) => Promise<boolean>;
+  private readonly gasPrice: () => Promise<bigint>;
+  private readonly now: () => Date;
 
   constructor(
     private readonly config: ApiConfig,
@@ -84,6 +107,13 @@ export class WalletReadinessService {
         const code = await client.getCode({ address: vault });
         return Boolean(code && code !== "0x");
       });
+    this.gasPrice =
+      dependencies.gasPrice ??
+      (async () => {
+        if (!client) throw new Error("Robinhood RPC is not configured");
+        return client.getGasPrice();
+      });
+    this.now = dependencies.now ?? (() => new Date());
   }
 
   async read(
@@ -97,13 +127,17 @@ export class WalletReadinessService {
       throw new Error("Robinhood wallet execution is not configured");
     }
     const vault = this.config.EQLTY_VAULT_ADDRESS as EvmAddress;
-    const [nativeBalance, usdGBalance, vaultReady] = await Promise.all([
+    const [nativeBalance, usdGBalance, vaultReady, gasPrice] = await Promise.all([
       this.nativeBalance(owner),
       this.usdGBalance(owner),
       this.vaultReady(vault),
+      this.gasPrice(),
     ]);
+    const bufferedGasCost = (gasUnits: bigint) =>
+      (gasUnits * gasPrice * (10_000n + estimateBufferBps)) / 10_000n;
+    const ownerSetupGasCost = bufferedGasCost(observedOwnerSetupGas);
     const checks = {
-      gas: nativeBalance > 0n,
+      gas: nativeBalance >= ownerSetupGasCost,
       funds: usdGBalance >= BigInt(amountIn),
       vault: vaultReady,
     };
@@ -115,6 +149,24 @@ export class WalletReadinessService {
       nativeBalance: nativeBalance.toString(),
       usdGBalance: usdGBalance.toString(),
       amountIn,
+      costEstimate: {
+        model: "observed-mainnet-v1",
+        gasPriceWei: gasPrice.toString(),
+        safetyBufferBps: 2_000,
+        ownerSetupGas: {
+          gasUnits: observedOwnerSetupGas.toString(),
+          estimatedCostWei: ownerSetupGasCost.toString(),
+        },
+        sponsoredExecutionGas: {
+          gasUnits: observedSponsoredExecutionGas.toString(),
+          estimatedCostWei: bufferedGasCost(
+            observedSponsoredExecutionGas,
+          ).toString(),
+        },
+        agentWorkingBalanceTargetWei:
+          this.config.EQLTY_SERVER_WALLET_TARGET_GAS_WEI,
+        estimatedAt: this.now().toISOString(),
+      },
       ready: checks.gas && checks.funds && checks.vault,
       checks,
     };

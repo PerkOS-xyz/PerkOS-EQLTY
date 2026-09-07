@@ -190,6 +190,131 @@ test("presents the product story with live proof", async ({ page }) => {
   await expectNoPageOverflow(page);
 });
 
+test("shows verified workflow costs in a purchase receipt", async ({ page }) => {
+  const hash = `0x${"ab".repeat(32)}`;
+  const address = `0x${"12".repeat(20)}`;
+  const poolId = `0x${"34".repeat(32)}`;
+  await page.route("**/api/audits/*", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      json: {
+        schema: "urn:eqlty:purchase-audit:v1",
+        bundleHash: `0x${"56".repeat(32)}`,
+        recordedAt: "2026-09-07T20:00:00.000Z",
+        owner: address,
+        ticker: "NVDA",
+        transactionHash: hash,
+        strategy: {
+          appId: "strategy-22",
+          onchainId: "22",
+          agent: address,
+          vault: address,
+          inputToken: address,
+          outputToken: address,
+          router: address,
+          amountIn: "1000000",
+          maxSlippageBps: 100,
+          expiresAt: "2026-09-08T20:00:00.000Z",
+          setupTransactions: {
+            creation: hash,
+            approval: hash,
+            funding: hash,
+          },
+        },
+        ens: { status: "verified", manifestHash: poolId },
+        graph: {
+          request: {
+            method: "eth_getLogs",
+            endpoint: "rpc.example",
+            authorization: "Server managed",
+            body: { ticker: "NVDA", chainId: "eip155:4663" },
+          },
+          response: {
+            source: "robinhood-rpc",
+            evidenceScope: "pre-trade-market",
+            evidenceBlock: "57171900",
+            checkpointBlock: "57171900",
+            headBlock: "57171901",
+            lagBlocks: 1,
+            poolManager: address,
+            poolId,
+            eventTopic: poolId,
+            capturedAt: "2026-09-07T19:59:55.000Z",
+          },
+        },
+        uniswap: {
+          routing: "CLASSIC",
+          requestId: "quote-22",
+          quotedAmountOut: "4303000000000000",
+          router: address,
+          poolManager: address,
+          poolId,
+          poolMatchedGraphEvidence: true,
+          graphPoolRelationship: "same-pool",
+        },
+        proofs: {
+          signalHash: poolId,
+          quoteHash: poolId,
+          handoffs: [],
+        },
+        receipt: {
+          chainId: 4663,
+          status: "success",
+          blockNumber: "57171919",
+          blockHash: poolId,
+          from: address,
+          to: address,
+          gasUsed: "302495",
+          effectiveGasPrice: "301744000",
+          tradeLogIndex: 10,
+          swapLogIndex: 11,
+        },
+        costs: {
+          status: "verified",
+          investment: { amount: "1000000", symbol: "USDG" },
+          decisionFee: { amount: "200000", symbol: "USDG", transactionHash: hash },
+          ownerGasWei: "100771723092000",
+          sponsoredGasWei: "97543585280000",
+          decisionSettlementGasWei: "25463242980000",
+          totalNetworkGasWei: "223778551352000",
+          workingBalanceTargetWei: "2000000000000000",
+          items: [
+            {
+              id: "strategy",
+              label: "Strategy creation",
+              payer: "owner",
+              transactionHash: hash,
+              gasUsed: "212855",
+              gasPriceWei: "295642000",
+              gasCostWei: "62928877910000",
+            },
+            {
+              id: "execution",
+              label: "Uniswap execution",
+              payer: "eqlty",
+              transactionHash: hash,
+              gasUsed: "302495",
+              gasPriceWei: "301744000",
+              gasCostWei: "91276051280000",
+            },
+          ],
+        },
+        transfers: [],
+        workflow: { steps: [], handoffs: [], oneclaw: { required: false, linked: false, minimumAmount: "3000000", executionAuthorized: true } },
+      },
+    });
+  });
+
+  await page.goto(`/history/${hash}`);
+  await expect(page.getByRole("heading", { name: "NVDA purchase proof" })).toBeVisible();
+  await expect(page.getByText("Actual workflow cost", { exact: true })).toBeVisible();
+  await expect(page.locator(".actualCosts")).toContainText("0.2 USDG");
+  await expect(page.locator(".actualCosts")).toContainText("Owner network gas");
+  await expect(page.locator(".actualCosts")).toContainText("EQLTY-sponsored gas");
+  await expect(page.locator(".actualCostReceipts a")).toHaveCount(2);
+  await expectNoPageOverflow(page);
+});
+
 test("publishes safe 1Claw readiness", async ({ request }) => {
   const apiUrl = process.env.EQLTY_E2E_API_URL ?? "http://localhost:4021";
   const response = await request.get(`${apiUrl}/api/config`);

@@ -541,6 +541,7 @@ export function GoalAnalyzer({
       {state.session && !fleet.funding && (
         <GoalProgress
           analysis={analysis}
+          error={state.error}
           onPay={state.payDecisionFee}
           paymentBusy={state.paymentBusy}
           paymentPhase={state.paymentPhase}
@@ -761,6 +762,7 @@ function FleetActivationWizard({
 
 function GoalProgress({
   analysis,
+  error,
   onPay,
   paymentBusy,
   paymentPhase,
@@ -768,6 +770,7 @@ function GoalProgress({
   session,
 }: {
   analysis?: OpportunityAnalysis;
+  error?: string;
   onPay: () => void;
   paymentBusy: boolean;
   paymentPhase: GoalAnalysisState["paymentPhase"];
@@ -780,6 +783,7 @@ function GoalProgress({
       <div className="goalProgress">
       <DecisionWizard
         analysis={analysis}
+        error={error}
         onPay={onPay}
         paymentBusy={paymentBusy}
         paymentPhase={paymentPhase}
@@ -922,6 +926,7 @@ function GoalProgress({
 
 function DecisionWizard({
   analysis,
+  error,
   onPay,
   paymentBusy,
   paymentPhase,
@@ -929,6 +934,7 @@ function DecisionWizard({
   session,
 }: {
   analysis?: OpportunityAnalysis;
+  error?: string;
   onPay: () => void;
   paymentBusy: boolean;
   paymentPhase: GoalAnalysisState["paymentPhase"];
@@ -976,9 +982,11 @@ function DecisionWizard({
     copy = `Pay ${amount} USDG for the completed consultation. This is the decision fee, not the investment amount.`;
     action = onPay;
     actionLabel = paymentBusy
-      ? paymentPhase === "authorizing"
-        ? "Confirm in wallet…"
-        : "Submitting decision fee…"
+      ? paymentPhase === "authenticating"
+        ? "Verifying wallet session…"
+        : paymentPhase === "authorizing"
+          ? "Confirm in wallet…"
+          : "Submitting decision fee…"
       : `Continue · Pay ${amount} USDG fee`;
     busy = paymentBusy;
   } else if (noCandidate) {
@@ -1029,23 +1037,30 @@ function DecisionWizard({
           <i aria-hidden="true">!</i>
           <div>
             <strong>
-              {paymentPhase === "authorizing"
-                ? "Confirm the decision fee in your wallet"
-                : "Decision fee authorized"}
+              {paymentPhase === "authenticating"
+                ? "Verify wallet ownership"
+                : paymentPhase === "authorizing"
+                  ? "Confirm the decision fee in your wallet"
+                  : "Decision fee authorized"}
             </strong>
             <small>
-              {paymentPhase === "authorizing"
-                ? "Open the wallet prompt and sign the exact USDG authorization."
-                : "The authorization is signed. EQLTY is waiting for onchain settlement."}
+              {paymentPhase === "authenticating"
+                ? "If your secure session expired, sign the login message. This cannot move funds."
+                : paymentPhase === "authorizing"
+                  ? "Open the wallet prompt and sign the exact USDG authorization."
+                  : "The authorization is signed. EQLTY is waiting for onchain settlement."}
             </small>
           </div>
           <b>
-            {paymentPhase === "authorizing"
-              ? "Waiting for wallet"
-              : "Submitting payment"}
+            {paymentPhase === "authenticating"
+              ? "Checking session"
+              : paymentPhase === "authorizing"
+                ? "Waiting for wallet"
+                : "Submitting payment"}
           </b>
         </div>
       )}
+      {error && <p className="goalError" role="alert">{error}</p>}
       <div className="decisionWizardAction">
         <div>
           <span>Step {current} of 6</span>

@@ -53,7 +53,7 @@ export type GoalAnalysisState = {
   session?: AutonomousGoal;
   busy: boolean;
   paymentBusy: boolean;
-  paymentPhase: "idle" | "authorizing" | "settling";
+  paymentPhase: "idle" | "authenticating" | "authorizing" | "settling";
   error?: string;
   workflowError?: string;
   connected: boolean;
@@ -203,9 +203,14 @@ export function useGoalAnalysis(
       return;
     }
     setPaymentBusy(true);
-    setPaymentPhase("authorizing");
+    setPaymentPhase("authenticating");
     setError(undefined);
     try {
+      if (ensureFleetReady && !(await ensureFleetReady())) {
+        setError("Your secure wallet session could not be refreshed.");
+        return;
+      }
+      setPaymentPhase("authorizing");
       const payment = await authorizeDecisionFee({
         wallet,
         goalId: session.id,
@@ -225,7 +230,7 @@ export function useGoalAnalysis(
       setPaymentBusy(false);
       setPaymentPhase("idle");
     }
-  }, [session, wallet]);
+  }, [ensureFleetReady, session, wallet]);
 
   useEffect(() => {
     void readDecisionFeeConfig()

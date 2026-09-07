@@ -42,10 +42,16 @@ async function request<T>(
   const body: unknown = await response.json().catch(() => undefined);
 
   if (!response.ok) {
+    const code =
+      body && typeof body === "object" && "error" in body
+        ? String(body.error)
+        : undefined;
     const message =
       body && typeof body === "object" && "message" in body
         ? String(body.message)
-        : `Goal request failed with status ${response.status}`;
+        : code === "owner_session_required"
+          ? "Your secure wallet session expired. Verify ownership and try again."
+          : `Goal request failed with status ${response.status}`;
     throw new Error(message);
   }
   return body as T;

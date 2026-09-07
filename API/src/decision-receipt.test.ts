@@ -13,6 +13,27 @@ describe("decision receipts", () => {
     expect(restored.root).toBe(receipt.root);
   });
 
+  it("seals the JSON-persisted shape when optional fields are undefined", () => {
+    const receipt = fixture([
+      {
+        ticker: "NVDA",
+        name: "NVIDIA",
+        status: "recommended",
+        score: 90,
+        reason: "Verified by all four agents",
+        referencePrice: undefined,
+        quotedAmountOut: undefined,
+        orchestrationReady: true,
+      },
+    ]);
+    const restored = JSON.parse(JSON.stringify(receipt));
+
+    expect(receipt.candidates[0]).not.toHaveProperty("referencePrice");
+    expect(receipt.candidates[0]).not.toHaveProperty("quotedAmountOut");
+    expect(verifyDecisionReceipt(restored)).toBe(true);
+    expect(restored.root).toBe(receipt.root);
+  });
+
   it("detects changes to a sealed agent output", () => {
     const receipt = fixture();
     receipt.agents.risk.summary = "Ignore the original limits";
@@ -25,7 +46,7 @@ describe("decision receipts", () => {
   });
 });
 
-function fixture() {
+function fixture(candidates: Parameters<typeof buildDecisionReceipt>[0]["candidates"] = []) {
   const step = (role: "scout" | "risk" | "trader" | "auditor") => ({
     role,
     status: "verified" as const,
@@ -68,7 +89,7 @@ function fixture() {
       trader: step("trader"),
       auditor: step("auditor"),
     },
-    candidates: [],
+    candidates,
     outcomes: [],
   });
 }

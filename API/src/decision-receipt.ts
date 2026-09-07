@@ -48,7 +48,7 @@ export function buildDecisionReceipt(input: ReceiptInput): DecisionReceipt {
           : {}),
       }
     : undefined;
-  const body = {
+  const body = jsonSafe({
     schema: "urn:eqlty:decision-receipt:v1" as const,
     id: `decision:${input.analysisId}`,
     analysisId: input.analysisId,
@@ -80,7 +80,7 @@ export function buildDecisionReceipt(input: ReceiptInput): DecisionReceipt {
     },
     candidates: structuredClone(input.candidates),
     outcomes: structuredClone(input.outcomes),
-  };
+  });
   return { ...body, root: hashPayload(body) };
 }
 
@@ -107,4 +107,8 @@ function receiptStep(
     facts: structuredClone(step.facts),
     ...(step.detail ? { detail: step.detail } : {}),
   };
+}
+
+function jsonSafe<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
 }

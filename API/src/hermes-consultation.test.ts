@@ -178,9 +178,23 @@ describe("HermesConsultationService", () => {
     const traderRequest = JSON.parse(
       String(fetchFn.mock.calls[2]?.[1]?.body),
     ) as { prompt: string; timeoutMs: number };
+    const riskRequest = JSON.parse(
+      String(fetchFn.mock.calls[1]?.[1]?.body),
+    ) as { prompt: string; timeoutMs: number };
     const auditorRequest = JSON.parse(
       String(fetchFn.mock.calls[3]?.[1]?.body),
     ) as { prompt: string; timeoutMs: number };
+    for (const request of [
+      scoutRequest,
+      riskRequest,
+      traderRequest,
+      auditorRequest,
+    ]) {
+      expect(request.prompt).toContain("Do not call tools, load skills");
+      expect(request.prompt).toContain(
+        "Return the required raw JSON object immediately.",
+      );
+    }
     expect(scoutRequest.prompt).toContain('"recommendedTicker":"TICKER"');
     expect(scoutRequest.timeoutMs).toBe(60_000);
     expect(scoutRequest.prompt).toContain('"graphBlockNumber":"12345"');

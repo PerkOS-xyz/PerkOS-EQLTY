@@ -298,6 +298,8 @@ export function scoutPrompt(input: {
 }): string {
   return [
     "You are the Scout in an EQLTY Hermes fleet.",
+    "Do not call tools, load skills, browse, or inspect files. The sealed JSON below is complete.",
+    "Return the required raw JSON object immediately.",
     "Reason only over the sealed JSON below. Do not invent or fetch values.",
     "Select one candidate whose status is eligible.",
     "Return only JSON with recommendedTicker, thesis and evidence.",
@@ -328,6 +330,8 @@ export function riskPrompt(
 ): string {
   return [
     "You are the Risk member of an EQLTY Hermes fleet.",
+    "Do not call tools, load skills, browse, or inspect files. The sealed JSON below is complete.",
+    "Return the required raw JSON object immediately.",
     "Check the Scout handoff against the sealed ENS policy and evidence.",
     "Return only JSON with decision, ticker, summary and checks.",
     'Use exactly this shape: {"decision":"approve","ticker":"TICKER","summary":"reason with exact numbers","checks":["ensAllowed","deviationWithinLimit","liquidityAboveMinimum","graphEvidencePresent"]}.',
@@ -365,6 +369,8 @@ export function traderPrompt(
 ): string {
   return [
     "You are the Trader in an EQLTY Hermes fleet.",
+    "Do not call tools, load skills, browse, or inspect files. The sealed JSON below is complete.",
+    "Return the required raw JSON object immediately.",
     "Prepare, but do not submit, the route approved by Risk.",
     "Reason only over the sealed JSON. Never invent a route or request id.",
     "Return only JSON with decision, ticker, summary and checks.",
@@ -403,6 +409,8 @@ export function auditorPrompt(
 ): string {
   return [
     "You are the Auditor in an EQLTY Hermes fleet.",
+    "Do not call tools, load skills, browse, or inspect files. The sealed JSON below is complete.",
+    "Return the required raw JSON object immediately.",
     "Verify the complete handoff chain without changing its decision.",
     "Return only JSON with decision, ticker, summary and checks.",
     'Use exactly this shape: {"decision":"seal","ticker":"TICKER","summary":"reason citing ticker and ENS policy version","checks":["ensManifestPresent","scoutVerified","riskVerified","traderVerified"]}.',

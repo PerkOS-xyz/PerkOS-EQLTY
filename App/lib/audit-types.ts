@@ -184,6 +184,32 @@ export type PurchaseAuditBundle = {
     tradeLogIndex: number;
     swapLogIndex: number;
   };
+  costs?: {
+    status: "verified" | "partial";
+    investment: {
+      amount: string;
+      symbol: "USDG";
+    };
+    decisionFee: {
+      amount: string;
+      symbol: "USDG";
+      transactionHash?: `0x${string}`;
+    };
+    ownerGasWei: string;
+    sponsoredGasWei: string;
+    decisionSettlementGasWei: string;
+    totalNetworkGasWei: string;
+    workingBalanceTargetWei: string;
+    items: Array<{
+      id: "strategy" | "approval" | "funding" | "sponsorship" | "execution" | "decision";
+      label: string;
+      payer: "owner" | "eqlty" | "stack";
+      transactionHash: `0x${string}`;
+      gasUsed: string;
+      gasPriceWei: string;
+      gasCostWei: string;
+    }>;
+  };
   transfers: Array<{
     token: `0x${string}`;
     symbol: string;

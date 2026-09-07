@@ -48,6 +48,21 @@
     grid-template-columns: 1fr 1fr;
   }
 
+  .purchaseCostEstimate > div {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .purchaseCostEstimate > footer {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .purchaseCostEstimate > footer p {
+    max-width: none;
+    text-align: left;
+  }
+
   .purchaseReviewChecks {
     align-items: flex-start;
     flex-direction: column;
@@ -94,8 +109,14 @@
 
   .purchaseReviewSummary,
   .purchaseReviewGrid,
-  .purchaseReviewSteps {
+  .purchaseReviewSteps,
+  .purchaseCostEstimate > div {
     grid-template-columns: 1fr;
+  }
+
+  .purchaseCostEstimate > header {
+    flex-direction: column;
+    gap: 8px;
   }
 
   .purchaseReviewSummary i {

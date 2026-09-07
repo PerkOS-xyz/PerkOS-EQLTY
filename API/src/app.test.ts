@@ -234,6 +234,21 @@ describe("API foundation", () => {
       nativeBalance: "3700000000000000",
       usdGBalance: "7963158",
       amountIn,
+      costEstimate: {
+        model: "observed-mainnet-v1" as const,
+        gasPriceWei: "300000000",
+        safetyBufferBps: 2_000 as const,
+        ownerSetupGas: {
+          gasUnits: "338080",
+          estimatedCostWei: "121708800000000",
+        },
+        sponsoredExecutionGas: {
+          gasUnits: "323495",
+          estimatedCostWei: "116458200000000",
+        },
+        agentWorkingBalanceTargetWei: "2000000000000000",
+        estimatedAt: "2026-09-07T18:00:00.000Z",
+      },
       ready: true,
       checks: { gas: true, funds: true, vault: true },
     }));

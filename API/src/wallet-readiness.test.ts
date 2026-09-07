@@ -16,6 +16,8 @@ describe("wallet readiness", () => {
         nativeBalance: async () => 3_700_000_000_000_000n,
         usdGBalance: async () => 7_963_158n,
         vaultReady: async () => true,
+        gasPrice: async () => 300_000_000n,
+        now: () => new Date("2026-09-07T18:00:00.000Z"),
       },
     );
 
@@ -23,6 +25,18 @@ describe("wallet readiness", () => {
       wallet: owner,
       amountIn: "1000000",
       ready: true,
+      costEstimate: {
+        model: "observed-mainnet-v1",
+        ownerSetupGas: {
+          gasUnits: "338080",
+          estimatedCostWei: "121708800000000",
+        },
+        sponsoredExecutionGas: {
+          gasUnits: "323495",
+          estimatedCostWei: "116458200000000",
+        },
+        estimatedAt: "2026-09-07T18:00:00.000Z",
+      },
       checks: {
         gas: true,
         funds: true,
@@ -41,6 +55,7 @@ describe("wallet readiness", () => {
         nativeBalance: async () => 1n,
         usdGBalance: async () => 999_999n,
         vaultReady: async () => true,
+        gasPrice: async () => 300_000_000n,
       },
     );
 

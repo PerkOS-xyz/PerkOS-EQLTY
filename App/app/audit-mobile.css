@@ -72,6 +72,11 @@
     grid-template-columns: 1fr;
   }
 
+  .actualCostGrid,
+  .actualCostReceipts {
+    grid-template-columns: 1fr 1fr;
+  }
+
   .graphEvidenceSummary,
   .graphEvidenceFacts {
     grid-template-columns: 1fr 1fr;
@@ -267,6 +272,11 @@
   }
 
   .auditOverview {
+    grid-template-columns: 1fr;
+  }
+
+  .actualCostGrid,
+  .actualCostReceipts {
     grid-template-columns: 1fr;
   }
 

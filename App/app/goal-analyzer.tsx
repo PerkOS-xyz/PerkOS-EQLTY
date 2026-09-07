@@ -917,7 +917,14 @@ function GoalProgress({
             (candidate) =>
               candidate.status === "recommended" &&
               Boolean(candidate.tokenAddress),
-          ) && <ProofRunPanel guided hasCandidate state={proof} />}
+          ) && (
+            <ProofRunPanel
+              decisionFeeAmount={session.decisionFee?.amount}
+              guided
+              hasCandidate
+              state={proof}
+            />
+          )}
         </div>
       )}
     </div>

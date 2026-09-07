@@ -148,6 +148,8 @@ function PurchaseAudit({ bundle }: { bundle: PurchaseAuditBundle }) {
         </div>
       </section>
 
+      {bundle.costs && <ActualCostSummary bundle={bundle} />}
+
       <section className="auditSection">
         <SectionHeading
           copy="All wallet setup operations and the guarded Hermes execution."
@@ -348,6 +350,69 @@ function PurchaseAudit({ bundle }: { bundle: PurchaseAuditBundle }) {
         </footer>
       </section>
     </>
+  );
+}
+
+function ActualCostSummary({ bundle }: { bundle: PurchaseAuditBundle }) {
+  const costs = bundle.costs!;
+  return (
+    <section className="auditSection actualCosts">
+      <SectionHeading
+        copy="Calculated from the effective gas price and gas used in each confirmed receipt."
+        title="Actual workflow cost"
+      />
+      <div className="actualCostGrid">
+        <article>
+          <span>Investment principal</span>
+          <strong>{tokenAmount(costs.investment.amount, 6)} USDG</strong>
+          <small>Converted into {bundle.ticker}</small>
+        </article>
+        <article>
+          <span>Decision service</span>
+          <strong>{tokenAmount(costs.decisionFee.amount, 6)} USDG</strong>
+          <small>x402 fee paid separately</small>
+        </article>
+        <article>
+          <span>Owner network gas</span>
+          <strong>{tokenAmount(costs.ownerGasWei, 18, 9)} ETH</strong>
+          <small>Strategy, approval and funding</small>
+        </article>
+        <article className="sponsored">
+          <span>EQLTY-sponsored gas</span>
+          <strong>{tokenAmount(costs.sponsoredGasWei, 18, 9)} ETH</strong>
+          <small>Top-up and agent execution</small>
+        </article>
+        <article>
+          <span>Stack settlement gas</span>
+          <strong>{tokenAmount(costs.decisionSettlementGasWei, 18, 9)} ETH</strong>
+          <small>Not charged as purchase gas</small>
+        </article>
+        <article>
+          <span>Total network gas</span>
+          <strong>{tokenAmount(costs.totalNetworkGasWei, 18, 9)} ETH</strong>
+          <small>{costs.status === "verified" ? "All receipts verified" : "Partial receipt coverage"}</small>
+        </article>
+      </div>
+      <p className="actualCostNote">
+        The agent&apos;s working ETH balance remains reusable. Only gas consumed
+        by confirmed transactions is counted above.
+      </p>
+      <div className="actualCostReceipts">
+        {costs.items.map((item) => (
+          <a
+            href={transactionUrl(item.transactionHash)}
+            key={`${item.id}-${item.transactionHash}`}
+            rel="noreferrer"
+            target="_blank"
+          >
+            <span>{item.label}</span>
+            <b>{item.payer === "owner" ? "You" : item.payer === "eqlty" ? "EQLTY" : "Stack"}</b>
+            <code>{tokenAmount(item.gasCostWei, 18, 9)} ETH</code>
+            <i>Verify ↗</i>
+          </a>
+        ))}
+      </div>
+    </section>
   );
 }
 

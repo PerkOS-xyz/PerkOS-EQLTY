@@ -74,6 +74,7 @@ describe("PerkOS fleet", () => {
     expect(traderBody).toMatchObject({
       runtime: "Hermes",
       deployMode: "perkos-managed",
+      llmModel: "deepseek-v4-flash:cloud",
       disabledTools: ["code-execution"],
       plugins: ["EQLTY-Uniswap-Plugin", "EQLTY-ENS-Plugin"],
     });
@@ -180,6 +181,52 @@ describe("PerkOS fleet", () => {
         ),
       ),
     ).toBe(true);
+  });
+
+  it("updates an existing agent model before using its runtime", async () => {
+    const existing = ["scout", "risk", "trader", "auditor"].map((role) => ({
+      id: `agent-${role}`,
+      name: `eqlty-${role}-12345678`,
+      runtime: "Hermes",
+      status: "ready",
+      llmModel:
+        role === "scout"
+          ? "qwen2.5:7b"
+          : "deepseek-v4-flash:cloud",
+    }));
+    const fetchFn = fleetApi(existing);
+    const service = new PerkosFleetService(
+      loadConfig({
+        PERKOS_FLEET_MODE: "live",
+        PERKOS_HERMES_IMAGE_TAG: "hermes-pinned",
+      }),
+      { fetchFn },
+    );
+
+    const runtime = await service.activate({
+      ...input,
+      idToken: "owner-id-token",
+    });
+
+    expect(runtime.status).toBe("provisioning");
+    expect(runtime.agents[0]).toMatchObject({
+      agentId: "agent-scout",
+      state: "waking",
+    });
+    const patchCalls = fetchFn.mock.calls.filter(
+      ([url, init]) =>
+        String(url).endsWith("/agents/agent-scout") &&
+        (init as RequestInit).method === "PATCH",
+    );
+    expect(patchCalls).toHaveLength(1);
+    expect(JSON.parse(String((patchCalls[0]?.[1] as RequestInit).body))).toEqual({
+      llmModel: "deepseek-v4-flash:cloud",
+    });
+    expect(
+      fetchFn.mock.calls.filter(([url]) =>
+        String(url).endsWith("/agent-scout/hibernation"),
+      ),
+    ).toHaveLength(0);
   });
 
   it("does not fail activation when the activity heartbeat is unavailable", async () => {
@@ -295,7 +342,25 @@ function fleetApi(
     }
     if (url.endsWith("/agents") && init.method !== "POST") {
       expect(authorization).toBe("Bearer owner-id-token");
-      return Response.json({ agents: existing });
+      return Response.json({
+        agents: existing.map((agent) => {
+          if (
+            agent &&
+            typeof agent === "object" &&
+            "llmModel" in agent
+          ) {
+            return agent;
+          }
+          return {
+            ...(agent as Record<string, unknown>),
+            llmModel: "deepseek-v4-flash:cloud",
+          };
+        }),
+      });
+    }
+    if (init.method === "PATCH" && url.includes("/agents/")) {
+      expect(authorization).toBe("Bearer owner-id-token");
+      return Response.json({ ok: true, applied: true });
     }
     if (url.endsWith("/activity")) {
       expect(authorization).toBe("Bearer owner-id-token");

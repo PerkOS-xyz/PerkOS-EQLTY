@@ -188,6 +188,12 @@ const schema = z.object({
     .enum(["disabled", "preview", "live"])
     .default("preview"),
   PERKOS_HERMES_IMAGE_TAG: optional(z.string().min(3).max(256)),
+  EQLTY_PERKOS_AGENT_LLM_MODEL: z
+    .string()
+    .min(1)
+    .max(128)
+    .regex(/^[A-Za-z0-9._:/-]+$/)
+    .default("deepseek-v4-flash:cloud"),
   PERKOS_AGENT_TASK_TIMEOUT_MS: z.coerce
     .number()
     .int()

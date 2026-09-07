@@ -150,6 +150,29 @@ describe("owner authentication", () => {
       }),
     ).rejects.toEqual(new OwnerFundingRequiredError(0.3));
   });
+
+  it("surfaces structured PerkOS sign-in errors", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      Response.json(
+        {
+          error: {
+            code: "SIGNATURE_INVALID",
+            message: "Signature does not match address.",
+          },
+        },
+        { status: 401 },
+      ),
+    );
+    const auth = new OwnerAuth(config(), { fetchFn, now: () => now });
+
+    await expect(
+      auth.verify(responseCapture().response, {
+        address,
+        nonce: "nonce-1",
+        signature,
+      }),
+    ).rejects.toThrow("Signature does not match address.");
+  });
 });
 
 function config() {

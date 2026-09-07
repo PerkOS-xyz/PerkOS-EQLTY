@@ -12,10 +12,12 @@ import type { TradeRun } from "../lib/execution-types";
 import type { ProofRunState } from "./use-proof-run";
 
 export function ProofRunPanel({
+  decisionFeeAmount,
   guided = false,
   hasCandidate,
   state,
 }: {
+  decisionFeeAmount?: string;
   guided?: boolean;
   hasCandidate: boolean;
   state: ProofRunState;
@@ -104,7 +106,11 @@ export function ProofRunPanel({
       )}
 
       {state.reviewOpen && (
-        <PurchaseReviewScreen run={run} state={state} />
+        <PurchaseReviewScreen
+          decisionFeeAmount={decisionFeeAmount}
+          run={run}
+          state={state}
+        />
       )}
 
       {run.status === "executed" && run.transactionHash && (
@@ -284,9 +290,11 @@ function PurchaseReviewEntry({
 }
 
 function PurchaseReviewScreen({
+  decisionFeeAmount,
   run,
   state,
 }: {
+  decisionFeeAmount?: string;
   run: TradeRun;
   state: ProofRunState;
 }) {
@@ -300,6 +308,8 @@ function PurchaseReviewScreen({
     (run.oneclaw.executionAuthorized &&
       state.execution?.protectedPurchases === "enabled");
   const funded = Boolean(state.strategy?.onchain);
+  const feeAmount = decisionFeeAmount ?? "0";
+  const workflowUsdG = addAtomic(run.amountIn, feeAmount);
   const fundsAfter =
     funded
       ? readiness?.usdGBalance ?? "0"
@@ -344,6 +354,65 @@ function PurchaseReviewScreen({
             </strong>
           </span>
         </div>
+
+        {readiness?.costEstimate && (
+          <section className="purchaseCostEstimate">
+            <header>
+              <div>
+                <span>Whole workflow estimate</span>
+                <strong>Know every cost before you approve</strong>
+              </div>
+              <b>20% gas buffer</b>
+            </header>
+            <div>
+              <article>
+                <span>Investment principal</span>
+                <strong>{formatUnits(run.amountIn, 6)} USDG</strong>
+                <small>Converted into {run.ticker}</small>
+              </article>
+              <article>
+                <span>Decision service</span>
+                <strong>{formatUnits(feeAmount, 6)} USDG</strong>
+                <small>Already settled through x402</small>
+              </article>
+              <article>
+                <span>Your network gas</span>
+                <strong>
+                  {funded
+                    ? "Already paid"
+                    : `≈ ${formatUnits(readiness.costEstimate.ownerSetupGas.estimatedCostWei, 18)} ETH`}
+                </strong>
+                <small>{funded ? "Three setup receipts confirmed" : "Three wallet transactions"}</small>
+              </article>
+              <article className="sponsored">
+                <span>EQLTY-sponsored gas</span>
+                <strong>
+                  ≈ {formatUnits(
+                    readiness.costEstimate.sponsoredExecutionGas.estimatedCostWei,
+                    18,
+                  )} ETH
+                </strong>
+                <small>Not charged to your wallet</small>
+              </article>
+            </div>
+            <footer>
+              <span>
+                <b>Whole workflow from your wallet</b>
+                <strong>
+                  {formatUnits(workflowUsdG, 6)} USDG
+                  {!funded && (
+                    <> + ≈ {formatUnits(readiness.costEstimate.ownerSetupGas.estimatedCostWei, 18)} ETH</>
+                  )}
+                </strong>
+              </span>
+              <p>
+                Gas uses the current Robinhood Chain price and observed units
+                from a successful mainnet purchase. Agent working balance is
+                reusable capital, not a fee.
+              </p>
+            </footer>
+          </section>
+        )}
 
         <div className="purchaseReviewGrid">
           <article>
@@ -620,4 +689,9 @@ function formatUnits(value: string, decimals: number): string {
   const whole = padded.slice(0, -decimals);
   const fraction = padded.slice(-decimals).replace(/0+$/, "").slice(0, 6);
   return fraction ? `${whole}.${fraction}` : whole;
+}
+
+function addAtomic(left: string, right: string): string {
+  if (!/^\d+$/.test(left) || !/^\d+$/.test(right)) return left;
+  return (BigInt(left) + BigInt(right)).toString();
 }

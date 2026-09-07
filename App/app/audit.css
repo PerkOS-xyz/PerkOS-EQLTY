@@ -1348,6 +1348,95 @@
   font-style: normal;
 }
 
+.actualCosts {
+  border-color: #31513b;
+  background: linear-gradient(135deg, #0e1812, #0a100d);
+}
+
+.actualCostGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.actualCostGrid article {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid #25372b;
+  border-radius: 9px;
+  background: #0c130f;
+}
+
+.actualCostGrid article.sponsored {
+  border-color: #31573e;
+  background: #102016;
+}
+
+.actualCostGrid span,
+.actualCostGrid small {
+  color: #748078;
+  font-size: 12px;
+}
+
+.actualCostGrid strong {
+  color: #d8e4dc;
+  font-size: 14px;
+}
+
+.actualCostNote {
+  margin: 12px 0;
+  color: #87958c;
+  font-size: 13px;
+}
+
+.actualCostReceipts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.actualCostReceipts a {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 12px;
+  padding: 10px;
+  border: 1px solid #25362c;
+  border-radius: 8px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.actualCostReceipts a:hover {
+  border-color: #4b8a5e;
+}
+
+.actualCostReceipts span,
+.actualCostReceipts code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actualCostReceipts span {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.actualCostReceipts b,
+.actualCostReceipts i {
+  color: #79e69a;
+  font-size: 12px;
+  font-style: normal;
+}
+
+.actualCostReceipts code {
+  color: #7b8880;
+  font-size: 12px;
+}
+
 .auditSection {
   margin-top: 22px;
   padding: 18px;

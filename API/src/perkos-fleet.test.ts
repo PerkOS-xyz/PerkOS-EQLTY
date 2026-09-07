@@ -229,6 +229,34 @@ describe("PerkOS fleet", () => {
     ).toHaveLength(0);
   });
 
+  it("stops activation when the agent model cannot be applied", async () => {
+    const fetchFn = fleetApi(
+      [
+        {
+          id: "agent-scout",
+          name: "eqlty-scout-12345678",
+          runtime: "Hermes",
+          status: "ready",
+          llmModel: "qwen2.5:7b",
+        },
+      ],
+      "active",
+      204,
+      false,
+    );
+    const service = new PerkosFleetService(
+      loadConfig({
+        PERKOS_FLEET_MODE: "live",
+        PERKOS_HERMES_IMAGE_TAG: "hermes-pinned",
+      }),
+      { fetchFn },
+    );
+
+    await expect(
+      service.activate({ ...input, idToken: "owner-id-token" }),
+    ).rejects.toThrow("runtime update failed");
+  });
+
   it("does not fail activation when the activity heartbeat is unavailable", async () => {
     const existing = ["scout", "risk", "trader", "auditor"].map((role) => ({
       id: `agent-${role}`,
@@ -322,6 +350,7 @@ function fleetApi(
   existing: unknown[],
   hibernationState: "active" | "hibernated" = "active",
   activityStatus = 204,
+  modelApplied = true,
 ) {
   return vi.fn(async (
     input: URL | string | Request,
@@ -360,7 +389,11 @@ function fleetApi(
     }
     if (init.method === "PATCH" && url.includes("/agents/")) {
       expect(authorization).toBe("Bearer owner-id-token");
-      return Response.json({ ok: true, applied: true });
+      return Response.json({
+        ok: true,
+        applied: modelApplied,
+        ...(modelApplied ? {} : { applyError: "runtime update failed" }),
+      });
     }
     if (url.endsWith("/activity")) {
       expect(authorization).toBe("Bearer owner-id-token");

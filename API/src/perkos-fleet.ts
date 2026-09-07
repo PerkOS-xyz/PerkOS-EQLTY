@@ -169,7 +169,10 @@ export class PerkosFleetService {
       };
     }
     if (current.llmModel !== this.config.EQLTY_PERKOS_AGENT_LLM_MODEL) {
-      await this.request(
+      const update = await this.request<{
+        applied?: boolean;
+        applyError?: string;
+      }>(
         `/agents/${encodeURIComponent(current.id)}`,
         idToken,
         {
@@ -179,6 +182,11 @@ export class PerkosFleetService {
           }),
         },
       );
+      if (update.applied !== true) {
+        throw new Error(
+          update.applyError ?? "PerkOS did not apply the EQLTY agent model",
+        );
+      }
       return {
         ...plan,
         agentId: current.id,

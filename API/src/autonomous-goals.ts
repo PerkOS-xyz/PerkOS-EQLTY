@@ -126,6 +126,35 @@ export class AutonomousGoalService {
     return publicGoal(goal);
   }
 
+  async latest(
+    identity: GoalIdentity,
+  ): Promise<AutonomousGoal | undefined> {
+    const memoryGoal = [...this.goals.values()]
+      .filter((goal) => ownsGoal(goal, identity) && isResumable(goal))
+      .sort(
+        (left, right) =>
+          Date.parse(right.startedAt) - Date.parse(left.startedAt),
+      )[0];
+    let goal = memoryGoal;
+    if (identity.perkosIdToken && this.store) {
+      const persisted = await this.store.latest(
+        identity.owner,
+        identity.perkosIdToken,
+      );
+      if (persisted) {
+        const restored = restoreGoal(persisted, identity.perkosIdToken);
+        if (
+          ownsGoal(restored, identity) &&
+          (!goal || Date.parse(restored.startedAt) > Date.parse(goal.startedAt))
+        ) {
+          goal = restored;
+          this.goals.set(restored.id, restored);
+        }
+      }
+    }
+    return goal ? publicGoal(goal) : undefined;
+  }
+
   async tick(
     id: string,
     identity: GoalIdentity,
@@ -392,4 +421,20 @@ function restoreGoal(
     },
     running: false,
   };
+}
+
+function ownsGoal(goal: StoredGoal, identity: GoalIdentity): boolean {
+  return (
+    goal.input.userId === identity.userId &&
+    goal.input.owner.toLowerCase() === identity.owner.toLowerCase()
+  );
+}
+
+function isResumable(goal: StoredGoal): boolean {
+  const feeStatus = goal.decisionFee?.status;
+  return (
+    goal.status === "completed" &&
+    goal.latest !== undefined &&
+    (feeStatus === "settled" || feeStatus === "preview")
+  );
 }

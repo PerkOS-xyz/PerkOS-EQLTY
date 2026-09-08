@@ -17,6 +17,7 @@ import {
   goalDecisionFeeResource,
   readDecisionFeeConfig,
   readGoal,
+  readLatestGoal,
   settleGoalDecisionFee,
   startGoal,
 } from "../lib/goal-api";
@@ -25,6 +26,7 @@ import type {
   AutonomousGoal,
   FinancialGoalProfile,
 } from "../lib/goal-types";
+import { wasDecisionExecuted } from "../lib/goal-resume";
 import { useWalletAccess } from "./wallet-access-context";
 
 const defaultGoal =
@@ -66,6 +68,7 @@ export type GoalAnalysisState = {
   refreshGraphHealth: () => void;
   analyze: () => void;
   payDecisionFee: () => void;
+  clearSession: () => void;
 };
 
 export function useGoalAnalysis(
@@ -73,6 +76,7 @@ export function useGoalAnalysis(
 ): GoalAnalysisState {
   const wallet = useWalletAccess();
   const activeRun = useRef(0);
+  const restoredWallet = useRef<string | undefined>(undefined);
   const [goalText, setGoalText] = useState(defaultGoal);
   const [amount, setAmount] = useState("1");
   const [windowMinutes, setWindowMinutes] = useState(2);
@@ -232,6 +236,14 @@ export function useGoalAnalysis(
     }
   }, [ensureFleetReady, session, wallet]);
 
+  const clearSession = useCallback(() => {
+    activeRun.current += 1;
+    setSession(undefined);
+    setRunKey(0);
+    setError(undefined);
+    setWorkflowError(undefined);
+  }, []);
+
   useEffect(() => {
     void readDecisionFeeConfig()
       .then(setFeeConfig)
@@ -335,8 +347,30 @@ export function useGoalAnalysis(
   }, [session?.id, session?.status]);
 
   useEffect(() => {
+    const address = wallet.address?.toLowerCase();
+    if (!wallet.connected || !address || session || restoredWallet.current === address) {
+      return;
+    }
+    restoredWallet.current = address;
+    void readLatestGoal()
+      .then((restored) => {
+        if (!restored || wallet.address?.toLowerCase() !== address) return;
+        if (wasDecisionExecuted(address, restored.id)) return;
+        setSession(restored);
+        setGoalText(restored.goal);
+        setAmount(formatAtomicUsdG(restored.amountIn));
+      })
+      .catch(() => {
+        if (restoredWallet.current === address) {
+          restoredWallet.current = undefined;
+        }
+      });
+  }, [session, wallet.address, wallet.connected]);
+
+  useEffect(() => {
     if (!wallet.connected) {
       activeRun.current += 1;
+      restoredWallet.current = undefined;
       setSession(undefined);
       setRunKey(0);
       setBusy(false);
@@ -376,7 +410,18 @@ export function useGoalAnalysis(
     refreshGraphHealth: () => void refreshGraphHealth(),
     analyze: () => void analyze(),
     payDecisionFee: () => void payDecisionFee(),
+    clearSession,
   };
+}
+
+function formatAtomicUsdG(value: string): string {
+  const atomic = BigInt(value);
+  const whole = atomic / 1_000_000n;
+  const fraction = (atomic % 1_000_000n)
+    .toString()
+    .padStart(6, "0")
+    .replace(/0+$/, "");
+  return fraction ? `${whole}.${fraction}` : whole.toString();
 }
 
 function graphReadinessMessage(

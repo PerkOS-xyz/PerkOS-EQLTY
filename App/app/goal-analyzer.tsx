@@ -135,13 +135,28 @@ export function GoalAnalyzer({
       </header>
 
       {!setupOpen && (
-        <button
-          className="goalWizardLaunch wizardPrimary"
-          onClick={() => setSetupOpen(true)}
-          type="button"
-        >
-          Start guided consultation
-        </button>
+        <div className="goalWizardLaunchActions">
+          <button
+            className="goalWizardLaunch wizardPrimary"
+            onClick={() => setSetupOpen(true)}
+            type="button"
+          >
+            {state.session ? "Resume latest decision" : "Start guided consultation"}
+          </button>
+          {state.session && (
+            <button
+              className="goalWizardNew"
+              onClick={() => {
+                state.clearSession();
+                setFormStep(1);
+                setSetupOpen(true);
+              }}
+              type="button"
+            >
+              New consultation
+            </button>
+          )}
+        </div>
       )}
 
       {setupOpen && (

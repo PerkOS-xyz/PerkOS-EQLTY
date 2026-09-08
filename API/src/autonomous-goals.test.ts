@@ -118,6 +118,7 @@ describe("autonomous goals", () => {
   it("restores a goal in a new serverless instance", async () => {
     const records = new Map<string, PersistedGoal>();
     const store: GoalStore = {
+      latest: vi.fn(async () => undefined),
       read: vi.fn(async (_owner, _token, id) => records.get(id)),
       save: vi.fn(async (_owner, _token, id, goal) => {
         records.set(id, structuredClone(goal));
@@ -148,6 +149,63 @@ describe("autonomous goals", () => {
     expect(JSON.stringify(records.get("goal-durable"))).not.toContain(
       "firebase-token",
     );
+  });
+
+  it("restores the latest completed decision for its owner", async () => {
+    const now = Date.parse("2026-07-25T12:00:00.000Z");
+    const stored = vi.fn<GoalStore["latest"]>();
+    const first = new AutonomousGoalService(
+      { analyze: async () => analysis(now) },
+      {
+        now: () => now,
+        id: () => "goal-resumable",
+        decisionFees: {
+          quote: (value) => ({
+            mode: "preview",
+            status: "preview",
+            scheme: "exact",
+            amount: "200000",
+            maximumAmount: "250000",
+            decimals: 6,
+            symbol: "USDG",
+            reason: "Verified decision",
+            decisionReceiptRoot: value.receipt.root,
+          }),
+          settle: vi.fn(),
+          failed: vi.fn(),
+        },
+        store: {
+          latest: stored,
+          read: vi.fn(async () => undefined),
+          save: vi.fn(async (_owner, _token, _id, value) => {
+            stored.mockResolvedValue(structuredClone(value));
+          }),
+        },
+      },
+    );
+    await first.start({
+      ...goalInput(),
+      perkosIdToken: "firebase-token",
+    });
+
+    const restored = await new AutonomousGoalService(
+      { analyze: async () => analysis(now) },
+      {
+        store: {
+          latest: stored,
+          read: vi.fn(async () => undefined),
+          save: vi.fn(async () => undefined),
+        },
+      },
+    ).latest({ ...identity(), perkosIdToken: "firebase-token" });
+
+    expect(restored).toMatchObject({
+      id: "goal-resumable",
+      status: "completed",
+      latest: { recommendedTicker: "AMZN" },
+      decisionFee: { status: "preview" },
+    });
+    expect(stored).toHaveBeenCalledWith(owner, "firebase-token");
   });
 
   it("seals a paid decision until its x402 receipt is stored", async () => {

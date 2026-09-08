@@ -330,7 +330,7 @@ type AppDependencies = {
     Partial<
       Pick<
         AutonomousGoalService,
-        "executionAuthorization" | "settleFee"
+        "executionAuthorization" | "latest" | "settleFee"
       >
     >;
   strategies?: Pick<StrategyService, "create"> &
@@ -998,6 +998,34 @@ export function createApp(
     } catch (error) {
       return response.status(503).json({
         error: "goal_start_failed",
+        message: safeMessage(error),
+      });
+    }
+  });
+
+  app.get("/api/goals/latest", async (request, response) => {
+    const session = ownerAuth.session(request);
+    if (!session) {
+      return response
+        .status(401)
+        .json({ error: "owner_session_required" });
+    }
+    if (!goals.latest) {
+      return response
+        .status(503)
+        .json({ error: "goal_recovery_unavailable" });
+    }
+    try {
+      const goal = await goals.latest({
+        userId: session.fleetUserId,
+        owner: session.walletAddress,
+        perkosIdToken: ownerAuth.perkosIdToken?.(request),
+      });
+      response.setHeader("cache-control", "no-store");
+      return goal ? response.json(goal) : response.status(204).end();
+    } catch (error) {
+      return response.status(503).json({
+        error: "goal_recovery_failed",
         message: safeMessage(error),
       });
     }

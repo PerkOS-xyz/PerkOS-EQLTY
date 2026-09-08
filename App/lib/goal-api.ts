@@ -85,6 +85,10 @@ export function readGoal(
   );
 }
 
+export function readLatestGoal(): Promise<AutonomousGoal | undefined> {
+  return request<AutonomousGoal | undefined>("/api/goals/latest");
+}
+
 export function evaluateGoal(goalId: string): Promise<AutonomousGoal> {
   return request<AutonomousGoal>(
     `/api/goals/${encodeURIComponent(goalId)}/tick`,

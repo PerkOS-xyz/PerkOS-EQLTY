@@ -26,6 +26,7 @@ import type {
   TradeRun,
 } from "../lib/execution-types";
 import type { AutonomousGoal } from "../lib/goal-types";
+import { markDecisionExecuted } from "../lib/goal-resume";
 import { useWalletAccess } from "./wallet-access-context";
 
 export type ProofRunState = {
@@ -177,14 +178,16 @@ export function useProofRun(
         setStrategy(activeStrategy);
       }
       setPurchaseStage("executing");
-      setRun(
-        await startProofRun(
-          session.id,
-          activeStrategy,
-          run.amountIn,
-          true,
-        ),
+      const completed = await startProofRun(
+        session.id,
+        activeStrategy,
+        run.amountIn,
+        true,
       );
+      setRun(completed);
+      if (completed.status === "executed") {
+        markDecisionExecuted(activeStrategy.owner, session.id);
+      }
       setReviewOpen(false);
     } catch (cause) {
       setError(purchaseErrorMessage(cause));

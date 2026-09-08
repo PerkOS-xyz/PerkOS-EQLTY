@@ -187,9 +187,7 @@ export function useProofRun(
       );
       setReviewOpen(false);
     } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : "Purchase execution failed",
-      );
+      setError(purchaseErrorMessage(cause));
     } finally {
       setPurchaseBusy(false);
       setPurchaseStage("idle");
@@ -296,4 +294,16 @@ function recommendedCandidate(session?: AutonomousGoal) {
   return session?.latest?.candidates.find(
     (candidate) => candidate.status === "recommended",
   );
+}
+
+function purchaseErrorMessage(cause: unknown): string {
+  if (!(cause instanceof Error)) return "Purchase execution failed";
+  if (
+    /user rejected|request rejected|rejected the request|code.?4001/i.test(
+      cause.message,
+    )
+  ) {
+    return "Wallet request was cancelled. Confirmed steps remain available to resume.";
+  }
+  return cause.message;
 }

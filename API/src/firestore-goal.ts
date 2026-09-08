@@ -11,12 +11,20 @@ type FirestoreDocument = {
   };
 };
 
+type FirestoreCollection = {
+  documents?: FirestoreDocument[];
+};
+
 export type PersistedGoal = {
   goal: AutonomousGoal;
   input: Omit<GoalInput, "perkosIdToken">;
 };
 
 export type GoalStore = {
+  latest(
+    owner: EvmAddress,
+    idToken: string,
+  ): Promise<PersistedGoal | undefined>;
   read(
     owner: EvmAddress,
     idToken: string,
@@ -35,6 +43,35 @@ export class FirestoreGoalStore implements GoalStore {
     private readonly config: ApiConfig,
     private readonly fetchFn: typeof fetch = fetch,
   ) {}
+
+  async latest(
+    owner: EvmAddress,
+    idToken: string,
+  ): Promise<PersistedGoal | undefined> {
+    const response = await this.fetchFn(
+      `${this.collectionUrl(owner)}?pageSize=100`,
+      {
+        headers: {
+          accept: "application/json",
+          authorization: `Bearer ${idToken}`,
+        },
+        signal: AbortSignal.timeout(12_000),
+      },
+    );
+    if (response.status === 404) return undefined;
+    if (!response.ok) {
+      throw new Error(`Goal database list failed with ${response.status}`);
+    }
+    const collection = (await response.json()) as FirestoreCollection;
+    return (collection.documents ?? [])
+      .map(parseDocument)
+      .filter((goal): goal is PersistedGoal => goal !== undefined)
+      .filter(isResumable)
+      .sort(
+        (left, right) =>
+          Date.parse(right.goal.startedAt) - Date.parse(left.goal.startedAt),
+      )[0];
+  }
 
   async read(
     owner: EvmAddress,
@@ -84,11 +121,35 @@ export class FirestoreGoalStore implements GoalStore {
   }
 
   private documentUrl(owner: EvmAddress, goalId: string): string {
+    return `${this.collectionUrl(owner)}/${encodeURIComponent(goalId)}`;
+  }
+
+  private collectionUrl(owner: EvmAddress): string {
     return (
       `https://firestore.googleapis.com/v1/projects/` +
       `${this.config.PERKOS_FIREBASE_PROJECT_ID}/databases/(default)/` +
-      `documents/wallets/${owner.toLowerCase()}/eqlty_goals/` +
-      encodeURIComponent(goalId)
+      `documents/wallets/${owner.toLowerCase()}/eqlty_goals`
     );
   }
+}
+
+function parseDocument(
+  document: FirestoreDocument,
+): PersistedGoal | undefined {
+  const payload = document.fields?.payload?.stringValue;
+  if (!payload) return undefined;
+  try {
+    return JSON.parse(payload) as PersistedGoal;
+  } catch {
+    return undefined;
+  }
+}
+
+function isResumable(value: PersistedGoal): boolean {
+  const feeStatus = value.goal.decisionFee?.status;
+  return (
+    value.goal.status === "completed" &&
+    value.goal.latest !== undefined &&
+    (feeStatus === "settled" || feeStatus === "preview")
+  );
 }

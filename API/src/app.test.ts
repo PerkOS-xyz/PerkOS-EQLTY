@@ -1078,6 +1078,68 @@ describe("API foundation", () => {
     });
   });
 
+  it("recovers the latest completed decision for the wallet", async () => {
+    const session = {
+      sub: "eip155:4663:0x1234567890abcdef1234567890abcdef12345678",
+      provider: "wallet" as const,
+      walletAddress:
+        "0x1234567890abcdef1234567890abcdef12345678" as const,
+      fleetUserId: "u-12345678",
+      expiresAt: "2026-07-25T13:00:00.000Z",
+    };
+    const latest = vi.fn(async () => ({
+      id: "goal-latest",
+      goal: "Compare stock tokens",
+      amountIn: "1000000",
+      status: "completed" as const,
+      startedAt: "2026-07-25T12:00:00.000Z",
+      endsAt: "2026-07-25T12:02:00.000Z",
+      cadenceSeconds: 30,
+      cyclesCompleted: 1,
+      gates: {
+        ens: "resolve-every-cycle" as const,
+        oneclaw: "enforced" as const,
+        linkedRoles: [],
+        requiredRoles: ["trader" as const],
+        oneclawRequired: false,
+        oneclawLinked: false,
+        oneclawMinimumAmount: "3000000",
+        executionAuthorized: true,
+        detail: "Ready",
+      },
+      history: [],
+    }));
+    const response = await request("/api/goals/latest", {
+      ownerAuth: {
+        challenge: async () => {
+          throw new Error("not called");
+        },
+        verify: async () => session,
+        session: () => session,
+        perkosIdToken: () => "firebase-token",
+        logout: () => undefined,
+      },
+      goals: {
+        start: vi.fn(),
+        read: vi.fn(),
+        tick: vi.fn(),
+        latest,
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    await expect(response.json()).resolves.toMatchObject({
+      id: "goal-latest",
+      status: "completed",
+    });
+    expect(latest).toHaveBeenCalledWith({
+      userId: session.fleetUserId,
+      owner: session.walletAddress,
+      perkosIdToken: "firebase-token",
+    });
+  });
+
   it("settles an authenticated decision fee through the goal service", async () => {
     const session = testSession();
     const settled = {

@@ -14,6 +14,16 @@ const robinhoodChainId = 4663;
 
 const erc20Abi = [
   {
+    type: "event",
+    name: "Approval",
+    anonymous: false,
+    inputs: [
+      { name: "owner", type: "address", indexed: true },
+      { name: "spender", type: "address", indexed: true },
+      { name: "value", type: "uint256", indexed: false },
+    ],
+  },
+  {
     type: "function",
     name: "approve",
     stateMutability: "nonpayable",
@@ -170,6 +180,10 @@ export type RecoverableStrategy = {
   outputToken: Address;
 };
 
+type EqltyPublicClient = Awaited<
+  ReturnType<WalletAccess["getEvmClients"]>
+>["publicClient"];
+
 export async function provisionWalletStrategy(input: {
   wallet: WalletAccess;
   strategy: ExecutionStrategy;
@@ -205,60 +219,93 @@ export async function provisionWalletStrategy(input: {
   }
 
   input.onStage("creating");
-  const creationTransactionHash = await walletClient.writeContract({
-    account: walletClient.account,
-    address: input.vault,
-    abi: vaultAbi,
-    functionName: "createStrategy",
-    args: [
-      input.strategy.agent,
-      input.strategy.inputToken,
-      input.strategy.outputToken,
-      input.strategy.router,
-      BigInt(input.strategy.maxAmountPerTrade),
-      BigInt(input.strategy.maxTotalSpend),
-      BigInt(Math.floor(Date.parse(input.strategy.expiresAt) / 1_000)),
-      input.strategy.maxSlippageBps,
-      input.strategy.humanProof.proofHash,
-    ],
+  const pending = await findPendingStrategy({
+    publicClient,
+    owner,
+    vault: input.vault,
+    strategy: input.strategy,
   });
-  const creationReceipt = await publicClient.waitForTransactionReceipt({
-    hash: creationTransactionHash,
-  });
-  assertSuccess(creationReceipt.status, creationTransactionHash);
-  const created = parseEventLogs({
-    abi: vaultAbi,
-    eventName: "StrategyCreated",
-    logs: creationReceipt.logs,
-    strict: true,
-  }).find(
-    (event) => getAddress(event.args.owner) === getAddress(owner),
-  );
-  if (!created) {
-    throw new Error("The wallet strategy creation event was not found");
+  let strategyId: bigint;
+  let creationTransactionHash: Hex;
+  let creationBlock: bigint;
+  if (pending) {
+    strategyId = pending.strategyId;
+    creationTransactionHash = pending.transactionHash;
+    creationBlock = pending.blockNumber;
+  } else {
+    creationTransactionHash = await walletClient.writeContract({
+      account: walletClient.account,
+      address: input.vault,
+      abi: vaultAbi,
+      functionName: "createStrategy",
+      args: [
+        input.strategy.agent,
+        input.strategy.inputToken,
+        input.strategy.outputToken,
+        input.strategy.router,
+        BigInt(input.strategy.maxAmountPerTrade),
+        BigInt(input.strategy.maxTotalSpend),
+        BigInt(Math.floor(Date.parse(input.strategy.expiresAt) / 1_000)),
+        input.strategy.maxSlippageBps,
+        input.strategy.humanProof.proofHash,
+      ],
+    });
+    const creationReceipt = await publicClient.waitForTransactionReceipt({
+      hash: creationTransactionHash,
+    });
+    assertSuccess(creationReceipt.status, creationTransactionHash);
+    const created = parseEventLogs({
+      abi: vaultAbi,
+      eventName: "StrategyCreated",
+      logs: creationReceipt.logs,
+      strict: true,
+    }).find(
+      (event) => getAddress(event.args.owner) === getAddress(owner),
+    );
+    if (!created) {
+      throw new Error("The wallet strategy creation event was not found");
+    }
+    strategyId = created.args.strategyId;
+    creationBlock = creationReceipt.blockNumber;
   }
-  const strategyId = created.args.strategyId;
 
   input.onStage("approving");
-  const approvalTransactionHash = await walletClient.writeContract({
-    account: walletClient.account,
-    address: input.strategy.inputToken,
-    abi: erc20Abi,
-    functionName: "approve",
-    args: [input.vault, amount],
+  let approvalTransactionHash = await findApprovalTransaction({
+    publicClient,
+    token: input.strategy.inputToken,
+    owner,
+    spender: input.vault,
+    amount,
+    fromBlock: creationBlock,
   });
-  const approvalReceipt = await publicClient.waitForTransactionReceipt({
-    hash: approvalTransactionHash,
+  let allowance = await readAllowance({
+    publicClient,
+    token: input.strategy.inputToken,
+    owner,
+    spender: input.vault,
   });
-  assertSuccess(approvalReceipt.status, approvalTransactionHash);
-  const allowance = await publicClient.readContract({
-    address: input.strategy.inputToken,
-    abi: erc20Abi,
-    functionName: "allowance",
-    args: [owner, input.vault],
-  });
-  if (allowance < amount) {
-    throw new Error("USDG approval is lower than the purchase amount");
+  if (allowance < amount || !approvalTransactionHash) {
+    approvalTransactionHash = await walletClient.writeContract({
+      account: walletClient.account,
+      address: input.strategy.inputToken,
+      abi: erc20Abi,
+      functionName: "approve",
+      args: [input.vault, amount],
+    });
+    const approvalReceipt = await publicClient.waitForTransactionReceipt({
+      hash: approvalTransactionHash,
+    });
+    assertSuccess(approvalReceipt.status, approvalTransactionHash);
+    allowance = await waitForAllowance({
+      publicClient,
+      token: input.strategy.inputToken,
+      owner,
+      spender: input.vault,
+      amount,
+    });
+    if (allowance < amount) {
+      throw new Error("USDG approval is lower than the purchase amount");
+    }
   }
 
   input.onStage("funding");
@@ -290,6 +337,142 @@ export async function provisionWalletStrategy(input: {
     approvalTransactionHash,
     fundingTransactionHash,
   };
+}
+
+async function findPendingStrategy(input: {
+  publicClient: EqltyPublicClient;
+  owner: Address;
+  vault: Address;
+  strategy: ExecutionStrategy;
+}): Promise<
+  | {
+      strategyId: bigint;
+      transactionHash: Hex;
+      blockNumber: bigint;
+    }
+  | undefined
+> {
+  const nextStrategyId = await input.publicClient.readContract({
+    address: input.vault,
+    abi: vaultAbi,
+    functionName: "nextStrategyId",
+  });
+  const expectedExpiry = BigInt(
+    Math.floor(Date.parse(input.strategy.expiresAt) / 1_000),
+  );
+  const latestBlock = await input.publicClient.getBlockNumber();
+  const fromBlock = latestBlock > 50_000n ? latestBlock - 50_000n : 0n;
+
+  for (let strategyId = nextStrategyId - 1n; strategyId > 0n; strategyId--) {
+    const [available, strategy] = await Promise.all([
+      input.publicClient.readContract({
+        address: input.vault,
+        abi: vaultAbi,
+        functionName: "availableBalance",
+        args: [strategyId],
+      }),
+      input.publicClient.readContract({
+        address: input.vault,
+        abi: vaultAbi,
+        functionName: "strategies",
+        args: [strategyId],
+      }),
+    ]);
+    if (
+      available !== 0n ||
+      strategy[7] !== 0n ||
+      strategy[10] ||
+      strategy[11] ||
+      getAddress(strategy[0]) !== getAddress(input.owner) ||
+      getAddress(strategy[1]) !== getAddress(input.strategy.agent) ||
+      getAddress(strategy[2]) !== getAddress(input.strategy.inputToken) ||
+      getAddress(strategy[3]) !== getAddress(input.strategy.outputToken) ||
+      getAddress(strategy[4]) !== getAddress(input.strategy.router) ||
+      strategy[5] !== BigInt(input.strategy.maxAmountPerTrade) ||
+      strategy[6] !== BigInt(input.strategy.maxTotalSpend) ||
+      strategy[8] !== expectedExpiry ||
+      strategy[9] !== input.strategy.maxSlippageBps ||
+      strategy[12] !== input.strategy.humanProof.proofHash
+    ) {
+      continue;
+    }
+    const created = (
+      await input.publicClient.getLogs({
+        address: input.vault,
+        event: vaultAbi[0],
+        args: { strategyId },
+        fromBlock,
+        toBlock: latestBlock,
+      })
+    ).at(-1);
+    if (created?.transactionHash && created.blockNumber) {
+      return {
+        strategyId,
+        transactionHash: created.transactionHash,
+        blockNumber: created.blockNumber,
+      };
+    }
+  }
+  return undefined;
+}
+
+async function findApprovalTransaction(input: {
+  publicClient: EqltyPublicClient;
+  token: Address;
+  owner: Address;
+  spender: Address;
+  amount: bigint;
+  fromBlock: bigint;
+}): Promise<Hex | undefined> {
+  const approvals = await input.publicClient.getLogs({
+    address: input.token,
+    event: erc20Abi[0],
+    args: { owner: input.owner, spender: input.spender },
+    fromBlock: input.fromBlock,
+    toBlock: "latest",
+  });
+  return approvals
+    .filter(
+      (approval) =>
+        approval.transactionHash &&
+        approval.args.value !== undefined &&
+        approval.args.value >= input.amount,
+    )
+    .at(-1)?.transactionHash;
+}
+
+async function readAllowance(input: {
+  publicClient: EqltyPublicClient;
+  token: Address;
+  owner: Address;
+  spender: Address;
+}): Promise<bigint> {
+  return input.publicClient.readContract({
+    address: input.token,
+    abi: erc20Abi,
+    functionName: "allowance",
+    args: [input.owner, input.spender],
+  });
+}
+
+async function waitForAllowance(input: {
+  publicClient: EqltyPublicClient;
+  token: Address;
+  owner: Address;
+  spender: Address;
+  amount: bigint;
+}): Promise<bigint> {
+  let allowance = 0n;
+  for (let attempt = 0; attempt < 10; attempt++) {
+    allowance = await readAllowance(input);
+    if (allowance >= input.amount) return allowance;
+    await delay(400);
+  }
+  return allowance;
+}
+
+function delay(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 export async function readRecoverableStrategies(input: {

@@ -9,10 +9,20 @@ import type {
   PreparedUniswapSwap,
   UniswapTransaction,
   UniswapQuote,
+  WalletBuySwap,
   WalletSwapQuote,
 } from "./market-types.js";
+import {
+  agentInfoHeader,
+  defaultDecisionOrigin,
+  integrationName,
+  type DecisionOrigin,
+  type UniswapAttribution,
+} from "./uniswap-attribution.js";
 
 const maxAttempts = 3;
+/** The protocols every quote request asks the Trading API for. */
+export const quoteProtocols = ["V4"] as const;
 type JsonRecord = Record<string, unknown>;
 const erc20ApproveAbi = [
   {
@@ -26,6 +36,23 @@ const erc20ApproveAbi = [
     outputs: [{ name: "", type: "bool" }],
   },
 ] as const;
+
+/**
+ * A quote for a wallet carried permitData, so the wallet has no Permit2
+ * allowance for the router yet. EQLTY does not sign that permit for a wallet
+ * it does not hold: the wallet sets the allowance on chain and asks again.
+ */
+export class Permit2AllowanceRequiredError extends Error {
+  constructor(
+    readonly token: EvmAddress,
+    readonly spender: EvmAddress,
+    readonly amount: string,
+    readonly permit2: EvmAddress,
+  ) {
+    super("The wallet has no Permit2 allowance for the Universal Router");
+    this.name = "Permit2AllowanceRequiredError";
+  }
+}
 
 export class UniswapClient {
   constructor(
@@ -43,19 +70,25 @@ export class UniswapClient {
   async quote(
     tokenOut: EvmAddress,
     amount: string,
+    decisionOrigin: DecisionOrigin = defaultDecisionOrigin,
   ): Promise<UniswapQuote> {
     if (!this.config.UNISWAP_API_KEY || !this.config.SWAPPER_ADDRESS) {
       throw new Error("Uniswap quoting is not configured");
     }
 
-    const { body, requestId } = await this.requestQuote({
+    const { body, requestId, agentInfoStatus } = await this.requestQuote({
       tokenIn: this.config.INPUT_TOKEN_ADDRESS as EvmAddress,
       tokenOut,
       amount,
       swapper: this.config.SWAPPER_ADDRESS as EvmAddress,
       slippageTolerance: 1,
+      decisionOrigin,
     });
-    return parseQuote(body, requestId);
+    return {
+      ...parseQuote(body, requestId),
+      ...quoteDetails(body),
+      attribution: attribution(decisionOrigin, agentInfoStatus),
+    };
   }
 
   executionReady(): boolean {
@@ -70,7 +103,9 @@ export class UniswapClient {
     tokenOut: EvmAddress;
     amount: string;
     maxSlippageBps: number;
+    decisionOrigin?: DecisionOrigin;
   }): Promise<PreparedUniswapSwap> {
+    const decisionOrigin = input.decisionOrigin ?? defaultDecisionOrigin;
     const vault = this.config.EQLTY_VAULT_ADDRESS as
       | EvmAddress
       | undefined;
@@ -85,12 +120,13 @@ export class UniswapClient {
       throw new Error("Live swaps require Robinhood Chain mainnet");
     }
 
-    const { body, requestId } = await this.requestQuote({
+    const { body, requestId, agentInfoStatus } = await this.requestQuote({
       tokenIn: this.config.INPUT_TOKEN_ADDRESS as EvmAddress,
       tokenOut: input.tokenOut,
       amount: input.amount,
       swapper: vault,
       slippageTolerance: input.maxSlippageBps / 100,
+      decisionOrigin,
     });
     const parsed = parseQuote(body, requestId);
     if (!parsed.requestId) {
@@ -124,7 +160,7 @@ export class UniswapClient {
       `${this.config.UNISWAP_API_URL}/swap`,
       {
         method: "POST",
-        headers: this.headers(),
+        headers: this.headers(decisionOrigin),
         body: JSON.stringify(
           permitData
             ? { quote, signature, permitData }
@@ -158,16 +194,27 @@ export class UniswapClient {
       routing: parsed.routing,
       rawQuote: quote,
       transaction: prepared,
+      attribution: attribution(
+        decisionOrigin,
+        agentInfoStatus,
+        response.headers.get("x-agent-info-status"),
+      ),
     };
   }
 
+  /**
+   * The sale quote goes back to the browser and returns through a strict
+   * schema, so the X-Agent-Info status is kept on the built swap instead.
+   */
   async prepareWalletSell(input: {
     ticker: string;
     tokenIn: EvmAddress;
     amount: string;
     swapper: EvmAddress;
     maxSlippageBps: number;
+    decisionOrigin?: DecisionOrigin;
   }): Promise<WalletSwapQuote> {
+    const decisionOrigin = input.decisionOrigin ?? defaultDecisionOrigin;
     const tokenOut = this.config.INPUT_TOKEN_ADDRESS as EvmAddress;
     if (!this.config.UNISWAP_API_KEY) {
       throw new Error("Uniswap wallet swaps are not configured");
@@ -178,7 +225,7 @@ export class UniswapClient {
       `${this.config.UNISWAP_API_URL}/check_approval`,
       {
         method: "POST",
-        headers: this.headers(),
+        headers: this.headers(decisionOrigin),
         body: JSON.stringify({
           walletAddress: input.swapper,
           token: input.tokenIn,
@@ -217,6 +264,7 @@ export class UniswapClient {
       amount: input.amount,
       swapper: input.swapper,
       slippageTolerance: input.maxSlippageBps / 100,
+      decisionOrigin,
     });
     const parsed = parseQuote(body, requestId);
     if (!parsed.requestId) {
@@ -259,7 +307,9 @@ export class UniswapClient {
     sell: WalletSwapQuote;
     swapper: EvmAddress;
     signature?: `0x${string}`;
+    decisionOrigin?: DecisionOrigin;
   }): Promise<PreparedUniswapSwap> {
+    const decisionOrigin = input.decisionOrigin ?? defaultDecisionOrigin;
     if (!this.config.UNISWAP_API_KEY) {
       throw new Error("Uniswap wallet swaps are not configured");
     }
@@ -282,7 +332,7 @@ export class UniswapClient {
       `${this.config.UNISWAP_API_URL}/swap`,
       {
         method: "POST",
-        headers: this.headers(),
+        headers: this.headers(decisionOrigin),
         body: JSON.stringify(
           input.sell.permitData
             ? {
@@ -321,6 +371,115 @@ export class UniswapClient {
       routing: input.sell.routing,
       rawQuote: input.sell.rawQuote,
       transaction,
+      attribution: attribution(
+        decisionOrigin,
+        response.headers.get("x-agent-info-status"),
+      ),
+    };
+  }
+
+  walletSwapReady(): boolean {
+    return Boolean(this.config.UNISWAP_API_KEY);
+  }
+
+  /**
+   * Quotes and builds a USDG to stock token swap for a wallet that pays with
+   * its own USDG and sends the transaction itself. It signs nothing. When the
+   * quote carries permitData it throws Permit2AllowanceRequiredError instead
+   * of building, and the returned transaction must target the configured
+   * Universal Router.
+   */
+  async prepareWalletBuy(input: {
+    tokenOut: EvmAddress;
+    amount: string;
+    swapper: EvmAddress;
+    maxSlippageBps: number;
+    decisionOrigin?: DecisionOrigin;
+  }): Promise<WalletBuySwap> {
+    const decisionOrigin = input.decisionOrigin ?? defaultDecisionOrigin;
+    const tokenIn = this.config.INPUT_TOKEN_ADDRESS as EvmAddress;
+    const router = this.config.UNISWAP_UNIVERSAL_ROUTER_ADDRESS as EvmAddress;
+    if (!this.config.UNISWAP_API_KEY) {
+      throw new Error("Uniswap wallet swaps are not configured");
+    }
+    assertRobinhoodChain(this.config);
+
+    const { body, requestId, agentInfoStatus } = await this.requestQuote({
+      tokenIn,
+      tokenOut: input.tokenOut,
+      amount: input.amount,
+      swapper: input.swapper,
+      slippageTolerance: input.maxSlippageBps / 100,
+      decisionOrigin,
+    });
+    const parsed = parseQuote(body, requestId);
+    if (!parsed.requestId) {
+      throw new Error("Uniswap quote returned no request identifier");
+    }
+    // /swap builds calldata for a CLASSIC quote; UniswapX routings are signed
+    // orders that go to /order instead.
+    const routing = body.routing;
+    if (routing !== "CLASSIC") {
+      throw new Error("Uniswap quote routing is not CLASSIC");
+    }
+    const quote = record(body.quote, "Uniswap quote");
+    validateWalletBuyQuote({
+      quote,
+      swapper: input.swapper,
+      tokenIn,
+      tokenOut: input.tokenOut,
+      amount: input.amount,
+    });
+    if (body.permitData !== null && body.permitData !== undefined) {
+      throw permitAllowanceRequired({
+        permitData: record(body.permitData, "Uniswap permit data"),
+        tokenIn,
+        amount: input.amount,
+        router,
+        permit2: this.config.UNISWAP_PERMIT2_ADDRESS as EvmAddress,
+      });
+    }
+    const output = swapperOutput({
+      quote,
+      swapper: input.swapper,
+      tokenOut: input.tokenOut,
+      maxSlippageBps: input.maxSlippageBps,
+    });
+
+    const response = await this.fetchFn(
+      `${this.config.UNISWAP_API_URL}/swap`,
+      {
+        method: "POST",
+        headers: this.headers(decisionOrigin),
+        body: JSON.stringify({ quote, simulateTransaction: true }),
+        signal: AbortSignal.timeout(12_000),
+      },
+    );
+    const swapBody: unknown = await response.json().catch(() => undefined);
+    if (!response.ok || !isRecord(swapBody)) {
+      throw new Error(
+        `Uniswap swap build failed with status ${response.status}`,
+      );
+    }
+    const transaction = parseTransaction(
+      record(swapBody.swap, "Uniswap swap transaction"),
+    );
+    validateWalletBuyTransaction({
+      transaction,
+      swapper: input.swapper,
+      router,
+    });
+    return {
+      amountOut: output.amount,
+      minAmountOut: output.minAmount,
+      requestId: parsed.requestId,
+      routing,
+      transaction,
+      attribution: attribution(
+        decisionOrigin,
+        agentInfoStatus,
+        response.headers.get("x-agent-info-status"),
+      ),
     };
   }
 
@@ -330,16 +489,18 @@ export class UniswapClient {
     amount: string;
     swapper: EvmAddress;
     slippageTolerance: number;
+    decisionOrigin: DecisionOrigin;
   }): Promise<{
     body: JsonRecord;
     requestId: string | null;
+    agentInfoStatus: string | null;
   }> {
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       const response = await this.fetchFn(
         `${this.config.UNISWAP_API_URL}/quote`,
         {
           method: "POST",
-          headers: this.headers(),
+          headers: this.headers(input.decisionOrigin),
           body: JSON.stringify({
             tokenIn: input.tokenIn,
             tokenOut: input.tokenOut,
@@ -350,7 +511,7 @@ export class UniswapClient {
             tokenOutChainId: 4663,
             slippageTolerance: input.slippageTolerance,
             routingPreference: "BEST_PRICE",
-            protocols: ["V4"],
+            protocols: quoteProtocols,
             permitAmount: "EXACT",
           }),
           signal: AbortSignal.timeout(12_000),
@@ -370,13 +531,14 @@ export class UniswapClient {
       return {
         body,
         requestId: response.headers.get("x-request-id"),
+        agentInfoStatus: response.headers.get("x-agent-info-status"),
       };
     }
 
     throw new Error("Uniswap quote retry limit reached");
   }
 
-  private headers(): Record<string, string> {
+  private headers(decisionOrigin: DecisionOrigin): Record<string, string> {
     if (!this.config.UNISWAP_API_KEY) {
       throw new Error("Uniswap API key is missing");
     }
@@ -385,6 +547,7 @@ export class UniswapClient {
       "content-type": "application/json",
       "x-api-key": this.config.UNISWAP_API_KEY,
       "x-universal-router-version": "2.1.1",
+      "x-agent-info": agentInfoHeader({ decisionOrigin, integrationName }),
     };
   }
 }
@@ -427,6 +590,47 @@ function parseQuote(
     amountOut,
     requestId,
     routing,
+  };
+}
+
+/** Price impact, route, gas cost and routing as the Trading API reports them. */
+function quoteDetails(
+  body: JsonRecord,
+): Pick<
+  UniswapQuote,
+  "priceImpactPct" | "route" | "gasFeeUsd" | "reportedRouting"
+> {
+  const quote = isRecord(body.quote) ? body.quote : {};
+  return {
+    priceImpactPct:
+      typeof quote.priceImpact === "number" &&
+      Number.isFinite(quote.priceImpact)
+        ? quote.priceImpact
+        : undefined,
+    route: Array.isArray(quote.route) ? quote.route : undefined,
+    gasFeeUsd:
+      typeof quote.gasFeeUSD === "string" ? quote.gasFeeUSD : undefined,
+    reportedRouting:
+      typeof body.routing === "string"
+        ? body.routing
+        : typeof quote.routing === "string"
+          ? quote.routing
+          : undefined,
+  };
+}
+
+/**
+ * The origin an operation sent, with the first x-agent-info-status any of its
+ * Trading API responses carried. Every call of one operation sends the same
+ * header, so one status speaks for all of them.
+ */
+function attribution(
+  decisionOrigin: DecisionOrigin,
+  ...statuses: Array<string | null>
+): UniswapAttribution {
+  return {
+    decisionOrigin,
+    status: statuses.find((status) => status !== null) ?? null,
   };
 }
 
@@ -580,6 +784,140 @@ function validateWalletQuote(input: {
   }
   if (!same(values.spender, input.router)) {
     throw new Error("Permit2 spender is not the authorized router");
+  }
+}
+
+function validateWalletBuyQuote(input: {
+  quote: JsonRecord;
+  swapper: EvmAddress;
+  tokenIn: EvmAddress;
+  tokenOut: EvmAddress;
+  amount: string;
+}): void {
+  const quoteInput = record(input.quote.input, "Uniswap quote input");
+  const output = record(input.quote.output, "Uniswap quote output");
+  if (!same(input.quote.swapper, input.swapper)) {
+    throw new Error("Uniswap quote swapper is not the requested wallet");
+  }
+  if (
+    !same(quoteInput.token, input.tokenIn) ||
+    String(quoteInput.amount) !== input.amount
+  ) {
+    throw new Error("Uniswap quote input does not match the order");
+  }
+  if (
+    !same(output.token, input.tokenOut) ||
+    !same(output.recipient, input.swapper)
+  ) {
+    throw new Error("Uniswap quote output does not return to the wallet");
+  }
+  if (
+    Number(input.quote.tokenInChainId ?? input.quote.chainId) !== 4663 ||
+    Number(input.quote.tokenOutChainId ?? input.quote.chainId) !== 4663
+  ) {
+    throw new Error("Uniswap quote is not on Robinhood Chain");
+  }
+}
+
+/**
+ * The allowance a wallet must set before its swap can be built, once the
+ * permit the quote asked for is checked: canonical Permit2 on chain 4663, the
+ * exact USDG amount, and the configured router as spender.
+ */
+function permitAllowanceRequired(input: {
+  permitData: JsonRecord;
+  tokenIn: EvmAddress;
+  amount: string;
+  router: EvmAddress;
+  permit2: EvmAddress;
+}): Permit2AllowanceRequiredError {
+  const domain = record(input.permitData.domain, "Permit2 domain");
+  const values = record(input.permitData.values, "Permit2 values");
+  const details = record(values.details, "Permit2 details");
+  if (
+    Number(domain.chainId) !== 4663 ||
+    !same(domain.verifyingContract, input.permit2)
+  ) {
+    throw new Error("Permit2 domain is not canonical");
+  }
+  if (
+    !same(details.token, input.tokenIn) ||
+    String(details.amount) !== input.amount
+  ) {
+    throw new Error("Permit2 amount is not exact");
+  }
+  if (!same(values.spender, input.router)) {
+    throw new Error("Permit2 spender is not the authorized router");
+  }
+  return new Permit2AllowanceRequiredError(
+    input.tokenIn,
+    input.router,
+    input.amount,
+    input.permit2,
+  );
+}
+
+/**
+ * The wallet's own entry in aggregatedOutputs, the one with no fee tag. This
+ * is how the Uniswap interface reads what a recipient will receive
+ * (getQuoteOutputAmountUserWillReceive): amount is the quoted output and
+ * minAmount the least the wallet receives.
+ */
+function swapperOutput(input: {
+  quote: JsonRecord;
+  swapper: EvmAddress;
+  tokenOut: EvmAddress;
+  maxSlippageBps: number;
+}): { amount: string; minAmount: string } {
+  const outputs = (
+    Array.isArray(input.quote.aggregatedOutputs)
+      ? input.quote.aggregatedOutputs
+      : []
+  )
+    .filter(isRecord)
+    .filter(
+      (output) =>
+        output.fee === undefined && same(output.recipient, input.swapper),
+    );
+  const output = outputs.length === 1 ? outputs[0] : undefined;
+  if (!output || !same(output.token, input.tokenOut)) {
+    throw new Error("Uniswap quote has no single output for the wallet");
+  }
+  const amount = String(output.amount ?? "");
+  const minAmount = String(output.minAmount ?? "");
+  if (!/^[1-9]\d*$/.test(amount) || !/^[1-9]\d*$/.test(minAmount)) {
+    throw new Error("Uniswap quote returned no minimum output for the wallet");
+  }
+  // A minimum under the quoted output less the requested slippage would let
+  // the swap settle for less than the caller asked to accept.
+  const floor =
+    (BigInt(amount) * BigInt(10_000 - input.maxSlippageBps)) / 10_000n;
+  if (BigInt(minAmount) > BigInt(amount) || BigInt(minAmount) < floor) {
+    throw new Error(
+      "Uniswap minimum output does not match the requested slippage",
+    );
+  }
+  return { amount, minAmount };
+}
+
+function validateWalletBuyTransaction(input: {
+  transaction: UniswapTransaction;
+  swapper: EvmAddress;
+  router: EvmAddress;
+}): void {
+  if (!same(input.transaction.to, input.router)) {
+    throw new Error(
+      `Uniswap returned a transaction for ${input.transaction.to}, not the configured Universal Router ${input.router}`,
+    );
+  }
+  if (!same(input.transaction.from, input.swapper)) {
+    throw new Error("Uniswap transaction sender is not the requested wallet");
+  }
+  if (input.transaction.chainId !== 4663) {
+    throw new Error("Uniswap transaction is not on Robinhood Chain");
+  }
+  if (BigInt(input.transaction.value) !== 0n) {
+    throw new Error("A USDG purchase cannot include native value");
   }
 }
 

@@ -1,6 +1,8 @@
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { AgentQuoteError, type AgentQuoteAnswer } from "./agent-quote.js";
+import { AgentSwapError, type AgentSwap } from "./agent-swap.js";
 import { createApp } from "./app.js";
 import { loadConfig } from "./config.js";
 import { buildDecisionReceipt } from "./decision-receipt.js";
@@ -2029,3 +2031,401 @@ async function request(
   const address = server.address() as AddressInfo;
   return fetch(`http://127.0.0.1:${address.port}${path}`, init);
 }
+
+describe("agent quote endpoint", () => {
+  const answer: AgentQuoteAnswer = {
+    maxAgeSeconds: 20,
+    quote: {
+      chainId: 4663,
+      ticker: "NVDA",
+      tokenIn: {
+        symbol: "USDG",
+        address: "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        decimals: 6,
+      },
+      tokenOut: {
+        symbol: "NVDA",
+        address: "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+        decimals: 18,
+      },
+      amountIn: "1000000",
+      amountOut: "5500000000000000",
+      priceImpactPct: 0.42,
+      routing: "CLASSIC",
+      protocols: ["V4"],
+      route: [],
+      gasFeeUsd: "0.0031",
+      requestId: "quote-agent-1",
+      quotedAt: "2026-09-26T12:00:00.000Z",
+      attribution: { decisionOrigin: "autonomous", status: null },
+    },
+  };
+
+  it("serves a public read-only quote without a session", async () => {
+    const quote = vi.fn(async () => answer);
+
+    const response = await request(
+      "/api/agent/quote?ticker=nvda&amountIn=1000000",
+      { agentQuotes: { quote } },
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe(
+      "public, max-age=20",
+    );
+    await expect(response.json()).resolves.toEqual(answer.quote);
+    expect(quote).toHaveBeenCalledWith({
+      ticker: "nvda",
+      amountIn: "1000000",
+      client: expect.any(String),
+    });
+  });
+
+  it.each([
+    ["a missing ticker", "?amountIn=1000000", "invalid_ticker"],
+    ["a malformed ticker", "?ticker=NV%20DA&amountIn=1000000", "invalid_ticker"],
+    [
+      "a repeated ticker",
+      "?ticker=NVDA&ticker=AMZN&amountIn=1000000",
+      "invalid_ticker",
+    ],
+    ["a missing amount", "?ticker=NVDA", "invalid_amount"],
+    ["a zero amount", "?ticker=NVDA&amountIn=0", "invalid_amount"],
+    ["a negative amount", "?ticker=NVDA&amountIn=-1", "invalid_amount"],
+    ["a fractional amount", "?ticker=NVDA&amountIn=1.5", "invalid_amount"],
+    ["an exponent", "?ticker=NVDA&amountIn=1e6", "invalid_amount"],
+    ["a word", "?ticker=NVDA&amountIn=all", "invalid_amount"],
+    ["an amount over 78 digits", `?ticker=NVDA&amountIn=${"9".repeat(79)}`, "invalid_amount"],
+    ["a leading zero", "?ticker=NVDA&amountIn=01", "invalid_amount"],
+  ])("refuses %s with 400", async (_label, query, error) => {
+    const quote = vi.fn(async () => answer);
+
+    const response = await request(`/api/agent/quote${query}`, {
+      agentQuotes: { quote },
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    await expect(response.json()).resolves.toEqual({
+      error,
+      message: expect.any(String),
+    });
+    expect(quote).not.toHaveBeenCalled();
+  });
+
+  it("refuses an amount above the server limit", async () => {
+    const response = await request(
+      "/api/agent/quote?ticker=NVDA&amountIn=1000001",
+      undefined,
+      undefined,
+      {
+        EQLTY_MAX_INPUT_AMOUNT: "1000000",
+        EQLTY_AGENT_SWAP_MAX_AMOUNT: "1000000",
+      },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "amount_above_limit",
+      message: "amountIn is above this server's limit of 1000000 atomic USDG",
+    });
+  });
+
+  it.each([
+    [404, "not_uniswap_routable", "NVDA has no observed Uniswap route"],
+    [404, "asset_not_found", "ZZZZ is not a Robinhood stock token on chain 4663"],
+    [502, "uniswap_quote_failed", "Uniswap quote failed with status 500"],
+    [503, "quote_unavailable", "Uniswap quoting is not configured on this server"],
+  ] as const)(
+    "answers a %i %s refusal with its message",
+    async (status, code, message) => {
+      const response = await request(
+        "/api/agent/quote?ticker=NVDA&amountIn=1000000",
+        {
+          agentQuotes: {
+            quote: async () => {
+              throw new AgentQuoteError(status, code, message);
+            },
+          },
+        },
+      );
+
+      expect(response.status).toBe(status);
+      expect(response.headers.get("cache-control")).toBe("no-store");
+      await expect(response.json()).resolves.toEqual({
+        error: code,
+        message,
+      });
+    },
+  );
+
+  it("tells a rate-limited agent when to retry", async () => {
+    const response = await request(
+      "/api/agent/quote?ticker=NVDA&amountIn=1000000",
+      {
+        agentQuotes: {
+          quote: async () => {
+            throw new AgentQuoteError(
+              429,
+              "rate_limited",
+              "Too many new quotes on this server; retry in 12 seconds",
+              12,
+            );
+          },
+        },
+      },
+    );
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get("retry-after")).toBe("12");
+    await expect(response.json()).resolves.toEqual({
+      error: "rate_limited",
+      message: "Too many new quotes on this server; retry in 12 seconds",
+    });
+  });
+
+  it("keeps an unexpected failure public-safe", async () => {
+    const response = await request(
+      "/api/agent/quote?ticker=NVDA&amountIn=1000000",
+      {
+        agentQuotes: {
+          quote: async () => {
+            throw new Error("request body: {\"x-api-key\":\"secret\"}");
+          },
+        },
+      },
+    );
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toEqual({
+      error: "uniswap_quote_failed",
+      message: "The external provider rejected the request.",
+    });
+  });
+});
+
+describe("agent swap endpoint", () => {
+  const owner = "0x1234567890abcdef1234567890abcdef12345678";
+  const router = "0x8876789976decbfcbbbe364623c63652db8c0904";
+  const usdg = "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168";
+  const swap: AgentSwap = {
+    chainId: 4663,
+    to: router,
+    data: `0x3593564c${"00".repeat(32)}`,
+    value: "0",
+    tokenIn: { symbol: "USDG", address: usdg, decimals: 6 },
+    tokenOut: {
+      symbol: "NVDA",
+      address: "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+      decimals: 18,
+    },
+    amountIn: "25000000",
+    amountOut: "120000000000000000",
+    minAmountOut: "119402985074626865",
+    requestId: "buy-quote-1",
+    routing: "CLASSIC",
+    protocols: ["V4"],
+  };
+  const order = {
+    ticker: "NVDA",
+    amountIn: "25000000",
+    swapper: owner,
+    slippageBps: 50,
+  };
+
+  function post(body: unknown, headers = { "content-type": "application/json" }) {
+    return {
+      method: "POST",
+      headers,
+      body: typeof body === "string" ? body : JSON.stringify(body),
+    };
+  }
+
+  it("returns the swap for the wallet to send, without a session", async () => {
+    const swapFn = vi.fn(async () => swap);
+
+    const response = await request(
+      "/api/agent/swap",
+      { agentSwaps: { swap: swapFn } },
+      post(order),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    await expect(response.json()).resolves.toEqual(swap);
+    expect(swapFn).toHaveBeenCalledWith({ ...order, client: expect.any(String) });
+  });
+
+  it.each([
+    ["an array body", [order], "invalid_request"],
+    ["an unknown field", { ...order, recipient: owner }, "invalid_request"],
+    ["a missing ticker", { ...order, ticker: undefined }, "invalid_ticker"],
+    ["a numeric ticker", { ...order, ticker: 7 }, "invalid_ticker"],
+    ["a numeric amount", { ...order, amountIn: 25000000 }, "invalid_amount"],
+    ["a zero amount", { ...order, amountIn: "0" }, "invalid_amount"],
+    ["a fractional amount", { ...order, amountIn: "1.5" }, "invalid_amount"],
+    ["an exponent", { ...order, amountIn: "1e6" }, "invalid_amount"],
+    ["a leading zero", { ...order, amountIn: "025000000" }, "invalid_amount"],
+    ["a short swapper", { ...order, swapper: "0x1234" }, "invalid_swapper"],
+    ["an ENS name", { ...order, swapper: "owner.eth" }, "invalid_swapper"],
+    ["zero slippage", { ...order, slippageBps: 0 }, "invalid_slippage"],
+    ["slippage over 500", { ...order, slippageBps: 501 }, "invalid_slippage"],
+    ["fractional slippage", { ...order, slippageBps: 1.5 }, "invalid_slippage"],
+    ["slippage as a string", { ...order, slippageBps: "50" }, "invalid_slippage"],
+  ])("refuses %s with 400", async (_label, body, error) => {
+    const swapFn = vi.fn(async () => swap);
+
+    const response = await request(
+      "/api/agent/swap",
+      { agentSwaps: { swap: swapFn } },
+      post(body),
+    );
+
+    expect(response.status).toBe(400);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    await expect(response.json()).resolves.toEqual({
+      error,
+      message: expect.any(String),
+    });
+    expect(swapFn).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["malformed JSON", post("{\"ticker\":", { "content-type": "application/json" })],
+    ["a body that is not JSON", post("ticker=NVDA", { "content-type": "text/plain" })],
+  ])("refuses %s with 400", async (_label, init) => {
+    const swapFn = vi.fn(async () => swap);
+
+    const response = await request(
+      "/api/agent/swap",
+      { agentSwaps: { swap: swapFn } },
+      init,
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "invalid_request",
+      message: expect.any(String),
+    });
+    expect(swapFn).not.toHaveBeenCalled();
+  });
+
+  it("refuses an order over the wallet swap cap", async () => {
+    const response = await request(
+      "/api/agent/swap",
+      undefined,
+      post({ ...order, amountIn: "5000001" }),
+      { EQLTY_AGENT_SWAP_MAX_AMOUNT: "5000000" },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "amount_above_limit",
+      message:
+        "amountIn is above this server's limit of 5000000 atomic USDG per swap",
+    });
+  });
+
+  it("answers a missing Permit2 allowance with what to set on chain", async () => {
+    const message =
+      "The swapper has no Permit2 allowance for the Universal Router yet.";
+    const response = await request(
+      "/api/agent/swap",
+      {
+        agentSwaps: {
+          swap: async () => {
+            throw new AgentSwapError(409, "permit2_allowance_required", message, {
+              allowance: { token: usdg, spender: router, amount: "25000000" },
+            });
+          },
+        },
+      },
+      post(order),
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error: "permit2_allowance_required",
+      message,
+      token: usdg,
+      spender: router,
+      amount: "25000000",
+    });
+  });
+
+  it.each([
+    [404, "not_uniswap_routable", "NVDA is not marked Uniswap routable in the stock catalog"],
+    [404, "asset_not_found", "ZZZZ is not a Robinhood stock token on chain 4663"],
+    [
+      502,
+      "uniswap_swap_failed",
+      `Uniswap returned a transaction for ${owner}, not the configured Universal Router ${router}`,
+    ],
+    [503, "swap_unavailable", "Uniswap swaps are not configured on this server"],
+  ] as const)(
+    "answers a %i %s refusal with its message",
+    async (status, code, message) => {
+      const response = await request(
+        "/api/agent/swap",
+        {
+          agentSwaps: {
+            swap: async () => {
+              throw new AgentSwapError(status, code, message);
+            },
+          },
+        },
+        post(order),
+      );
+
+      expect(response.status).toBe(status);
+      expect(response.headers.get("cache-control")).toBe("no-store");
+      await expect(response.json()).resolves.toEqual({ error: code, message });
+    },
+  );
+
+  it("tells a rate-limited caller when to retry", async () => {
+    const response = await request(
+      "/api/agent/swap",
+      {
+        agentSwaps: {
+          swap: async () => {
+            throw new AgentSwapError(
+              429,
+              "rate_limited",
+              "Too many swaps on this server; retry in 20 seconds",
+              { retryAfterSeconds: 20 },
+            );
+          },
+        },
+      },
+      post(order),
+    );
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get("retry-after")).toBe("20");
+    await expect(response.json()).resolves.toEqual({
+      error: "rate_limited",
+      message: "Too many swaps on this server; retry in 20 seconds",
+    });
+  });
+
+  it("keeps an unexpected failure public-safe", async () => {
+    const response = await request(
+      "/api/agent/swap",
+      {
+        agentSwaps: {
+          swap: async () => {
+            throw new Error("request body: {\"x-api-key\":\"secret\"}");
+          },
+        },
+      },
+      post(order),
+    );
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toEqual({
+      error: "uniswap_swap_failed",
+      message: "The external provider rejected the request.",
+    });
+  });
+});

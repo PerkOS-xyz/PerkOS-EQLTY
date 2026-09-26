@@ -352,3 +352,28 @@ function healthyGraph() {
     })),
   };
 }
+
+describe("stock catalog attribution", () => {
+  it("passes the caller's decision origin to the fresh quote", async () => {
+    const quote = vi.fn().mockResolvedValue({
+      amountOut: "10000000000000000",
+      requestId: "quote-1",
+      routing: "V4",
+    });
+    const service = new StockCatalogService(loadConfig({}), {
+      fetchFn: fixtureFetch(),
+      now: () => now,
+      uniswapMarket: observedMarket(),
+      uniswap: { ready: () => true, quote },
+      graph: healthyGraph(),
+    });
+
+    await service.assessTicker("AMZN", "autonomous");
+
+    expect(quote).toHaveBeenCalledWith(
+      "0x12f190a9F9d7D37a250758b26824B97CE941bF54",
+      "1000000",
+      "autonomous",
+    );
+  });
+});

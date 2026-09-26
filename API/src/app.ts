@@ -6,6 +6,7 @@ import { loadConfig, type ApiConfig } from "./config.js";
 import { EnsControlPlaneService } from "./ens-control-plane.js";
 import { EnsPolicyPreparationService } from "./ens-policy-preparation.js";
 import { EqltyVaultExecutor } from "./eqlty-vault-executor.js";
+import { DeskOrderError, DeskOrderService } from "./desk-orders.js";
 import { executionTraderAddress } from "./execution-addresses.js";
 import type { ExecutionStrategy } from "./execution-types.js";
 import { DecisionFeeService } from "./decision-fee.js";
@@ -230,6 +231,13 @@ const runInput = z
     execute: z.boolean().default(false),
   })
   .strict();
+const deskOrderInput = z
+  .object({
+    strategyId: uint256,
+    amountIn: uint256,
+    signal: z.string().trim().min(1).max(2_000),
+  })
+  .strict();
 const ensPolicyChange = z
   .object({
     paused: z.boolean(),
@@ -344,6 +352,7 @@ type AppDependencies = {
   portfolio?: Pick<PortfolioService, "read">;
   walletReadiness?: Pick<WalletReadinessService, "read">;
   walletSwaps?: Pick<WalletSwapService, "build" | "quote">;
+  deskOrders?: Pick<DeskOrderService, "prepare">;
 };
 
 export function createApp(
@@ -429,6 +438,9 @@ export function createApp(
       catalog: stockCatalog,
     });
   const vaultExecutor = new EqltyVaultExecutor(config);
+  const deskOrders =
+    dependencies.deskOrders ??
+    new DeskOrderService(config, { executor: vaultExecutor });
   const proofRuns =
     dependencies.proofRuns ??
     new ProofRunService(config, strategyStore, {
@@ -1249,6 +1261,41 @@ export function createApp(
       }
     },
   );
+
+  // A PerkOS desk prepares an order its owner will send from their delegated
+  // wallet. The PerkOS session proves the owner; nothing is sent from here.
+  app.post("/api/desk/orders/prepare", async (request, response) => {
+    const header = request.headers.authorization ?? "";
+    const idToken = header.replace(/^Bearer\s+/i, "").trim();
+    if (!idToken || idToken === header) {
+      return response
+        .status(401)
+        .json({ error: "perkos_session_required" });
+    }
+    const parsed = deskOrderInput.safeParse(request.body);
+    if (!parsed.success) {
+      return response.status(400).json({
+        error: "invalid_desk_order",
+        issues: parsed.error.issues,
+      });
+    }
+    try {
+      response.setHeader("cache-control", "no-store");
+      return response.json(
+        await deskOrders.prepare({ idToken, ...parsed.data }),
+      );
+    } catch (error) {
+      if (error instanceof DeskOrderError) {
+        return response
+          .status(error.status)
+          .json({ error: "desk_order_refused", message: error.message });
+      }
+      return response.status(409).json({
+        error: "desk_order_unavailable",
+        message: safeMessage(error),
+      });
+    }
+  });
 
   app.post("/api/runs", async (request, response) => {
     const session = ownerAuth.session(request);

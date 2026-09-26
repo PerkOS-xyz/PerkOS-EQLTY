@@ -18,8 +18,8 @@ import {
   eqltyExecutionTypes,
   eqltyVaultAbi,
 } from "./eqlty-vault-abi.js";
-import type { ExecutionStrategy } from "./execution-types.js";
-import type { PreparedUniswapSwap } from "./market-types.js";
+import type { ExecutionStrategy, OnchainStrategy } from "./execution-types.js";
+import type { EvmAddress, PreparedUniswapSwap } from "./market-types.js";
 import { hashPayload } from "./proof-handoff.js";
 import type {
   TradeExecutionInput,
@@ -35,6 +35,34 @@ const robinhood = (rpcUrl: string) =>
     nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
     rpcUrls: { default: { http: [rpcUrl] } },
   });
+
+/** What the vault checks about a strategy before it lets an order through. */
+type StrategyTerms = Pick<
+  ExecutionStrategy,
+  "owner" | "agent" | "inputToken" | "outputToken" | "router"
+> & { onchain?: Pick<OnchainStrategy, "chainId" | "strategyId"> };
+
+/** An order prepared for the owner's delegated wallet to send. */
+export type DelegatedOrder = {
+  vault: Address;
+  chainId: 4663;
+  execution: {
+    strategyId: string;
+    amountIn: string;
+    quotedAmountOut: string;
+    minAmountOut: string;
+    deadline: string;
+    signalHash: Hex;
+    quoteHash: Hex;
+    calldataHash: Hex;
+    nonce: string;
+  };
+  routerCalldata: Hex;
+  signature: Hex;
+  tokenOut: EvmAddress;
+  requestId?: string;
+  routing?: string;
+};
 
 export class EqltyVaultExecutor implements TradeExecutor {
   private readonly uniswap: UniswapClient;
@@ -102,36 +130,13 @@ export class EqltyVaultExecutor implements TradeExecutor {
       throw new Error("Prepared quote amount does not match execution");
     }
 
-    const quotedAmountOut = BigInt(prepared.amountOut);
-    const minAmountOut =
-      (quotedAmountOut *
-        BigInt(10_000 - input.strategy.maxSlippageBps)) /
-      10_000n;
-    const message = {
-      strategyId: state.strategyId,
-      amountIn: BigInt(input.amountIn),
-      quotedAmountOut,
-      minAmountOut,
-      deadline: BigInt(Math.floor(Date.now() / 1_000) + 300),
-      signalHash: input.signalHash,
-      quoteHash: hashPayload(prepared.rawQuote),
-      calldataHash: keccak256(prepared.transaction.data),
-      nonce: state.nonce,
-    };
-    const risk = privateKeyToAccount(
-      this.config.EQLTY_RISK_SIGNER_PRIVATE_KEY as Hex,
+    const { message, signature } = await this.riskSigned(
+      state,
+      input.amountIn,
+      input.strategy.maxSlippageBps,
+      input.signalHash,
+      prepared,
     );
-    const signature = await risk.signTypedData({
-      domain: {
-        name: "EQLTY",
-        version: "1",
-        chainId: 4663,
-        verifyingContract: this.vault(),
-      },
-      types: eqltyExecutionTypes,
-      primaryType: "Execution",
-      message,
-    });
 
     const rpcUrl = this.rpcUrl();
     const chain = robinhood(rpcUrl);
@@ -240,8 +245,9 @@ export class EqltyVaultExecutor implements TradeExecutor {
   }
 
   private async assertOnchainStrategy(
-    strategy: ExecutionStrategy,
+    strategy: StrategyTerms,
     amountIn: string,
+    agentAddress?: Address,
   ): Promise<{ nonce: bigint; strategyId: bigint }> {
     const rpcUrl = this.rpcUrl();
     const publicClient = createPublicClient({
@@ -287,17 +293,20 @@ export class EqltyVaultExecutor implements TradeExecutor {
           functionName: "TOKEN_SPENDER",
         }),
       ]);
-    const trader = executionAccountForStrategy(
-      this.config,
-      strategy.owner,
-      strategy.agent,
-    );
+    // The agent is EQLTY's own execution wallet, unless the owner named their delegated wallet.
+    const agent =
+      agentAddress ??
+      executionAccountForStrategy(
+        this.config,
+        strategy.owner,
+        strategy.agent,
+      ).address;
     const risk = privateKeyToAccount(
       this.config.EQLTY_RISK_SIGNER_PRIVATE_KEY as Hex,
     );
     const expected = [
       [stored[0], strategy.owner, "owner"],
-      [stored[1], trader.address, "agent"],
+      [stored[1], agent, "agent"],
       [stored[2], strategy.inputToken, "input token"],
       [stored[3], strategy.outputToken, "output token"],
       [stored[4], strategy.router, "router"],
@@ -330,6 +339,117 @@ export class EqltyVaultExecutor implements TradeExecutor {
     return { nonce, strategyId };
   }
 
+  /**
+   * An order for a strategy whose agent is the owner's own delegated wallet:
+   * the same quote, route and risk co-signature as a live execution, returned
+   * unsent. PerkOS sends it from that wallet once the owner approves it.
+   */
+  async prepareForAgent(input: {
+    owner: EvmAddress;
+    agent: EvmAddress;
+    strategyId: string;
+    amountIn: string;
+    signalHash: Hex;
+  }): Promise<DelegatedOrder> {
+    this.assertArmed(input.amountIn);
+    const rpcUrl = this.rpcUrl();
+    const publicClient = createPublicClient({
+      chain: robinhood(rpcUrl),
+      transport: http(rpcUrl),
+    });
+    const stored = await publicClient.readContract({
+      address: this.vault(),
+      abi: eqltyVaultAbi,
+      functionName: "strategies",
+      args: [BigInt(input.strategyId)],
+    });
+    const terms: StrategyTerms = {
+      owner: input.owner,
+      agent: input.agent,
+      inputToken: this.config.INPUT_TOKEN_ADDRESS as EvmAddress,
+      outputToken: getAddress(stored[3]) as EvmAddress,
+      router: this.config.UNISWAP_UNIVERSAL_ROUTER_ADDRESS as EvmAddress,
+      onchain: { chainId: 4663, strategyId: input.strategyId },
+    };
+    const state = await this.assertOnchainStrategy(
+      terms,
+      input.amountIn,
+      input.agent,
+    );
+    const maxSlippageBps = Number(stored[9]);
+    const prepared = await this.uniswap.prepareSwap({
+      tokenOut: terms.outputToken,
+      amount: input.amountIn,
+      maxSlippageBps,
+    });
+    const { message, signature } = await this.riskSigned(
+      state,
+      input.amountIn,
+      maxSlippageBps,
+      input.signalHash,
+      prepared,
+    );
+    return {
+      vault: this.vault(),
+      chainId: 4663,
+      execution: {
+        strategyId: message.strategyId.toString(),
+        amountIn: message.amountIn.toString(),
+        quotedAmountOut: message.quotedAmountOut.toString(),
+        minAmountOut: message.minAmountOut.toString(),
+        deadline: message.deadline.toString(),
+        signalHash: message.signalHash,
+        quoteHash: message.quoteHash,
+        calldataHash: message.calldataHash,
+        nonce: message.nonce.toString(),
+      },
+      routerCalldata: prepared.transaction.data,
+      signature,
+      tokenOut: terms.outputToken,
+      requestId: prepared.requestId,
+      routing: prepared.routing,
+    };
+  }
+
+  /** The execution the vault will check, co-signed by the risk key. */
+  private async riskSigned(
+    state: { nonce: bigint; strategyId: bigint },
+    amountIn: string,
+    maxSlippageBps: number,
+    signalHash: Hex,
+    prepared: PreparedUniswapSwap,
+  ) {
+    const quotedAmountOut = BigInt(prepared.amountOut);
+    const minAmountOut =
+      (quotedAmountOut * BigInt(10_000 - maxSlippageBps)) / 10_000n;
+    const message = {
+      strategyId: state.strategyId,
+      amountIn: BigInt(amountIn),
+      quotedAmountOut,
+      minAmountOut,
+      deadline: BigInt(Math.floor(Date.now() / 1_000) + 300),
+      signalHash,
+      quoteHash: hashPayload(prepared.rawQuote),
+      calldataHash: keccak256(prepared.transaction.data),
+      nonce: state.nonce,
+    };
+    const risk = privateKeyToAccount(
+      this.config.EQLTY_RISK_SIGNER_PRIVATE_KEY as Hex,
+    );
+    const signature = await risk.signTypedData({
+      domain: {
+        name: "EQLTY",
+        version: "1",
+        chainId: 4663,
+        verifyingContract: this.vault(),
+      },
+      types: eqltyExecutionTypes,
+      primaryType: "Execution",
+      message,
+    });
+    return { message, signature };
+  }
+
   private vault(): Address {
     return this.config.EQLTY_VAULT_ADDRESS as Address;
   }
@@ -350,9 +470,9 @@ export function gasTopUpAmount(
   return balance < minimum ? target - balance : 0n;
 }
 
-export function onchainStrategyId(
-  strategy: ExecutionStrategy,
-): bigint {
+export function onchainStrategyId(strategy: {
+  onchain?: Pick<OnchainStrategy, "chainId" | "strategyId">;
+}): bigint {
   if (!strategy.onchain || strategy.onchain.chainId !== 4663) {
     throw new Error("Strategy is not funded on Robinhood Chain");
   }

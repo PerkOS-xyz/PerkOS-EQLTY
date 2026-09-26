@@ -12,6 +12,7 @@ import type {
   StockCatalogAsset,
 } from "./market-types.js";
 import { UniswapClient } from "./uniswap-client.js";
+import type { DecisionOrigin } from "./uniswap-attribution.js";
 import {
   UniswapRwaMarketService,
   type UniswapRwaCoverage,
@@ -99,6 +100,7 @@ export class StockCatalogService {
 
   async assessTicker(
     ticker: string,
+    decisionOrigin?: DecisionOrigin,
   ): Promise<StockCatalogAsset | undefined> {
     const normalized = ticker.trim().toUpperCase();
     const catalog = await this.catalog();
@@ -111,6 +113,7 @@ export class StockCatalogService {
       this.uniswap.quote(
         entry.tokenAddress,
         catalog.quoteAmount,
+        decisionOrigin,
       ),
       this.evidence.ready()
         ? this.evidence.evidence(normalized)

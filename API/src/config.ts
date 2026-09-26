@@ -111,6 +111,14 @@ const schema = z.object({
     .regex(/^[1-9]\d*$/)
     .refine((value) => BigInt(value) < 2n ** 256n)
     .default("1000000"),
+  // Per-order cap for POST /api/agent/swap, in atomic USDG. Separate from
+  // EQLTY_MAX_INPUT_AMOUNT because that swap spends the caller's own wallet,
+  // not the vault. The default is 100 USDG.
+  EQLTY_AGENT_SWAP_MAX_AMOUNT: z
+    .string()
+    .regex(/^[1-9]\d{0,77}$/, { abort: true })
+    .refine((value) => BigInt(value) < 2n ** 256n)
+    .default("100000000"),
   MAINNET_QUOTE_AMOUNT: z
     .string()
     .max(78)

@@ -1,3 +1,5 @@
+import type { UniswapAttribution } from "./uniswap-attribution.js";
+
 export type EvmAddress = `0x${string}`;
 
 export type RobinhoodAsset = {
@@ -111,6 +113,18 @@ export type UniswapQuote = {
   amountOut: string;
   requestId?: string;
   routing: string;
+  /** Price impact in percent, 0 to 100, as the Trading API reports it. */
+  priceImpactPct?: number;
+  /** The pools of the route, as the Trading API returned them. */
+  route?: unknown[];
+  /** The Trading API's gasFeeUSD estimate. */
+  gasFeeUsd?: string;
+  /**
+   * The routing value exactly as the Trading API sent it. routing above falls
+   * back to "V4" when the API sent none; this field stays empty instead.
+   */
+  reportedRouting?: string;
+  attribution?: UniswapAttribution;
 };
 
 export type PreparedUniswapSwap = {
@@ -125,9 +139,26 @@ export type PreparedUniswapSwap = {
     value: string;
     chainId: number;
   };
+  /** The origin sent in X-Agent-Info and the gateway's x-agent-info-status. */
+  attribution?: UniswapAttribution;
 };
 
 export type UniswapTransaction = PreparedUniswapSwap["transaction"];
+
+/**
+ * A USDG to stock token swap built for a wallet that pays with its own USDG.
+ * Nothing here is signed: the wallet sends the transaction itself.
+ */
+export type WalletBuySwap = {
+  /** The swapper's output in the quote's aggregatedOutputs. */
+  amountOut: string;
+  /** minAmount of that same output: the least the wallet receives. */
+  minAmountOut: string;
+  requestId: string;
+  routing: string;
+  transaction: UniswapTransaction;
+  attribution: UniswapAttribution;
+};
 
 export type WalletSwapQuote = {
   chainId: 4663;

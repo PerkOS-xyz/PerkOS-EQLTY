@@ -1,6 +1,8 @@
 import cors from "cors";
 import express from "express";
 import type { Express } from "express";
+import { AgentQuoteError, AgentQuoteService } from "./agent-quote.js";
+import { AgentSwapError, AgentSwapService } from "./agent-swap.js";
 import { AutonomousGoalService } from "./autonomous-goals.js";
 import { loadConfig, type ApiConfig } from "./config.js";
 import { EnsControlPlaneService } from "./ens-control-plane.js";
@@ -62,6 +64,9 @@ const uint256 = z
   .max(78)
   .regex(/^[1-9]\d*$/)
   .refine((value) => BigInt(value) < 2n ** 256n);
+// Zod runs a refine even after its regex fails, so uint256 throws on "1.5";
+// this shape stops at the pattern and the quote service applies the limit.
+const quoteAmount = z.string().regex(/^[1-9]\d{0,77}$/);
 const goalInput = z
   .object({
     goal: z.string().trim().min(10).max(500),
@@ -353,6 +358,8 @@ type AppDependencies = {
   walletReadiness?: Pick<WalletReadinessService, "read">;
   walletSwaps?: Pick<WalletSwapService, "build" | "quote">;
   deskOrders?: Pick<DeskOrderService, "prepare">;
+  agentQuotes?: Pick<AgentQuoteService, "quote">;
+  agentSwaps?: Pick<AgentSwapService, "swap">;
 };
 
 export function createApp(
@@ -467,6 +474,12 @@ export function createApp(
   const walletSwaps =
     dependencies.walletSwaps ??
     new WalletSwapService(config, { catalog: stockCatalog });
+  const agentQuotes =
+    dependencies.agentQuotes ??
+    new AgentQuoteService(config, { catalog: stockCatalog });
+  const agentSwaps =
+    dependencies.agentSwaps ??
+    new AgentSwapService(config, { catalog: stockCatalog });
 
   app.disable("x-powered-by");
   app.use(
@@ -1675,6 +1688,150 @@ export function createApp(
     }
   });
 
+  // The price a desk's Quote agent reports. Public and read only: no session,
+  // no transaction, no signature. An identical answer is reused for a while so
+  // an agent that asks in a loop cannot spend the Trading API quota.
+  app.get("/api/agent/quote", async (request, response) => {
+    response.setHeader("cache-control", "no-store");
+    const parsedTicker = ticker.safeParse(request.query.ticker);
+    if (!parsedTicker.success) {
+      return response.status(400).json({
+        error: "invalid_ticker",
+        message: "ticker must be a stock token symbol such as NVDA",
+      });
+    }
+    const parsedAmount = quoteAmount.safeParse(request.query.amountIn);
+    if (!parsedAmount.success) {
+      return response.status(400).json({
+        error: "invalid_amount",
+        message: "amountIn must be a positive whole number of atomic USDG",
+      });
+    }
+    try {
+      const answer = await agentQuotes.quote({
+        ticker: parsedTicker.data,
+        amountIn: parsedAmount.data,
+        client: clientOf(request),
+      });
+      response.setHeader(
+        "cache-control",
+        `public, max-age=${answer.maxAgeSeconds}`,
+      );
+      return response.json(answer.quote);
+    } catch (error) {
+      if (error instanceof AgentQuoteError) {
+        if (error.retryAfterSeconds) {
+          response.setHeader("retry-after", String(error.retryAfterSeconds));
+        }
+        return response
+          .status(error.status)
+          .json({ error: error.code, message: error.message });
+      }
+      return response.status(502).json({
+        error: "uniswap_quote_failed",
+        message: safeMessage(error),
+      });
+    }
+  });
+
+  // The swap a desk sends from its owner's wallet after the owner approved
+  // the order: USDG from that wallet into one stock token. Public, but it only
+  // returns calldata for the swapper to send. It never signs, never returns
+  // permit data and never touches the vault.
+  const agentSwapFields = {
+    ticker,
+    amountIn: quoteAmount,
+    swapper: address,
+    slippageBps: z.number().int().min(1).max(500),
+  };
+  const agentSwapRefusals = {
+    ticker: ["invalid_ticker", "ticker must be a stock token symbol such as NVDA"],
+    amountIn: [
+      "invalid_amount",
+      "amountIn must be a positive whole number of atomic USDG, as a string",
+    ],
+    swapper: ["invalid_swapper", "swapper must be a 0x address"],
+    slippageBps: [
+      "invalid_slippage",
+      "slippageBps must be a whole number from 1 to 500",
+    ],
+  } as const;
+  app.post("/api/agent/swap", async (request, response) => {
+    response.setHeader("cache-control", "no-store");
+    const body: unknown = request.body;
+    if (
+      !body ||
+      typeof body !== "object" ||
+      Array.isArray(body) ||
+      Object.keys(body).some((key) => !Object.hasOwn(agentSwapFields, key))
+    ) {
+      return response.status(400).json({
+        error: "invalid_request",
+        message:
+          "The body must be a JSON object with only ticker, amountIn, swapper and slippageBps",
+      });
+    }
+    const fields = body as Record<string, unknown>;
+    for (const field of Object.keys(agentSwapFields) as Array<
+      keyof typeof agentSwapFields
+    >) {
+      if (!agentSwapFields[field].safeParse(fields[field]).success) {
+        const [error, message] = agentSwapRefusals[field];
+        return response.status(400).json({ error, message });
+      }
+    }
+    try {
+      return response.json(
+        await agentSwaps.swap({
+          ticker: fields.ticker as string,
+          amountIn: fields.amountIn as string,
+          swapper: fields.swapper as `0x${string}`,
+          slippageBps: fields.slippageBps as number,
+          client: clientOf(request),
+        }),
+      );
+    } catch (error) {
+      if (error instanceof AgentSwapError) {
+        if (error.extra.retryAfterSeconds) {
+          response.setHeader(
+            "retry-after",
+            String(error.extra.retryAfterSeconds),
+          );
+        }
+        return response.status(error.status).json({
+          error: error.code,
+          message: error.message,
+          ...error.extra.allowance,
+        });
+      }
+      return response.status(502).json({
+        error: "uniswap_swap_failed",
+        message: safeMessage(error),
+      });
+    }
+  });
+  // A body the JSON parser refused is bad input on this route, not a 500.
+  app.use(
+    "/api/agent/swap",
+    (
+      error: unknown,
+      _request: express.Request,
+      response: express.Response,
+      next: express.NextFunction,
+    ) => {
+      const status =
+        error && typeof error === "object" && "status" in error
+          ? Number(error.status)
+          : 0;
+      if (status < 400 || status >= 500) return next(error);
+      response.setHeader("cache-control", "no-store");
+      return response.status(400).json({
+        error: "invalid_request",
+        message: "The body must be valid JSON of at most 128 KB",
+      });
+    },
+  );
+
   app.use((_request, response) => {
     response.status(404).json({ error: "not_found" });
   });
@@ -1692,6 +1849,13 @@ export function createApp(
   );
 
   return app;
+}
+
+/** The caller's address as the platform proxy reports it (Vercel sets the first x-forwarded-for entry). */
+function clientOf(request: express.Request): string {
+  const forwarded = request.headers["x-forwarded-for"];
+  const first = (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(",")[0]?.trim();
+  return first || request.ip || "unknown";
 }
 
 function safeMessage(error: unknown): string {

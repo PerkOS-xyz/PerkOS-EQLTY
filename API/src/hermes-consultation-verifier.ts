@@ -648,11 +648,13 @@ function citesSealedMarketValues(
   thesis: string,
   candidate: OpportunityCandidate,
 ): boolean {
+  // Models often group digits ("77,232,241"); compare without separators.
+  const digits = thesis.replace(/[,_\s\u00a0\u202f]/g, "");
   return Boolean(
     candidate.graphEvidence?.blockNumber &&
       candidate.deviationBps !== undefined &&
-      thesis.includes(candidate.graphEvidence.blockNumber) &&
-      thesis.includes(String(candidate.deviationBps)),
+      digits.includes(candidate.graphEvidence.blockNumber) &&
+      digits.includes(String(candidate.deviationBps)),
   );
 }
 

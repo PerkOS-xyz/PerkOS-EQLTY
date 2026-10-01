@@ -10,10 +10,11 @@
     "build": "pnpm --dir App build && pnpm --dir API build && forge build --root Contracts",
     "format:contracts": "forge fmt --check --root Contracts",
     "test:api": "pnpm --dir API test",
+    "test:app": "pnpm --dir App test",
     "test:contracts": "forge test --root Contracts",
     "test:plugins": "node --test Plugins/*/test/*.test.mjs",
     "test:e2e": "playwright test",
-    "test": "pnpm test:api && pnpm test:contracts && pnpm test:plugins",
+    "test": "pnpm test:api && pnpm test:app && pnpm test:contracts && pnpm test:plugins",
     "check": "pnpm typecheck && pnpm format:contracts && pnpm build && pnpm test"
   },
   "devDependencies": {

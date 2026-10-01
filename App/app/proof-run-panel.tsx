@@ -493,6 +493,12 @@ function PurchaseReviewScreen({
             <i>{readiness?.checks.vault ? "✓" : "·"}</i>
             Vault verified
           </span>
+          <span className={readiness?.checks.execution !== false && readiness ? "passed" : ""}>
+            <i>{readiness?.checks.execution !== false && readiness ? "✓" : "·"}</i>
+            {readiness?.checks.execution === false
+              ? "Network fee for the agent is not covered right now"
+              : "Network fee for the agent covered"}
+          </span>
           <span className={executionReady ? "passed" : ""}>
             <i>{executionReady ? "✓" : "·"}</i>
             Execution service armed

@@ -62,10 +62,10 @@ test("explains the agent decision workflow", async ({ page }) => {
   await expect(
     page.getByText("Potential purchase amount", { exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("Analysis time", { exact: true })).toBeVisible();
-  await expect(page.locator(".goalPolicyHint")).toContainText(
-    /Stock Token markets are available.*ENS policy/i,
-  );
+  await expect(page.getByText("Your limits", { exact: true })).toBeVisible();
+  await expect(
+    page.locator(".goalPolicyHint").filter({ hasText: /Stock Token markets/i }),
+  ).toContainText(/Stock Token markets are available.*ENS policy/i);
   await expect(
     page.getByRole("button", {
       name: /Connect wallet to begin|Evidence unavailable · refresh/,
@@ -86,13 +86,13 @@ test("explains the agent decision workflow", async ({ page }) => {
     page.getByLabel("Potential purchase amount in USDG"),
   ).toHaveValue("3");
 
-  const [analysisTimeBox, wizardActionsBox] = await Promise.all([
-    page.getByLabel("Autonomous analysis window").boundingBox(),
-    page.locator(".goalWizardActions").boundingBox(),
+  const [limitsBox, wizardActionsBox] = await Promise.all([
+    page.locator("label", { hasText: "Your limits" }).locator("output").boundingBox(),
+    page.locator(".goalWizardActions").last().boundingBox(),
   ]);
-  expect(analysisTimeBox).not.toBeNull();
+  expect(limitsBox).not.toBeNull();
   expect(wizardActionsBox).not.toBeNull();
-  expect(analysisTimeBox!.y + analysisTimeBox!.height).toBeLessThanOrEqual(
+  expect(limitsBox!.y + limitsBox!.height).toBeLessThanOrEqual(
     wizardActionsBox!.y,
   );
 

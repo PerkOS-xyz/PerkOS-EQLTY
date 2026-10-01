@@ -10,6 +10,7 @@ import {
 } from "../lib/execution-api";
 import type { TradeRun } from "../lib/execution-types";
 import type { ProofRunState } from "./use-proof-run";
+import { useWalletBuy, type WalletBuyState } from "./use-wallet-buy";
 
 export function ProofRunPanel({
   decisionFeeAmount,
@@ -22,6 +23,14 @@ export function ProofRunPanel({
   hasCandidate: boolean;
   state: ProofRunState;
 }) {
+  const walletBuy = useWalletBuy({
+    runId: state.run?.id,
+    goalId: state.run?.signal?.goalId,
+    ticker: state.run?.ticker,
+    amountIn: state.run?.amountIn,
+    tokenOut: state.strategy?.outputToken,
+    maxAmountPerTrade: state.strategy?.maxAmountPerTrade,
+  });
   if (!state.run) {
     return (
       <div className="proofStart">
@@ -110,7 +119,35 @@ export function ProofRunPanel({
           decisionFeeAmount={decisionFeeAmount}
           run={run}
           state={state}
+          walletBuy={walletBuy}
         />
+      )}
+
+      {walletBuy.open && <WalletBuyScreen run={run} walletBuy={walletBuy} />}
+
+      {walletBuy.result && (
+        <div className="executionLog">
+          <div>
+            <span>Wallet buy log</span>
+            <strong>{run.ticker} bought from your wallet</strong>
+            <small>
+              At least{" "}
+              {formatUnits(
+                walletBuy.result.minAmountOut,
+                walletBuy.result.tokenOutDecimals,
+              )}{" "}
+              {run.ticker} · request {walletBuy.result.requestId}
+            </small>
+          </div>
+          <a
+            href={transactionUrl(walletBuy.result.transactionHash)}
+            rel="noreferrer"
+            target="_blank"
+          >
+            <code>{short(walletBuy.result.transactionHash)}</code>
+            <b>Open transaction ↗</b>
+          </a>
+        </div>
       )}
 
       {run.status === "executed" && run.transactionHash && (
@@ -293,11 +330,14 @@ function PurchaseReviewScreen({
   decisionFeeAmount,
   run,
   state,
+  walletBuy,
 }: {
   decisionFeeAmount?: string;
   run: TradeRun;
   state: ProofRunState;
+  walletBuy: WalletBuyState;
 }) {
+  const walletBought = Boolean(walletBuy.result);
   const readiness = state.readiness;
   const executionReady = state.execution?.status === "ready";
   const decisionReady =
@@ -576,6 +616,15 @@ function PurchaseReviewScreen({
           {readiness && !readiness.ready && (
             <p>Resolve the failed preflight check before authorizing.</p>
           )}
+          {!walletBuy.allowed && (
+            <p>
+              Buy from my wallet is limited to{" "}
+              {formatUnits(walletBuy.cap.toString(), 6)} USDG per order.
+            </p>
+          )}
+          {walletBought && (
+            <p>This purchase was already bought from your wallet.</p>
+          )}
           {state.error && <p>{state.error}</p>}
           <div>
             <button
@@ -587,9 +636,22 @@ function PurchaseReviewScreen({
             </button>
             <button
               disabled={
+                state.purchaseBusy ||
+                walletBuy.busy ||
+                !walletBuy.allowed ||
+                walletBought
+              }
+              onClick={walletBuy.start}
+              type="button"
+            >
+              Buy from my wallet
+            </button>
+            <button
+              disabled={
                 !readiness?.ready ||
                 !state.acknowledged ||
-                state.purchaseBusy
+                state.purchaseBusy ||
+                walletBought
               }
               onClick={state.executePurchase}
               type="button"
@@ -605,6 +667,243 @@ function PurchaseReviewScreen({
       </section>
     </div>
   );
+}
+
+function WalletBuyScreen({
+  run,
+  walletBuy,
+}: {
+  run: TradeRun;
+  walletBuy: WalletBuyState;
+}) {
+  const preview = walletBuy.preview;
+  const result = walletBuy.result;
+  const decimals = preview?.tokenOutDecimals ?? 18;
+  const amount = formatUnits(run.amountIn, 6);
+  const expected = preview
+    ? `${formatUnits(preview.amountOut, decimals)} ${run.ticker}`
+    : walletBuy.loading
+      ? "Checking price..."
+      : "Unavailable";
+  const minimum = preview
+    ? `${formatUnits(preview.minAmountOut, decimals)} ${run.ticker}`
+    : "Pending";
+  const enoughUsdg = Boolean(
+    preview && BigInt(preview.usdgBalance) >= BigInt(preview.amountIn),
+  );
+  const enoughGas = Boolean(
+    preview && BigInt(preview.nativeBalance) >= BigInt(preview.estimatedGasWei),
+  );
+  const canConfirm =
+    Boolean(preview) &&
+    enoughUsdg &&
+    enoughGas &&
+    walletBuy.allowed &&
+    !walletBuy.loading &&
+    !walletBuy.busy &&
+    !result;
+  const steps = [
+    preview?.needsApproval === false
+      ? ["✓", "Approve USDG", "Already approved for Permit2"]
+      : ["1", "Approve USDG", `Let Permit2 move ${amount} USDG for this buy`],
+    preview?.needsPermission === false
+      ? ["✓", "Permission", "Already set for the Uniswap router"]
+      : ["2", "Permission", "Let the Uniswap router use it for 30 minutes"],
+    ["3", "Buy", `Swap ${amount} USDG for at least ${minimum}`],
+  ];
+  return (
+    <div className="purchaseReviewBackdrop">
+      <section
+        aria-label={`Buy ${run.ticker} from your wallet`}
+        aria-modal="true"
+        className="purchaseReview"
+        role="dialog"
+      >
+        <header>
+          <div>
+            <span>Buy from my wallet</span>
+            <strong>Confirm {run.ticker} buy</strong>
+            <small>
+              Robinhood Chain · Uniswap v4 · your own wallet signs, EQLTY never
+              holds the funds
+            </small>
+          </div>
+          <button
+            aria-label="Close wallet buy"
+            disabled={walletBuy.busy}
+            onClick={walletBuy.close}
+            type="button"
+          >
+            ×
+          </button>
+        </header>
+
+        <div className="purchaseReviewSummary">
+          <span>
+            <small>You pay</small>
+            <strong>{amount} USDG</strong>
+          </span>
+          <i>→</i>
+          <span>
+            <small>Expected receive</small>
+            <strong>{expected}</strong>
+          </span>
+        </div>
+
+        <div className="purchaseReviewGrid">
+          <article>
+            <span>Price protection</span>
+            <dl>
+              <div>
+                <dt>Expected out</dt>
+                <dd>{expected}</dd>
+              </div>
+              <div>
+                <dt>Minimum out</dt>
+                <dd>{minimum}</dd>
+              </div>
+              <div>
+                <dt>Max slippage</dt>
+                <dd>1.00%</dd>
+              </div>
+              <div>
+                <dt>Order limit</dt>
+                <dd>{formatUnits(walletBuy.cap.toString(), 6)} USDG</dd>
+              </div>
+            </dl>
+          </article>
+
+          <article>
+            <span>Your wallet</span>
+            {preview ? (
+              <>
+                <code>{preview.owner}</code>
+                <dl>
+                  <div>
+                    <dt>USDG balance</dt>
+                    <dd>{formatUnits(preview.usdgBalance, 6)} USDG</dd>
+                  </div>
+                  <div>
+                    <dt>Gas balance</dt>
+                    <dd>{formatUnits(preview.nativeBalance, 18)} ETH</dd>
+                  </div>
+                  <div>
+                    <dt>Network gas</dt>
+                    <dd>≈ {formatUnits(preview.estimatedGasWei, 18)} ETH</dd>
+                  </div>
+                </dl>
+              </>
+            ) : (
+              <strong>
+                {walletBuy.loading
+                  ? "Checking Robinhood Chain..."
+                  : "Wallet check unavailable"}
+              </strong>
+            )}
+          </article>
+        </div>
+
+        <div className="purchaseReviewChecks">
+          <strong>Preflight checks</strong>
+          <span className={enoughUsdg ? "passed" : ""}>
+            <i>{enoughUsdg ? "✓" : "·"}</i>
+            Enough USDG
+          </span>
+          <span className={enoughGas ? "passed" : ""}>
+            <i>{enoughGas ? "✓" : "·"}</i>
+            Gas available
+          </span>
+          <span className={walletBuy.allowed ? "passed" : ""}>
+            <i>{walletBuy.allowed ? "✓" : "·"}</i>
+            Within order limit
+          </span>
+        </div>
+
+        <div className="purchaseReviewSteps">
+          <strong>Your own wallet signs up to 3 transactions</strong>
+          {steps.map(([number, title, detail]) => (
+            <span key={title}>
+              <i>{number}</i>
+              <b>{title}</b>
+              <small>{detail}</small>
+            </span>
+          ))}
+        </div>
+
+        {result && (
+          <div className="executionLog">
+            <div>
+              <span>Buy confirmed</span>
+              <strong>{run.ticker} is in your wallet</strong>
+              <small>
+                At least {formatUnits(result.minAmountOut, decimals)}{" "}
+                {run.ticker} guaranteed on chain
+              </small>
+            </div>
+            <a
+              href={transactionUrl(result.transactionHash)}
+              rel="noreferrer"
+              target="_blank"
+            >
+              <code>{short(result.transactionHash)}</code>
+              <b>Open transaction ↗</b>
+            </a>
+          </div>
+        )}
+
+        <footer>
+          {walletBuy.error ? (
+            <p>{walletBuy.error}</p>
+          ) : (
+            preview &&
+            !result && (
+              <>
+                {!enoughUsdg && (
+                  <p>Not enough USDG in your wallet for this buy.</p>
+                )}
+                {!enoughGas && (
+                  <p>Not enough ETH on Robinhood Chain to pay the network gas.</p>
+                )}
+              </>
+            )
+          )}
+          <div>
+            <button
+              disabled={walletBuy.busy}
+              onClick={walletBuy.close}
+              type="button"
+            >
+              {result ? "Done" : "Back"}
+            </button>
+            {!result && (
+              <button
+                disabled={!canConfirm}
+                onClick={walletBuy.confirm}
+                type="button"
+              >
+                {walletBuy.busy
+                  ? walletBuyLabel(walletBuy.stage)
+                  : "Confirm buy"}
+              </button>
+            )}
+          </div>
+        </footer>
+      </section>
+    </div>
+  );
+}
+
+function walletBuyLabel(stage: WalletBuyState["stage"]): string {
+  const labels = {
+    idle: "Preparing...",
+    checking: "Checking wallet...",
+    approving: "Approve USDG in wallet...",
+    permitting: "Set permission in wallet...",
+    building: "Preparing Uniswap buy...",
+    buying: "Confirm buy in wallet...",
+    confirming: "Waiting for Robinhood Chain...",
+  };
+  return labels[stage];
 }
 
 function WalletStrategyLogs({

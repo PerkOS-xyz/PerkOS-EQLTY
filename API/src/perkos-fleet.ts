@@ -199,12 +199,17 @@ export class PerkosFleetService {
       `/agents/${encodeURIComponent(current.id)}/hibernation`,
       idToken,
     );
+    // A model change or wake rolls out a new task; until it replaces the old
+    // one, a reply may still come from the previous runtime.
+    const rolledOut =
+      (hibernation.pendingCount ?? 0) === 0 &&
+      hibernation.runningCount === Math.max(1, hibernation.desiredCount);
     if (hibernation.state === "active" && hibernation.runningCount > 0) {
       await this.touchActivity(current.id, idToken);
       return {
         ...plan,
         agentId: current.id,
-        state: "ready",
+        state: rolledOut ? "ready" : "waking",
         oneclaw,
       };
     }

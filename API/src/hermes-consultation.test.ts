@@ -428,6 +428,177 @@ describe("HermesConsultationService", () => {
     expect(String(fetchFn.mock.calls[0]?.[0])).toContain("/agents/scout-id/task");
     expect(String(fetchFn.mock.calls[1]?.[0])).toContain("/agents/scout-id/task");
   });
+
+  it("accepts a thesis that groups the digits of the block number", async () => {
+    const replies = [
+      {
+        ok: true,
+        reply: JSON.stringify({
+          recommendedTicker: "NVDA",
+          thesis:
+            "NVDA is indexed at block 12,345 with route deviation 90 bps and the strongest sealed liquidity.",
+          evidence: ["graphLiquidity", "graphBlock", "routeDeviation"],
+        }),
+      },
+      {
+        ok: true,
+        reply: JSON.stringify({
+          decision: "approve",
+          ticker: "NVDA",
+          summary:
+            "NVDA route deviation 90 bps remains below the ENS limit of 300 bps.",
+          checks: [
+            "ensAllowed",
+            "deviationWithinLimit",
+            "liquidityAboveMinimum",
+            "graphEvidencePresent",
+          ],
+        }),
+      },
+      {
+        ok: true,
+        reply: JSON.stringify({
+          decision: "prepare",
+          ticker: "NVDA",
+          summary:
+            "Prepare the exact CLASSIC route from request NVDA-request without submitting funds.",
+          checks: [
+            "riskApproved",
+            "uniswapRoutePresent",
+            "requestIdPresent",
+            "ensTickerAllowed",
+          ],
+        }),
+      },
+      {
+        ok: true,
+        reply: JSON.stringify({
+          decision: "seal",
+          ticker: "NVDA",
+          summary:
+            "Seal NVDA after all four handoffs passed ENS policy version 1.",
+          checks: [
+            "ensManifestPresent",
+            "scoutVerified",
+            "riskVerified",
+            "traderVerified",
+          ],
+        }),
+      },
+    ];
+    const fetchFn = vi.fn(
+      async (_input: string | URL | Request, _init?: RequestInit) =>
+        Response.json(replies.shift()),
+    );
+    const waitFn = vi.fn(async () => undefined);
+    const service = new HermesConsultationService(loadConfig({}), {
+      fetchFn,
+      waitFn,
+      startupRetryMs: 15_000,
+    });
+
+    const result = await service.consult({
+      goal: "Choose a route",
+      candidates,
+      manifest,
+      manifestHash,
+      agents,
+      idToken: "owner-token",
+    });
+
+    expect(result.status).toBe("verified");
+    expect(fetchFn).toHaveBeenCalledTimes(4);
+    expect(waitFn).not.toHaveBeenCalled();
+    expect(String(fetchFn.mock.calls[0]?.[0])).toContain("/agents/scout-id/task");
+  });
+
+  it("keeps retrying connection errors while a runtime starts", async () => {
+    const replies = [
+      { ok: false, detail: "connect ECONNREFUSED 10.0.0.5:8642" },
+      { ok: false, detail: "socket hang up" },
+      { ok: false, detail: "Agent is not connected to relay" },
+      {
+        ok: true,
+        reply: JSON.stringify({
+          recommendedTicker: "NVDA",
+          thesis:
+            "NVDA is indexed at block 12345 with route deviation 90 bps and the strongest sealed liquidity.",
+          evidence: ["graphLiquidity", "graphBlock", "routeDeviation"],
+        }),
+      },
+      {
+        ok: true,
+        reply: JSON.stringify({
+          decision: "approve",
+          ticker: "NVDA",
+          summary:
+            "NVDA route deviation 90 bps remains below the ENS limit of 300 bps.",
+          checks: [
+            "ensAllowed",
+            "deviationWithinLimit",
+            "liquidityAboveMinimum",
+            "graphEvidencePresent",
+          ],
+        }),
+      },
+      {
+        ok: true,
+        reply: JSON.stringify({
+          decision: "prepare",
+          ticker: "NVDA",
+          summary:
+            "Prepare the exact CLASSIC route from request NVDA-request without submitting funds.",
+          checks: [
+            "riskApproved",
+            "uniswapRoutePresent",
+            "requestIdPresent",
+            "ensTickerAllowed",
+          ],
+        }),
+      },
+      {
+        ok: true,
+        reply: JSON.stringify({
+          decision: "seal",
+          ticker: "NVDA",
+          summary:
+            "Seal NVDA after all four handoffs passed ENS policy version 1.",
+          checks: [
+            "ensManifestPresent",
+            "scoutVerified",
+            "riskVerified",
+            "traderVerified",
+          ],
+        }),
+      },
+    ];
+    const fetchFn = vi.fn(
+      async (_input: string | URL | Request, _init?: RequestInit) =>
+        Response.json(replies.shift()),
+    );
+    const waitFn = vi.fn(async () => undefined);
+    const service = new HermesConsultationService(loadConfig({}), {
+      fetchFn,
+      waitFn,
+      startupRetryMs: 8_000,
+    });
+
+    const result = await service.consult({
+      goal: "Choose a route",
+      candidates,
+      manifest,
+      manifestHash,
+      agents,
+      idToken: "owner-token",
+    });
+
+    expect(result.status).toBe("verified");
+    expect(fetchFn).toHaveBeenCalledTimes(7);
+    expect(waitFn).toHaveBeenCalledTimes(3);
+    expect(waitFn).toHaveBeenCalledWith(8_000);
+    expect(String(fetchFn.mock.calls[0]?.[0])).toContain("/agents/scout-id/task");
+    expect(String(fetchFn.mock.calls[1]?.[0])).toContain("/agents/scout-id/task");
+  });
 });
 
 function candidate(

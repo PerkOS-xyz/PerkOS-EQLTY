@@ -23,12 +23,14 @@ type Dependencies = {
   fetchFn?: typeof fetch;
   waitFn?: (milliseconds: number) => Promise<void>;
   startupRetryMs?: number;
+  startupRetries?: number;
 };
 
 export class HermesConsultationService {
   private readonly fetchFn: typeof fetch;
   private readonly waitFn: (milliseconds: number) => Promise<void>;
   private readonly startupRetryMs: number;
+  private readonly startupRetries: number;
 
   constructor(
     private readonly config: ApiConfig,
@@ -36,7 +38,8 @@ export class HermesConsultationService {
   ) {
     this.fetchFn = dependencies.fetchFn ?? fetch;
     this.waitFn = dependencies.waitFn ?? wait;
-    this.startupRetryMs = dependencies.startupRetryMs ?? 15_000;
+    this.startupRetryMs = dependencies.startupRetryMs ?? 10_000;
+    this.startupRetries = dependencies.startupRetries ?? 4;
   }
 
   async consult(input: {
@@ -279,12 +282,16 @@ export class HermesConsultationService {
     idToken: string,
     prompt: string,
   ): Promise<ConsultationTaskResponse> {
-    const first = await this.taskOnce(agent, idToken, prompt);
-    if (!runtimeIsStarting(first)) {
-      return first;
+    let response = await this.taskOnce(agent, idToken, prompt);
+    for (
+      let attempt = 0;
+      attempt < this.startupRetries && runtimeIsStarting(response);
+      attempt += 1
+    ) {
+      await this.waitFn(this.startupRetryMs);
+      response = await this.taskOnce(agent, idToken, prompt);
     }
-    await this.waitFn(this.startupRetryMs);
-    return this.taskOnce(agent, idToken, prompt);
+    return response;
   }
 
   private async taskOnce(
@@ -341,11 +348,17 @@ export class HermesConsultationService {
 function runtimeIsStarting(response: ConsultationTaskResponse): boolean {
   if (response.ok) return false;
   const detail = response.detail?.toLowerCase() ?? "";
-  return (
-    detail.includes("runtime delivery failed") ||
-    detail.includes("gateway is not ready") ||
-    detail.includes("gateway not ready")
-  );
+  return [
+    "runtime delivery failed",
+    "gateway is not ready",
+    "gateway not ready",
+    "fetch failed",
+    "econnrefused",
+    "econnreset",
+    "socket hang up",
+    "not connected to relay",
+    "relay disconnected",
+  ].some((pattern) => detail.includes(pattern));
 }
 
 function wait(milliseconds: number): Promise<void> {

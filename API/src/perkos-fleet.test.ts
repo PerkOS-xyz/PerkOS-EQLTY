@@ -229,6 +229,44 @@ describe("PerkOS fleet", () => {
     ).toHaveLength(0);
   });
 
+  it("reports an agent as waking until its new task replaces the old one", async () => {
+    const existing = ["scout", "risk", "trader", "auditor"].map((role) => ({
+      id: `agent-${role}`,
+      name: `eqlty-${role}-12345678`,
+      runtime: "Hermes",
+      status: "ready",
+      llmModel: "kimi-k3:cloud",
+    }));
+    const base = fleetApi(existing);
+    const fetchFn = vi.fn(async (input: URL | string | Request, init: RequestInit = {}) => {
+      const url = String(input);
+      if (url.endsWith("/agent-scout/hibernation")) {
+        return Response.json({ state: "active", desiredCount: 1, runningCount: 2, pendingCount: 0 });
+      }
+      if (url.endsWith("/agent-risk/hibernation")) {
+        return Response.json({ state: "active", desiredCount: 1, runningCount: 1, pendingCount: 1 });
+      }
+      return base(input, init);
+    });
+    const service = new PerkosFleetService(
+      loadConfig({
+        PERKOS_FLEET_MODE: "live",
+        PERKOS_HERMES_IMAGE_TAG: "hermes-pinned",
+      }),
+      { fetchFn },
+    );
+
+    const runtime = await service.activate({ ...input, idToken: "owner-id-token" });
+
+    expect(runtime.status).toBe("provisioning");
+    expect(runtime.agents.map((agent) => [agent.role, agent.state])).toEqual([
+      ["scout", "waking"],
+      ["risk", "waking"],
+      ["trader", "ready"],
+      ["auditor", "ready"],
+    ]);
+  });
+
   it("stops activation when the agent model cannot be applied", async () => {
     const fetchFn = fleetApi(
       [

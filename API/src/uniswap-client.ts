@@ -23,6 +23,8 @@ import {
 const maxAttempts = 3;
 /** The protocols every quote request asks the Trading API for. */
 export const quoteProtocols = ["V4"] as const;
+/** Hooked pools route through contracts outside the vault route and the evidence set. */
+export const quoteHooks = "V4_NO_HOOKS";
 type JsonRecord = Record<string, unknown>;
 const erc20ApproveAbi = [
   {
@@ -512,6 +514,7 @@ export class UniswapClient {
             slippageTolerance: input.slippageTolerance,
             routingPreference: "BEST_PRICE",
             protocols: quoteProtocols,
+            hooksOptions: quoteHooks,
             permitAmount: "EXACT",
           }),
           signal: AbortSignal.timeout(12_000),

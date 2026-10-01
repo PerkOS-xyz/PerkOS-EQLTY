@@ -1410,6 +1410,12 @@ export function createApp(
       }
       return response.status(201).json(run);
     } catch (error) {
+      // Keep the real cause in the server log; the response stays generic.
+      console.error("[eqlty] proof run failed", {
+        owner: session.walletAddress,
+        name: error instanceof Error ? error.name : typeof error,
+        message: error instanceof Error ? error.message.slice(0, 2_000) : String(error),
+      });
       return response.status(503).json({
         error: "proof_run_failed",
         message: safeMessage(error),

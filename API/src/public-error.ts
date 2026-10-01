@@ -19,6 +19,26 @@ const knownProviderErrors: Array<[RegExp, string]> = [
     "The transaction signer needs more network gas.",
   ],
   [
+    /RouterCallFailed/,
+    "The swap failed on chain, usually because the price moved. Try again.",
+  ],
+  [
+    /LimitExceeded/,
+    "The purchase is above the limit of this strategy.",
+  ],
+  [
+    /StrategyInactive/,
+    "This strategy is no longer active.",
+  ],
+  [
+    /InvalidRiskSignature|InvalidExecution/,
+    "The prepared purchase expired. Prepare it again.",
+  ],
+  [
+    /TokenOperationFailed/,
+    "A token transfer failed on chain.",
+  ],
+  [
     /execution reverted/i,
     "The onchain request was rejected.",
   ],

@@ -252,7 +252,7 @@ describe("API foundation", () => {
         estimatedAt: "2026-09-07T18:00:00.000Z",
       },
       ready: true,
-      checks: { gas: true, funds: true, vault: true },
+      checks: { gas: true, funds: true, vault: true, execution: true },
     }));
     const response = await request(
       "/api/wallet/readiness?amountIn=1000000",

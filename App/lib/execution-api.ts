@@ -117,6 +117,7 @@ export type WalletReadiness = {
     gas: boolean;
     funds: boolean;
     vault: boolean;
+    execution?: boolean;
   };
 };
 

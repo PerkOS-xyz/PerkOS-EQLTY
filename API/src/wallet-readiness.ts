@@ -5,6 +5,10 @@ import {
   type Address,
 } from "viem";
 import type { ApiConfig } from "./config.js";
+import {
+  executionTraderAddress,
+  gasSponsorAccount,
+} from "./execution-addresses.js";
 import type { EvmAddress } from "./market-types.js";
 
 const erc20Abi = [
@@ -57,6 +61,8 @@ export type WalletReadiness = {
     gas: boolean;
     funds: boolean;
     vault: boolean;
+    /** The agent's server wallet has gas, or the sponsor can top it up. */
+    execution: boolean;
   };
 };
 
@@ -127,12 +133,27 @@ export class WalletReadinessService {
       throw new Error("Robinhood wallet execution is not configured");
     }
     const vault = this.config.EQLTY_VAULT_ADDRESS as EvmAddress;
-    const [nativeBalance, usdGBalance, vaultReady, gasPrice] = await Promise.all([
-      this.nativeBalance(owner),
-      this.usdGBalance(owner),
-      this.vaultReady(vault),
-      this.gasPrice(),
-    ]);
+    const serverWallet = executionTraderAddress(this.config, owner);
+    const sponsor = gasSponsorAccount(this.config)?.address;
+    const [nativeBalance, usdGBalance, vaultReady, gasPrice, serverGas, sponsorGas] =
+      await Promise.all([
+        this.nativeBalance(owner),
+        this.usdGBalance(owner),
+        this.vaultReady(vault),
+        this.gasPrice(),
+        serverWallet ? this.nativeBalance(serverWallet) : Promise.resolve(0n),
+        sponsor ? this.nativeBalance(sponsor) : Promise.resolve(0n),
+      ]);
+    const minimumGas = BigInt(this.config.EQLTY_SERVER_WALLET_MIN_GAS_WEI);
+    const targetGas = BigInt(this.config.EQLTY_SERVER_WALLET_TARGET_GAS_WEI);
+    const executionGas =
+      !serverWallet ||
+      serverGas >= minimumGas ||
+      Boolean(
+        sponsor &&
+          sponsor.toLowerCase() !== serverWallet.toLowerCase() &&
+          sponsorGas > targetGas - serverGas,
+      );
     const bufferedGasCost = (gasUnits: bigint) =>
       (gasUnits * gasPrice * (10_000n + estimateBufferBps)) / 10_000n;
     const ownerSetupGasCost = bufferedGasCost(observedOwnerSetupGas);
@@ -140,6 +161,7 @@ export class WalletReadinessService {
       gas: nativeBalance >= ownerSetupGasCost,
       funds: usdGBalance >= BigInt(amountIn),
       vault: vaultReady,
+      execution: executionGas,
     };
     return {
       chainId: 4663,
@@ -167,7 +189,7 @@ export class WalletReadinessService {
           this.config.EQLTY_SERVER_WALLET_TARGET_GAS_WEI,
         estimatedAt: this.now().toISOString(),
       },
-      ready: checks.gas && checks.funds && checks.vault,
+      ready: checks.gas && checks.funds && checks.vault && checks.execution,
       checks,
     };
   }

@@ -229,7 +229,10 @@ export function useProofRun(
         strategy?.onchain
           ? {
               ...walletReadiness,
-              ready: walletReadiness.checks.vault && executionReady,
+              ready:
+                walletReadiness.checks.vault &&
+                walletReadiness.checks.execution !== false &&
+                executionReady,
               checks: {
                 ...walletReadiness.checks,
                 funds: true,

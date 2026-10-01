@@ -107,12 +107,12 @@ const schema = z.object({
     .string()
     .max(78)
     .regex(/^(0|[1-9]\d*)$/)
-    .default("1500000000000000"),
+    .default("100000000000000"),
   EQLTY_SERVER_WALLET_TARGET_GAS_WEI: z
     .string()
     .max(78)
     .regex(/^[1-9]\d*$/)
-    .default("2000000000000000"),
+    .default("300000000000000"),
   EQLTY_RISK_SIGNER_PRIVATE_KEY: optional(privateKey),
   EQLTY_EXECUTION_MODE: z
     .enum(["disabled", "live"])

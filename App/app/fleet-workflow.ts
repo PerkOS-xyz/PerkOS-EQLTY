@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 import type {
   AgentRole,
   EnsAgentMetadata,
@@ -24,6 +26,7 @@ export type FleetWorkflow = {
   session?: AutonomousGoal;
   stopRole?: AgentRole;
   stopReason?: string;
+  workingRole?: AgentRole;
 };
 
 export type PolicyCheck = {
@@ -40,7 +43,42 @@ export type TechnologyStep = {
 
 const roleOrder: AgentRole[] = ["scout", "risk", "trader", "auditor"];
 
-export function workflowFromGoal(goal: GoalAnalysisState): FleetWorkflow {
+/**
+ * Upper end of the usual time one agent needs. The agents answer one after
+ * another and the server reports only once all four are done, so the role
+ * shown as working moves on after this long and none is shown as done early.
+ */
+export const agentTurnSeconds = 30;
+
+export function workingRoleIndex(elapsedSeconds: number): number {
+  return Math.min(
+    roleOrder.length - 1,
+    Math.max(0, Math.floor(elapsedSeconds / agentTurnSeconds)),
+  );
+}
+
+/** Seconds since `active` turned true, rounded down to `stepSeconds`. */
+export function useElapsedSeconds(active: boolean, stepSeconds = 1): number {
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    if (!active) return;
+    const startedAt = Date.now();
+    const timer = window.setInterval(() => {
+      const seconds = Math.floor((Date.now() - startedAt) / 1_000);
+      setElapsed(seconds - (seconds % stepSeconds));
+    }, 1_000);
+    return () => {
+      window.clearInterval(timer);
+      setElapsed(0);
+    };
+  }, [active, stepSeconds]);
+  return elapsed;
+}
+
+export function workflowFromGoal(
+  goal: GoalAnalysisState,
+  elapsedSeconds = 0,
+): FleetWorkflow {
   if (goal.runKey === 0) {
     return {
       started: false,
@@ -68,6 +106,10 @@ export function workflowFromGoal(goal: GoalAnalysisState): FleetWorkflow {
     phase,
     analysis,
     session,
+    workingRole:
+      phase === "processing" && !analysis
+        ? roleOrder[workingRoleIndex(elapsedSeconds)]
+        : undefined,
     ...stop,
   };
 }
@@ -85,6 +127,11 @@ export function roleWorkflowState(
     return "waiting";
   }
   if (workflow.analysis) return "passed";
+  if (workflow.workingRole) {
+    return roleOrder.indexOf(role) <= roleOrder.indexOf(workflow.workingRole)
+      ? "checking"
+      : "waiting";
+  }
   return workflow.processing ? "checking" : "waiting";
 }
 
@@ -98,6 +145,9 @@ export function connectorState(
     if (index < stopIndex) return "passed";
     if (index === stopIndex) return "blocked";
     return "idle";
+  }
+  if (workflow.workingRole) {
+    return index < roleOrder.indexOf(workflow.workingRole) ? "active" : "idle";
   }
   if (workflow.processing) return "active";
   return "passed";

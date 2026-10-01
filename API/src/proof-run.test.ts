@@ -250,6 +250,16 @@ describe("proof runs", () => {
     expect(execute).not.toHaveBeenCalled();
   });
 
+  it("rechecks the market with a quote for the exact order amount", async () => {
+    const assessTicker = vi.fn(async () => asset());
+    const { service, strategyId } = setup({ catalog: { assessTicker } });
+
+    const run = await service.run(runInput(strategyId));
+
+    expect(run.status).toBe("approved");
+    expect(assessTicker).toHaveBeenCalledWith("NVDA", undefined, "1000000");
+  });
+
   it("rejects stale or incomplete market evidence", async () => {
     const blocked = asset();
     blocked.orchestrationReady = false;

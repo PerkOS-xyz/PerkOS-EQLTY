@@ -106,6 +106,91 @@ describe("opportunity analysis", () => {
     );
   });
 
+  it("explains the pick from a quote sized to the order", async () => {
+    const amounts: Array<string | undefined> = [];
+    const service = createService({
+      catalog: {
+        assessTicker: async (ticker, _origin, amountIn) => {
+          amounts.push(amountIn);
+          return {
+            ...asset(ticker, 9, ticker === "NVDA" ? 100_000 : 250_000),
+            quotedAmountIn: amountIn ?? "1000000",
+            quotedAmountOut: "2173500000000000",
+            uniswapImpliedPrice: 230.0437,
+          };
+        },
+      },
+      consultation: verifiedConsultation("NVDA"),
+    });
+
+    const result = await service.analyze({
+      ...input(),
+      amountIn: "500000",
+      maxCandidates: 2,
+    });
+
+    expect(amounts).toEqual(["500000", "500000"]);
+    expect(result.candidates.map((item) => item.reason)).toEqual([
+      "0.5 USDG buys about 0.00217 AMZN at about $230.04 (0.09% from the Robinhood price). Pool liquidity about $250K, above your $50,000 minimum. Price gap within your 3% limit.",
+      "0.5 USDG buys about 0.00217 NVDA at about $230.04 (0.09% from the Robinhood price). Pool liquidity about $100K. Within your 1 USDG limit.",
+    ]);
+  });
+
+  it("does not consult the agents when no candidate is eligible", async () => {
+    let consultations = 0;
+    const consultation = {
+      consult: async () => {
+        consultations += 1;
+        return verifiedConsultation("NVDA").consult();
+      },
+    };
+    const thinMarkets = createService({
+      catalog: {
+        assessTicker: async (ticker) => asset(ticker, 20, 10_000),
+      },
+      consultation,
+    });
+
+    const rejectedByRules = await thinMarkets.analyze({
+      ...input(),
+      fleetAgents: [
+        {
+          role: "scout",
+          agentId: "agent-scout",
+          name: "Scout Hermes",
+          runtime: "Hermes",
+          state: "ready",
+          plugins: [],
+          oneclaw: "linked",
+        },
+      ],
+    });
+    const overBudget = await createService({ consultation }).analyze({
+      ...input(),
+      amountIn: "3000000",
+    });
+
+    expect(consultations).toBe(0);
+    for (const result of [rejectedByRules, overBudget]) {
+      expect(result.recommendedTicker).toBeUndefined();
+      expect(result.decisionStatus).toBe("insufficient_evidence");
+      expect(result.consultation).toMatchObject({
+        mode: "deterministic-fallback",
+        status: "unavailable",
+      });
+      expect(result.outcomes.map((outcome) => outcome.kind)).toEqual([
+        "no_action",
+      ]);
+    }
+    expect(rejectedByRules.consultation.scout).toMatchObject({
+      status: "skipped",
+      agentId: "agent-scout",
+      agentName: "Scout Hermes",
+    });
+    expect(rejectedByRules.consultation.auditor.status).toBe("skipped");
+    expect(rejectedByRules.receipt.agents.risk.status).toBe("skipped");
+  });
+
   it("accepts a verified Hermes selection inside deterministic gates", async () => {
     const service = createService({
       consultation: {
@@ -153,8 +238,11 @@ describe("opportunity analysis", () => {
       .toMatchObject({
         status: "recommended",
         reason:
-          "The indexed route best matches the requested objective.",
+          "1 USDG buys about 0.01 NVDA at about $100.20 (0.20% from the Robinhood price). Deepest pool among your allowed stocks. Within your 1 USDG limit.",
       });
+    expect(result.outcomes[0]?.reasons[0]).toBe(
+      "Agent note: The indexed route best matches the requested objective.",
+    );
     expect(result.consultation.mode).toBe("hermes-a2a");
     expect(result.receipt.agents.scout.status).toBe("verified");
   });
@@ -205,7 +293,9 @@ describe("opportunity analysis", () => {
     expect(recommended).toBeUndefined();
     expect(result.recommendedTicker).toBeUndefined();
     expect(result.decisionStatus).toBe("rules_only");
-    expect(bestEligible?.reason).toContain("policy floor");
+    expect(bestEligible?.reason).toContain(
+      "Pool liquidity about $250K, above your $50,000 minimum.",
+    );
     expect(result.outcomes).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ kind: "alternative" }),

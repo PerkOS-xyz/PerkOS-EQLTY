@@ -2,7 +2,11 @@ import { randomUUID } from "node:crypto";
 import { buildDecisionReceipt } from "./decision-receipt.js";
 import type { EnsControlPlaneService } from "./ens-control-plane.js";
 import { EnsControlPlaneService as ControlPlane } from "./ens-control-plane.js";
-import type { FleetAgent } from "./fleet-types.js";
+import type {
+  AgentConsultation,
+  ConsultationStep,
+} from "./consultation-types.js";
+import type { FleetAgent, FleetRole } from "./fleet-types.js";
 import type {
   OpportunityAnalysis,
   OpportunityCandidate,
@@ -96,7 +100,9 @@ export class OpportunityAnalysisService {
       manifest.paused || budgetExceeded
         ? []
         : await Promise.allSettled(
-            tickers.map((ticker) => this.catalog.assessTicker(ticker)),
+            tickers.map((ticker) =>
+              this.catalog.assessTicker(ticker, undefined, input.amountIn),
+            ),
           );
     const candidates = tickers
       .map((ticker, index) => {
@@ -131,14 +137,20 @@ export class OpportunityAnalysisService {
       })
       .sort(compareCandidates);
 
-    const consultation = await this.consultation.consult({
-      goal: input.goal,
-      candidates,
-      manifest,
-      manifestHash: controlPlane.manifestHash,
-      agents: input.fleetAgents,
-      idToken: input.perkosIdToken,
-    });
+    // The agents can only choose among eligible candidates, so asking them
+    // when none passed the rules spends model time for a certain refusal.
+    const consultation = candidates.some(
+      (candidate) => candidate.status === "eligible",
+    )
+      ? await this.consultation.consult({
+          goal: input.goal,
+          candidates,
+          manifest,
+          manifestHash: controlPlane.manifestHash,
+          agents: input.fleetAgents,
+          idToken: input.perkosIdToken,
+        })
+      : skippedConsultation(input.fleetAgents);
     const readiness = evaluateGoalReadiness(input.profile);
     const selected =
       consultation.status === "verified"
@@ -155,15 +167,19 @@ export class OpportunityAnalysisService {
       : undefined;
     if (winner) {
       winner.status = "recommended";
-      winner.reason =
-        consultation.status === "verified" &&
-        consultation.scout.summary
-          ? consultation.scout.summary
-          : dynamicRationale(winner);
+      winner.reason = primaryReason(winner, candidates, {
+        amountIn: input.amountIn,
+        maxAmountPerTrade: manifest.policy.maxAmountPerTrade,
+        allowedCompared: tickers.length === allowedTickers.length,
+      });
     }
     for (const candidate of candidates) {
       if (candidate.status === "eligible") {
-        candidate.reason = detailedPolicyReason(candidate, manifest.policy);
+        candidate.reason = eligibleReason(
+          candidate,
+          input.amountIn,
+          manifest.policy,
+        );
       }
     }
 
@@ -174,7 +190,12 @@ export class OpportunityAnalysisService {
       : candidates.some((candidate) => candidate.status === "eligible")
         ? "rules_only"
         : "insufficient_evidence";
-    const outcomes = decisionOutcomes(candidates, winner, readiness);
+    const outcomes = decisionOutcomes(
+      candidates,
+      winner,
+      readiness,
+      winner ? consultation.scout.summary : undefined,
+    );
     const receipt = buildDecisionReceipt({
       analysisId,
       issuedAt: evaluatedAt,
@@ -224,6 +245,7 @@ function decisionOutcomes(
   candidates: OpportunityCandidate[],
   winner: OpportunityCandidate | undefined,
   readiness: ReturnType<typeof evaluateGoalReadiness>,
+  agentNote?: string,
 ): DecisionOutcome[] {
   const eligible = candidates.filter(
     (candidate) => candidate.status !== "rejected",
@@ -236,6 +258,7 @@ function decisionOutcomes(
       title: `${winner.ticker} best fits the verified comparison`,
       summary: winner.reason,
       reasons: [
+        ...(agentNote ? [`Agent note: ${agentNote}`] : []),
         `Readiness: ${readiness.status.replaceAll("_", " ")}`,
         "The four-agent consultation was verified against sealed evidence.",
       ],
@@ -345,6 +368,31 @@ function score(
   };
 }
 
+function skippedConsultation(
+  agents: FleetAgent[] | undefined,
+): AgentConsultation {
+  const step = (role: FleetRole): ConsultationStep => {
+    const agent = agents?.find((candidate) => candidate.role === role);
+    return {
+      role,
+      agentId: agent?.agentId,
+      agentName: agent?.name,
+      status: "skipped",
+      facts: [],
+      detail:
+        "No candidate passed the policy and market checks, so the agents were not asked.",
+    };
+  };
+  return {
+    mode: "deterministic-fallback",
+    status: "unavailable",
+    scout: step("scout"),
+    risk: step("risk"),
+    trader: step("trader"),
+    auditor: step("auditor"),
+  };
+}
+
 function rejected(
   ticker: string,
   reason: string,
@@ -359,33 +407,103 @@ function rejected(
   };
 }
 
-function dynamicRationale(candidate: OpportunityCandidate): string {
-  const liquidity = candidate.graphEvidence
-    ? `liquidity ${numberMoney(candidate.graphEvidence.liquidityUsd)}`
-    : "onchain liquidity unavailable";
-  const deviation = candidate.deviationBps ?? "deviation unavailable";
-  const deviationText =
-    deviation === "deviation unavailable" ? deviation : `${deviation} bps`;
-  return `Policy-compatible route selected from live evidence: ${deviationText} and ${liquidity}.`;
+/** Why the selected stock fits, built only from sealed numbers. */
+function primaryReason(
+  winner: OpportunityCandidate,
+  candidates: OpportunityCandidate[],
+  context: {
+    amountIn: string;
+    maxAmountPerTrade: string;
+    allowedCompared: boolean;
+  },
+): string {
+  const pools = candidates.filter((candidate) => candidate.graphEvidence);
+  const liquidity = winner.graphEvidence?.liquidityUsd;
+  const deepest =
+    liquidity !== undefined &&
+    pools.length > 1 &&
+    pools.every(
+      (candidate) => candidate.graphEvidence!.liquidityUsd <= liquidity,
+    );
+  return [
+    quoteSentence(winner, context.amountIn) ??
+      `${usdG(context.amountIn)} USDG passes every rule for ${winner.ticker}.`,
+    deepest
+      ? context.allowedCompared
+        ? "Deepest pool among your allowed stocks."
+        : `Deepest pool among the ${pools.length} stocks compared.`
+      : liquidity !== undefined
+        ? `Pool liquidity about ${compactMoney(liquidity)}.`
+        : undefined,
+    `Within your ${usdG(context.maxAmountPerTrade)} USDG limit.`,
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
-function detailedPolicyReason(
+function eligibleReason(
   candidate: OpportunityCandidate,
+  amountIn: string,
   policy: {
     maxDeviationBps: number;
     minLiquidityUsd: number;
-    maxOracleAgeSeconds: number;
   },
 ): string {
-  const liquidity = candidate.graphEvidence
-    ? `liquidity ${numberMoney(candidate.graphEvidence.liquidityUsd)}`
-    : "liquidity unavailable";
-  const deviation = candidate.deviationBps ?? "deviation unavailable";
-  const deviationText =
-    deviation === "deviation unavailable" ? deviation : `${deviation} bps`;
-  return `Policy-compatible route with ${deviationText}, ${liquidity}, policy floor ${numberMoney(
-    policy.minLiquidityUsd,
-  )} and deviation limit ${policy.maxDeviationBps} bps.`;
+  return [
+    quoteSentence(candidate, amountIn) ?? "Passes every rule.",
+    candidate.graphEvidence
+      ? `Pool liquidity about ${compactMoney(
+          candidate.graphEvidence.liquidityUsd,
+        )}, above your ${numberMoney(policy.minLiquidityUsd)} minimum.`
+      : undefined,
+    `Price gap within your ${policy.maxDeviationBps / 100}% limit.`,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function quoteSentence(
+  candidate: OpportunityCandidate,
+  amountIn: string,
+): string | undefined {
+  const tokens = Number(candidate.quotedAmountOut) / 1e18;
+  const price = Number(candidate.uniswapImpliedPrice);
+  if (!(tokens > 0) || !Number.isFinite(tokens) || !(price > 0)) {
+    return undefined;
+  }
+  const gap =
+    candidate.deviationBps === undefined
+      ? ""
+      : ` (${
+          candidate.deviationBps < 0.5
+            ? "less than 0.01%"
+            : `${(candidate.deviationBps / 100).toFixed(2)}%`
+        } from the Robinhood price)`;
+  return `${usdG(amountIn)} USDG buys about ${tokens.toLocaleString("en-US", {
+    maximumSignificantDigits: 3,
+  })} ${candidate.ticker} at about $${price.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}${gap}.`;
+}
+
+function usdG(atomic: string): string {
+  const amount = BigInt(atomic);
+  const fraction = (amount % 1_000_000n)
+    .toString()
+    .padStart(6, "0")
+    .replace(/0+$/, "");
+  return `${amount / 1_000_000n}${fraction ? `.${fraction}` : ""}`;
+}
+
+function compactMoney(value: number): string {
+  return new Intl.NumberFormat("en-US", {
+    notation: "compact",
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 1,
+  }).format(value);
 }
 
 function numberMoney(value?: number): string {

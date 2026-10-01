@@ -200,6 +200,36 @@ describe("stock catalog", () => {
     });
   });
 
+  it("sizes the fresh quote to the order amount", async () => {
+    const quote = vi.fn().mockResolvedValue({
+      amountOut: "50000000000000000",
+      requestId: "quote-5",
+      routing: "V4",
+    });
+    const service = new StockCatalogService(loadConfig({}), {
+      fetchFn: fixtureFetch(),
+      now: () => now,
+      uniswapMarket: observedMarket(),
+      uniswap: { ready: () => true, quote },
+      graph: healthyGraph(),
+    });
+
+    const asset = await service.assessTicker("AMZN", undefined, "5000000");
+
+    expect(quote).toHaveBeenCalledWith(
+      "0x12f190a9F9d7D37a250758b26824B97CE941bF54",
+      "5000000",
+      undefined,
+    );
+    expect(asset).toMatchObject({
+      quotedAmountIn: "5000000",
+      quotedAmountOut: "50000000000000000",
+      uniswapImpliedPrice: 100,
+      deviationBps: 0,
+      orchestrationReady: true,
+    });
+  });
+
   it("blocks orchestration when a fresh quote fails", async () => {
     const service = new StockCatalogService(loadConfig({}), {
       fetchFn: fixtureFetch(),

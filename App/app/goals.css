@@ -821,6 +821,11 @@
   font-size: 11px;
 }
 
+.goalAmountPreset:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .goalAmountPresets {
   display: flex;
   gap: 7px;

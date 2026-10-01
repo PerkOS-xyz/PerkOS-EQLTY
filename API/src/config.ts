@@ -285,7 +285,11 @@ const schema = z.object({
     .min(300)
     .max(2_592_000)
     .default(604_800),
-  ENS_POLICY_ALLOWED_TICKERS: z.string().default("NVDA,AMZN,ORCL"),
+  // Used only when a new fleet's ENS policy is first written; existing
+  // policies keep their own list. ORCL is left out: its registered pool
+  // charges a 5% fee and rarely trades, so it usually has no recent swap
+  // evidence and fails that check.
+  ENS_POLICY_ALLOWED_TICKERS: z.string().default("NVDA,AMZN,TSLA"),
   ENS_POLICY_MAX_AMOUNT_PER_TRADE: z
     .string()
     .max(78)

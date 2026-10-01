@@ -144,6 +144,7 @@ export function useProofRun(
     setPurchaseStage("checking");
     setAwaitingFunding(undefined);
     setError(undefined);
+    let fundedStrategyId: string | undefined;
     try {
       if (ensureFleetReady && !(await ensureFleetReady())) {
         setAwaitingFunding("purchase");
@@ -177,6 +178,9 @@ export function useProofRun(
         );
         setStrategy(activeStrategy);
       }
+      fundedStrategyId = activeStrategy.onchain
+        ? String(activeStrategy.onchain.strategyId)
+        : undefined;
       setPurchaseStage("executing");
       const completed = await startProofRun(
         session.id,
@@ -190,7 +194,7 @@ export function useProofRun(
       }
       setReviewOpen(false);
     } catch (cause) {
-      setError(purchaseErrorMessage(cause));
+      setError(purchaseErrorMessage(cause, fundedStrategyId));
     } finally {
       setPurchaseBusy(false);
       setPurchaseStage("idle");
@@ -299,14 +303,18 @@ function recommendedCandidate(session?: AutonomousGoal) {
   );
 }
 
-function purchaseErrorMessage(cause: unknown): string {
-  if (!(cause instanceof Error)) return "Purchase execution failed";
-  if (
-    /user rejected|request rejected|rejected the request|code.?4001/i.test(
-      cause.message,
-    )
-  ) {
-    return "Wallet request was cancelled. Confirmed steps remain available to resume.";
-  }
-  return cause.message;
+function purchaseErrorMessage(
+  cause: unknown,
+  fundedStrategyId?: string,
+): string {
+  const base = !(cause instanceof Error)
+    ? "Purchase execution failed"
+    : /user rejected|request rejected|rejected the request|code.?4001/i.test(
+          cause.message,
+        )
+      ? "Wallet request was cancelled. Confirmed steps remain available to resume."
+      : cause.message;
+  if (!fundedStrategyId) return base;
+  // The vault already holds the user's USDG; say where it is and how to get it back.
+  return `${base} Your USDG is safe in strategy #${fundedStrategyId}. Try again, or withdraw it from Portfolio.`;
 }

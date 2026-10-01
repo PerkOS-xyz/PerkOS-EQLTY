@@ -123,7 +123,8 @@ export function useGoalAnalysis(
 
   const analyze = useCallback(async () => {
     if (!wallet.connected) {
-      setError("Connect your wallet to begin a private consultation.");
+      setError(undefined);
+      wallet.open();
       return;
     }
     const atomicAmount = parseUsdG(amount);
@@ -192,7 +193,7 @@ export function useGoalAnalysis(
     policy?.allowedTickers.length,
     profile,
     refreshGraphHealth,
-    wallet.connected,
+    wallet,
     windowMinutes,
   ]);
 

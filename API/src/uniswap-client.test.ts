@@ -381,6 +381,7 @@ describe("Uniswap agent attribution", () => {
     expect(sentBody(fetchFn, 0)).toMatchObject({
       routingPreference: "BEST_PRICE",
       protocols: ["V4"],
+      hooksOptions: "V4_NO_HOOKS",
     });
   });
 

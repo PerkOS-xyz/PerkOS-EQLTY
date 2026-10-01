@@ -106,6 +106,61 @@ describe("opportunity analysis", () => {
     );
   });
 
+  it("does not consult the agents when no candidate is eligible", async () => {
+    let consultations = 0;
+    const consultation = {
+      consult: async () => {
+        consultations += 1;
+        return verifiedConsultation("NVDA").consult();
+      },
+    };
+    const thinMarkets = createService({
+      catalog: {
+        assessTicker: async (ticker) => asset(ticker, 20, 10_000),
+      },
+      consultation,
+    });
+
+    const rejectedByRules = await thinMarkets.analyze({
+      ...input(),
+      fleetAgents: [
+        {
+          role: "scout",
+          agentId: "agent-scout",
+          name: "Scout Hermes",
+          runtime: "Hermes",
+          state: "ready",
+          plugins: [],
+          oneclaw: "linked",
+        },
+      ],
+    });
+    const overBudget = await createService({ consultation }).analyze({
+      ...input(),
+      amountIn: "3000000",
+    });
+
+    expect(consultations).toBe(0);
+    for (const result of [rejectedByRules, overBudget]) {
+      expect(result.recommendedTicker).toBeUndefined();
+      expect(result.decisionStatus).toBe("insufficient_evidence");
+      expect(result.consultation).toMatchObject({
+        mode: "deterministic-fallback",
+        status: "unavailable",
+      });
+      expect(result.outcomes.map((outcome) => outcome.kind)).toEqual([
+        "no_action",
+      ]);
+    }
+    expect(rejectedByRules.consultation.scout).toMatchObject({
+      status: "skipped",
+      agentId: "agent-scout",
+      agentName: "Scout Hermes",
+    });
+    expect(rejectedByRules.consultation.auditor.status).toBe("skipped");
+    expect(rejectedByRules.receipt.agents.risk.status).toBe("skipped");
+  });
+
   it("accepts a verified Hermes selection inside deterministic gates", async () => {
     const service = createService({
       consultation: {

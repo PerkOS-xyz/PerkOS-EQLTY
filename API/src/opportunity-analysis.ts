@@ -2,7 +2,11 @@ import { randomUUID } from "node:crypto";
 import { buildDecisionReceipt } from "./decision-receipt.js";
 import type { EnsControlPlaneService } from "./ens-control-plane.js";
 import { EnsControlPlaneService as ControlPlane } from "./ens-control-plane.js";
-import type { FleetAgent } from "./fleet-types.js";
+import type {
+  AgentConsultation,
+  ConsultationStep,
+} from "./consultation-types.js";
+import type { FleetAgent, FleetRole } from "./fleet-types.js";
 import type {
   OpportunityAnalysis,
   OpportunityCandidate,
@@ -131,14 +135,20 @@ export class OpportunityAnalysisService {
       })
       .sort(compareCandidates);
 
-    const consultation = await this.consultation.consult({
-      goal: input.goal,
-      candidates,
-      manifest,
-      manifestHash: controlPlane.manifestHash,
-      agents: input.fleetAgents,
-      idToken: input.perkosIdToken,
-    });
+    // The agents can only choose among eligible candidates, so asking them
+    // when none passed the rules spends model time for a certain refusal.
+    const consultation = candidates.some(
+      (candidate) => candidate.status === "eligible",
+    )
+      ? await this.consultation.consult({
+          goal: input.goal,
+          candidates,
+          manifest,
+          manifestHash: controlPlane.manifestHash,
+          agents: input.fleetAgents,
+          idToken: input.perkosIdToken,
+        })
+      : skippedConsultation(input.fleetAgents);
     const readiness = evaluateGoalReadiness(input.profile);
     const selected =
       consultation.status === "verified"
@@ -342,6 +352,31 @@ function score(
     score: Math.round(Math.max(0, 90 + liquidityBonus - deviationPenalty)),
     reason: "Policy-compatible route.",
     orchestrationReady: true,
+  };
+}
+
+function skippedConsultation(
+  agents: FleetAgent[] | undefined,
+): AgentConsultation {
+  const step = (role: FleetRole): ConsultationStep => {
+    const agent = agents?.find((candidate) => candidate.role === role);
+    return {
+      role,
+      agentId: agent?.agentId,
+      agentName: agent?.name,
+      status: "skipped",
+      facts: [],
+      detail:
+        "No candidate passed the policy and market checks, so the agents were not asked.",
+    };
+  };
+  return {
+    mode: "deterministic-fallback",
+    status: "unavailable",
+    scout: step("scout"),
+    risk: step("risk"),
+    trader: step("trader"),
+    auditor: step("auditor"),
   };
 }
 

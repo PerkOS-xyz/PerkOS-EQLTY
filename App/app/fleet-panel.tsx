@@ -23,6 +23,7 @@ import type {
 } from "../lib/fleet-types";
 import { fleetRoles } from "../lib/fleet-types";
 import {
+  agentTurnSeconds,
   connectorState,
   policyChecks,
   policyResultLabel,
@@ -31,6 +32,7 @@ import {
   workflowHeadline,
   workflowStateCopy,
   workflowTechnologySteps,
+  useElapsedSeconds,
   type FleetWorkflow,
   type WorkflowState,
 } from "./fleet-workflow";
@@ -50,7 +52,11 @@ export function FleetPanel({
   showFundingAction?: boolean;
 }) {
   const wallet = useWalletAccess();
-  const workflow = workflowFromGoal(goal);
+  const consultationSeconds = useElapsedSeconds(
+    goal.busy && goal.runKey > 0,
+    agentTurnSeconds,
+  );
+  const workflow = workflowFromGoal(goal, consultationSeconds);
   const runtime = state.activation?.runtime;
   const suffix = (
     state.session?.fleetUserId ??

@@ -20,6 +20,11 @@ import type { GoalAnalysisState } from "./use-goal-analysis";
 import { DecisionRoom } from "./decision-room";
 import { useProofRun } from "./use-proof-run";
 import type { FleetActivationState } from "./use-fleet-activation";
+import {
+  agentTurnSeconds,
+  useElapsedSeconds,
+  workingRoleIndex,
+} from "./fleet-workflow";
 
 const roles = ["Scout", "Risk", "Trader", "Auditor"];
 const goalPresets = [
@@ -78,6 +83,7 @@ export function GoalAnalyzer({
   const processStarted =
     state.runKey > 0 || state.busy || fleet.busy || fleet.fundingBusy;
   const activationBusy = fleet.busy || fleet.fundingBusy;
+  const consulting = state.busy && state.runKey > 0 && !activationBusy;
   const processFinished = Boolean(
     (state.session &&
       ((!hasRecommendation && state.session.status !== "active") ||
@@ -187,7 +193,10 @@ export function GoalAnalyzer({
             </header>
 
       {!state.session && <div className="goalWorkspace">
-        {(state.busy || activationBusy) && <FleetWakeProgress fleet={fleet} />}
+        {consulting && <AgentConsultationProgress key={state.runKey} />}
+        {(state.busy || activationBusy) && !consulting && (
+          <FleetWakeProgress fleet={fleet} />
+        )}
         {!state.busy && !activationBusy && !fleet.funding && (
           <nav aria-label="Consultation setup" className="goalFormWizardSteps">
             <button
@@ -631,7 +640,7 @@ function FleetWakeProgress({ fleet }: { fleet: FleetActivationState }) {
               ? "Agents ready. Starting consultation"
               : "Activating your fleet";
   const detail = waitingForWallet
-    ? "Check MetaMask. This ownership signature cannot move funds."
+    ? "Check your wallet. This ownership signature cannot move funds."
     : fleet.phase === "waking" && readyCount === 4
       ? "All runtimes are online. Your private agents are loading their policy and plugin context before the first request."
       : "Keep this window open. Status refreshes every five seconds while hibernated agents wake.";
@@ -663,7 +672,7 @@ function FleetWakeProgress({ fleet }: { fleet: FleetActivationState }) {
         <div className="fleetWalletAlert" role="alert">
           <i aria-hidden="true">!</i>
           <div>
-            <strong>Action required in MetaMask</strong>
+            <strong>Action required in your wallet</strong>
             <small>
               Open the wallet prompt and sign to continue. This verifies ownership only and cannot move funds.
             </small>
@@ -692,6 +701,67 @@ function FleetWakeProgress({ fleet }: { fleet: FleetActivationState }) {
       </div>
     </section>
   );
+}
+
+function AgentConsultationProgress() {
+  const elapsed = useElapsedSeconds(true);
+  const current = workingRoleIndex(elapsed);
+  const overdue = elapsed >= roles.length * agentTurnSeconds;
+
+  return (
+    <section
+      aria-label="Agent consultation progress"
+      className="fleetWakeProgress"
+    >
+      <header>
+        <div>
+          <span>Agent consultation</span>
+          <strong>Your four agents are reviewing your goal</strong>
+          <small aria-live="polite" role="status">
+            {overdue
+              ? "This is taking longer than usual. The agents are still working."
+              : `${roles[current]} is working now. Agent ${current + 1} of ${roles.length}.`}
+          </small>
+          <small>
+            Each agent usually takes 10 to 30 seconds. A cold start can take a few minutes.
+          </small>
+        </div>
+        <div className="fleetWakeMetric">
+          <b role="timer">{formatElapsed(elapsed)}</b>
+          <small>Elapsed</small>
+        </div>
+      </header>
+      <div
+        aria-label="Agents, in the order they work"
+        className="fleetWakeAgents agentTurns"
+        role="list"
+      >
+        {roles.map((role, index) => (
+          <span
+            className={index === current ? "working" : ""}
+            key={role}
+            role="listitem"
+          >
+            <i aria-hidden="true">{index + 1}</i>
+            <b>{role}</b>
+            <small>
+              {index < current
+                ? "Result pending"
+                : index === current
+                  ? "Working now"
+                  : "Up next"}
+            </small>
+          </span>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function formatElapsed(seconds: number): string {
+  return `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(
+    seconds % 60,
+  ).padStart(2, "0")}`;
 }
 
 function agentWakeLabel(
@@ -792,8 +862,6 @@ function GoalProgress({
   proof: ReturnType<typeof useProofRun>;
   session: AutonomousGoal;
 }) {
-  const active = session.status === "active";
-  const paymentRequired = session.status === "payment-required";
   return (
       <div className="goalProgress">
       <DecisionWizard
@@ -805,29 +873,6 @@ function GoalProgress({
         proof={proof}
         session={session}
       />
-      <header>
-        <div>
-          <span className={`goalStatus ${session.status}`}>
-            <i />
-            {active
-              ? "Fleet monitoring"
-              : paymentRequired
-                ? "Proof sealed"
-                : session.status}
-          </span>
-          <strong>
-            {session.cyclesCompleted} evaluation
-            {session.cyclesCompleted === 1 ? "" : "s"} sealed
-          </strong>
-        </div>
-        <small>
-          {active
-            ? `${remaining(session.endsAt)} remaining`
-            : paymentRequired
-              ? "x402 authorization required"
-              : "Decision complete"}
-        </small>
-      </header>
 
       <div className="goalRolePath" aria-label="Agent analysis path">
         {roles.map((role, index) => (
@@ -1491,14 +1536,6 @@ function CandidateCard({
       </footer>
     </article>
   );
-}
-
-function remaining(endsAt: string): string {
-  const seconds = Math.max(
-    0,
-    Math.ceil((new Date(endsAt).getTime() - Date.now()) / 1_000),
-  );
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
 function short(value: string): string {

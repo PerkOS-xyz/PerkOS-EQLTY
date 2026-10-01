@@ -146,18 +146,20 @@ const schema = z.object({
   EQLTY_EVIDENCE_PROVIDER: z
     .enum(["rpc", "graph"])
     .default("rpc"),
+  // Robinhood Chain makes about ten blocks a second, so 100k blocks is close
+  // to three hours. Stock token pools can go half an hour without a swap.
   EQLTY_RPC_EVIDENCE_LOOKBACK_BLOCKS: z.coerce
     .number()
     .int()
     .min(100)
-    .max(100_000)
-    .default(5_000),
+    .max(1_000_000)
+    .default(100_000),
   EQLTY_RPC_EVIDENCE_BLOCK_RANGE: z.coerce
     .number()
     .int()
     .min(100)
-    .max(10_000)
-    .default(1_000),
+    .max(100_000)
+    .default(10_000),
   EQLTY_RPC_EVIDENCE_CACHE_SECONDS: z.coerce
     .number()
     .int()

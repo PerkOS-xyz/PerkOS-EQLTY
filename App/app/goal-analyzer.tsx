@@ -862,8 +862,6 @@ function GoalProgress({
   proof: ReturnType<typeof useProofRun>;
   session: AutonomousGoal;
 }) {
-  const active = session.status === "active";
-  const paymentRequired = session.status === "payment-required";
   return (
       <div className="goalProgress">
       <DecisionWizard
@@ -875,29 +873,6 @@ function GoalProgress({
         proof={proof}
         session={session}
       />
-      <header>
-        <div>
-          <span className={`goalStatus ${session.status}`}>
-            <i />
-            {active
-              ? "Fleet monitoring"
-              : paymentRequired
-                ? "Proof sealed"
-                : session.status}
-          </span>
-          <strong>
-            {session.cyclesCompleted} evaluation
-            {session.cyclesCompleted === 1 ? "" : "s"} sealed
-          </strong>
-        </div>
-        <small>
-          {active
-            ? `${remaining(session.endsAt)} remaining`
-            : paymentRequired
-              ? "x402 authorization required"
-              : "Decision complete"}
-        </small>
-      </header>
 
       <div className="goalRolePath" aria-label="Agent analysis path">
         {roles.map((role, index) => (
@@ -1561,14 +1536,6 @@ function CandidateCard({
       </footer>
     </article>
   );
-}
-
-function remaining(endsAt: string): string {
-  const seconds = Math.max(
-    0,
-    Math.ceil((new Date(endsAt).getTime() - Date.now()) / 1_000),
-  );
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
 function short(value: string): string {

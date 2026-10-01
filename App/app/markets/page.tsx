@@ -33,6 +33,7 @@ export default function MarketsPage() {
   } = useMarketCatalog();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  const decisionReady = catalog?.summary.orchestrationReady ?? 0;
 
   const assets = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -75,10 +76,12 @@ export default function MarketsPage() {
                 <small>Uniswap markets</small>
                 <strong>{catalog.summary.routed}</strong>
               </span>
-              <span>
-                <small>Decision ready</small>
-                <strong>{catalog.summary.orchestrationReady}</strong>
-              </span>
+              {decisionReady > 0 && (
+                <span>
+                  <small>Decision ready</small>
+                  <strong>{decisionReady}</strong>
+                </span>
+              )}
               <span>
                 <small>Price aligned</small>
                 <strong>{catalog.summary.available}</strong>
@@ -160,7 +163,7 @@ export default function MarketsPage() {
               />
             </label>
             <div aria-label="Filter markets" role="group">
-              {filters.map((item) => (
+              {filters.filter((item) => item.value !== "decision" || decisionReady > 0).map((item) => (
                 <button
                   className={filter === item.value ? "selected" : ""}
                   key={item.value}

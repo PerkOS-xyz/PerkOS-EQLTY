@@ -75,10 +75,12 @@ export function MarketCatalog() {
                 <b>{catalog.summary.routed}</b>
                 Uniswap markets
               </span>
-              <span>
-                <b>{catalog.summary.orchestrationReady}</b>
-                decision ready
-              </span>
+              {catalog.summary.orchestrationReady > 0 && (
+                <span>
+                  <b>{catalog.summary.orchestrationReady}</b>
+                  decision ready
+                </span>
+              )}
             </div>
           ) : (
             <span className="marketLoading">

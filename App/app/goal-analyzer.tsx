@@ -640,7 +640,7 @@ function FleetWakeProgress({ fleet }: { fleet: FleetActivationState }) {
               ? "Agents ready. Starting consultation"
               : "Activating your fleet";
   const detail = waitingForWallet
-    ? "Check MetaMask. This ownership signature cannot move funds."
+    ? "Check your wallet. This ownership signature cannot move funds."
     : fleet.phase === "waking" && readyCount === 4
       ? "All runtimes are online. Your private agents are loading their policy and plugin context before the first request."
       : "Keep this window open. Status refreshes every five seconds while hibernated agents wake.";
@@ -672,7 +672,7 @@ function FleetWakeProgress({ fleet }: { fleet: FleetActivationState }) {
         <div className="fleetWalletAlert" role="alert">
           <i aria-hidden="true">!</i>
           <div>
-            <strong>Action required in MetaMask</strong>
+            <strong>Action required in your wallet</strong>
             <small>
               Open the wallet prompt and sign to continue. This verifies ownership only and cannot move funds.
             </small>

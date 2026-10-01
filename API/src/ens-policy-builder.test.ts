@@ -65,6 +65,19 @@ describe("ENS policy builder", () => {
     ).toEqual(bundle.manifest);
   });
 
+  it("starts new fleets on stocks with actively traded pools", () => {
+    const bundle = buildEnsFleetBundle(
+      loadConfig({ ENS_ROOT_NAME: "demo.eth" }),
+      { userId: "u-12345678", agentIds },
+    );
+
+    expect(bundle.manifest.policy.allowedTickers).toEqual([
+      "NVDA",
+      "AMZN",
+      "TSLA",
+    ]);
+  });
+
   it("requires an ENS root and a nonempty ticker policy", () => {
     expect(() =>
       buildEnsFleetBundle(loadConfig({}), {

@@ -27,6 +27,12 @@ import type {
 import { useWalletAccess } from "./wallet-access-context";
 
 const coldStartWarmupMs = 20_000;
+// A cold start can take several minutes on first use; keep checking for up to five.
+const fleetReadyAttempts = 60;
+const fleetPollMs = 5_000;
+const keepWarmMs = 5 * 60_000;
+const stillWakingMessage =
+  "Your agents are still waking up. The first start can take a few minutes. Press Start again in a minute.";
 
 export type FleetActivationState = {
   activation?: FleetActivation;
@@ -69,6 +75,10 @@ export function useFleetActivation(): FleetActivationState {
   const [compute, setCompute] = useState<FleetComputeStatus>();
   const [computeLoading, setComputeLoading] = useState(false);
   const [error, setError] = useState<string>();
+  const busyRef = useRef(false);
+  useEffect(() => {
+    busyRef.current = busy;
+  }, [busy]);
 
   const refreshCompute = useCallback(async () => {
     setComputeLoading(true);
@@ -137,10 +147,10 @@ export function useFleetActivation(): FleetActivationState {
 
       for (
         let attempt = 0;
-        attempt < 24 && fleetNeedsPolling(nextActivation);
+        attempt < fleetReadyAttempts && fleetNeedsPolling(nextActivation);
         attempt += 1
       ) {
-        await wait(5_000);
+        await wait(fleetPollMs);
         if (activeRun.current !== run) {
           return false;
         }
@@ -149,6 +159,10 @@ export function useFleetActivation(): FleetActivationState {
         setPhase(phaseFromActivation(nextActivation));
       }
       const ready = !fleetNeedsPolling(nextActivation);
+      if (!ready) {
+        startedFor.current = undefined;
+        setError(stillWakingMessage);
+      }
       if (ready && coldStart) {
         setPhase("waking");
         await wait(coldStartWarmupMs);
@@ -253,6 +267,34 @@ export function useFleetActivation(): FleetActivationState {
       active = false;
     };
   }, [refreshCompute, wallet.address, wallet.connected]);
+
+  // With a session, wake the agents as soon as the page opens and keep them
+  // awake while it stays visible, so a consultation does not start cold.
+  useEffect(() => {
+    if (!session) return;
+    let stopped = false;
+    const warm = () => {
+      if (stopped || busyRef.current || document.visibilityState !== "visible") {
+        return;
+      }
+      activateFleet()
+        .then((next) => {
+          if (!stopped && !busyRef.current) setActivation(next);
+        })
+        .catch(() => undefined);
+    };
+    warm();
+    const timer = window.setInterval(warm, keepWarmMs);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") warm();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [session]);
 
   useEffect(() => {
     const owner =

@@ -10,6 +10,19 @@ dotenv.config({
   quiet: true,
 });
 
+/** The gateway answers 410 Gone for these models; agents set to them stop replying. */
+export const RETIRED_AGENT_LLM_MODELS: ReadonlySet<string> = new Set([
+  "deepseek-v4-flash:cloud",
+  "qwen3.5:cloud",
+  "qwen3-coder-next:cloud",
+  "qwen3-coder:480b-cloud",
+]);
+export const DEFAULT_AGENT_LLM_MODEL = "kimi-k3:cloud";
+
+export function replaceRetiredModel(model: string): string {
+  return RETIRED_AGENT_LLM_MODELS.has(model) ? DEFAULT_AGENT_LLM_MODEL : model;
+}
+
 const booleanValue = (fallback: "true" | "false") =>
   z
     .enum(["true", "false"])
@@ -201,7 +214,8 @@ const schema = z.object({
     .min(1)
     .max(128)
     .regex(/^[A-Za-z0-9._:/-]+$/)
-    .default("deepseek-v4-flash:cloud"),
+    .default(DEFAULT_AGENT_LLM_MODEL)
+    .transform(replaceRetiredModel),
   PERKOS_AGENT_TASK_TIMEOUT_MS: z.coerce
     .number()
     .int()

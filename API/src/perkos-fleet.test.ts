@@ -74,7 +74,7 @@ describe("PerkOS fleet", () => {
     expect(traderBody).toMatchObject({
       runtime: "Hermes",
       deployMode: "perkos-managed",
-      llmModel: "deepseek-v4-flash:cloud",
+      llmModel: "kimi-k3:cloud",
       disabledTools: ["code-execution"],
       plugins: ["EQLTY-Uniswap-Plugin", "EQLTY-ENS-Plugin"],
     });
@@ -192,7 +192,7 @@ describe("PerkOS fleet", () => {
       llmModel:
         role === "scout"
           ? "qwen2.5:7b"
-          : "deepseek-v4-flash:cloud",
+          : "kimi-k3:cloud",
     }));
     const fetchFn = fleetApi(existing);
     const service = new PerkosFleetService(
@@ -220,7 +220,7 @@ describe("PerkOS fleet", () => {
     );
     expect(patchCalls).toHaveLength(1);
     expect(JSON.parse(String((patchCalls[0]?.[1] as RequestInit).body))).toEqual({
-      llmModel: "deepseek-v4-flash:cloud",
+      llmModel: "kimi-k3:cloud",
     });
     expect(
       fetchFn.mock.calls.filter(([url]) =>
@@ -382,7 +382,7 @@ function fleetApi(
           }
           return {
             ...(agent as Record<string, unknown>),
-            llmModel: "deepseek-v4-flash:cloud",
+            llmModel: "kimi-k3:cloud",
           };
         }),
       });

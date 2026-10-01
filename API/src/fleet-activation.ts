@@ -25,7 +25,7 @@ type Dependencies = {
   ensResolveTimeoutMs?: number;
 };
 
-const defaultEnsResolveTimeoutMs = 3_000;
+const defaultEnsResolveTimeoutMs = 10_000;
 
 type PendingActivation = {
   status: "provisioning";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { formatEther } from "viem";
+import { formatEther, formatUnits } from "viem";
 
 import type {
   AutonomousGoal,
@@ -1525,11 +1525,15 @@ function CandidateCard({
         <i style={{ width: `${Math.min(100, Math.max(0, candidate.score))}%` }} />
       </div>
       <footer>
-        <span>{formatPrice(candidate.referencePrice)}</span>
         <span>
-          {candidate.deviationBps === undefined
-            ? "Proof pending"
-            : `${candidate.deviationBps.toFixed(0)} bps`}
+          {candidate.quotedAmountOut && /^\d+$/.test(candidate.quotedAmountOut)
+            ? `${formatTokens(candidate.quotedAmountOut)} ${candidate.ticker}`
+            : "No quote"}
+        </span>
+        <span>
+          {candidate.uniswapImpliedPrice
+            ? `at ${formatPrice(candidate.uniswapImpliedPrice)}`
+            : formatPrice(candidate.referencePrice)}
         </span>
       </footer>
     </article>
@@ -1645,5 +1649,11 @@ function atomicAmount(value?: string): bigint | undefined {
 function formatEth(wei: string): string {
   return Number(formatEther(BigInt(wei))).toLocaleString("en-US", {
     maximumSignificantDigits: 4,
+  });
+}
+
+function formatTokens(atomic: string): string {
+  return Number(formatUnits(BigInt(atomic), 18)).toLocaleString("en-US", {
+    maximumSignificantDigits: 3,
   });
 }

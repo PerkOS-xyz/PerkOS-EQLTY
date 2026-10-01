@@ -204,7 +204,11 @@ export class ProofRunService {
       controlPlane.manifestHash,
     );
 
-    const asset = await this.catalog.assessTicker(strategy.ticker);
+    const asset = await this.catalog.assessTicker(
+      strategy.ticker,
+      undefined,
+      input.amountIn,
+    );
     if (
       !asset ||
       asset.tokenAddress.toLowerCase() !==

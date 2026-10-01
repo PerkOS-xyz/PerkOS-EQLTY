@@ -98,21 +98,32 @@ export class StockCatalogService {
     return this.pending;
   }
 
+  /**
+   * Re-checks one asset with a fresh Uniswap quote and onchain evidence.
+   * `amountIn` (atomic USDG) sizes the quote to a real order; without it the
+   * catalog's sample amount is quoted.
+   */
   async assessTicker(
     ticker: string,
     decisionOrigin?: DecisionOrigin,
+    amountIn?: string,
   ): Promise<StockCatalogAsset | undefined> {
     const normalized = ticker.trim().toUpperCase();
     const catalog = await this.catalog();
-    const entry = catalog.assets.find((asset) => asset.ticker === normalized);
-    if (!entry || !this.uniswap.ready()) {
-      return entry;
+    const found = catalog.assets.find((asset) => asset.ticker === normalized);
+    if (!found || !this.uniswap.ready()) {
+      return found;
     }
+    const quoteAmount =
+      amountIn && /^[1-9]\d{0,77}$/.test(amountIn)
+        ? amountIn
+        : catalog.quoteAmount;
+    const entry = { ...found, quotedAmountIn: quoteAmount };
 
     const [quoteResult, graphResult] = await Promise.allSettled([
       this.uniswap.quote(
         entry.tokenAddress,
-        catalog.quoteAmount,
+        quoteAmount,
         decisionOrigin,
       ),
       this.evidence.ready()
@@ -132,7 +143,7 @@ export class StockCatalogService {
 
     try {
       const quote = quoteResult.value;
-      const inputUsd = Number(catalog.quoteAmount) / 1_000_000;
+      const inputUsd = Number(quoteAmount) / 1_000_000;
       const outputTokens = Number(quote.amountOut) / 1e18;
       const impliedPrice = inputUsd / outputTokens;
       const deviationBps =

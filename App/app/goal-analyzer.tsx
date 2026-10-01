@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { formatEther } from "viem";
 
 import type {
   AutonomousGoal,
@@ -11,12 +12,14 @@ import type {
 } from "../lib/goal-types";
 import {
   addressUrl,
+  readWalletReadiness,
   transactionEventsUrl,
+  type WalletReadiness,
 } from "../lib/execution-api";
 import { ensManagerUrl } from "../lib/fleet-api";
 import { loadStockCatalog } from "../lib/market-api";
 import { ProofRunPanel } from "./proof-run-panel";
-import type { GoalAnalysisState } from "./use-goal-analysis";
+import { parseUsdG, type GoalAnalysisState } from "./use-goal-analysis";
 import { DecisionRoom } from "./decision-room";
 import { useProofRun } from "./use-proof-run";
 import type { FleetActivationState } from "./use-fleet-activation";
@@ -70,6 +73,16 @@ export function GoalAnalyzer({
   const [formStep, setFormStep] = useState<1 | 2>(1);
   const [setupOpen, setSetupOpen] = useState(false);
   const [marketTotal, setMarketTotal] = useState<number>();
+  const [walletCheck, setWalletCheck] = useState<{
+    wallet: string;
+    readiness?: WalletReadiness;
+  }>();
+  const sessionWallet = fleet.session?.walletAddress.toLowerCase();
+  const readiness =
+    sessionWallet && walletCheck?.wallet === sessionWallet
+      ? walletCheck.readiness
+      : undefined;
+  const limits = tradeLimits(state, readiness);
   const graphReady = state.graphHealth?.status === "ready";
   const proof = useProofRun(state.session, fleet.activate);
   const hasRecommendation = Boolean(
@@ -101,6 +114,22 @@ export function GoalAnalyzer({
       .catch(() => undefined);
     return () => controller.abort();
   }, [marketTotal, setupOpen]);
+  useEffect(() => {
+    if (!setupOpen || formStep !== 2 || !sessionWallet) return;
+    let active = true;
+    // Balance and gas do not depend on the amount, so one read per visit
+    // to step 2 is enough; the amount is compared locally.
+    void readWalletReadiness("1")
+      .then((next) => {
+        if (active) setWalletCheck({ wallet: sessionWallet, readiness: next });
+      })
+      .catch(() => {
+        if (active) setWalletCheck({ wallet: sessionWallet });
+      });
+    return () => {
+      active = false;
+    };
+  }, [formStep, sessionWallet, setupOpen]);
   const resumeAfterFunding = async () => {
     const continuation = proof.awaitingFunding;
     if (await fleet.fundAndRetry()) {
@@ -131,7 +160,6 @@ export function GoalAnalyzer({
               : "Preview the process first. A fee is requested only after all four agents produce a verifiable decision receipt."}
           </small>
         </div>
-        <span className="goalWindow">02:00 demo window</span>
       </header>
 
       {!setupOpen && (
@@ -207,7 +235,7 @@ export function GoalAnalyzer({
               type="button"
             >
               <i>2</i>
-              <span><b>Purchase boundaries</b><small>Set amount and analysis time</small></span>
+              <span><b>Purchase boundaries</b><small>Set an amount within your limit</small></span>
             </button>
           </nav>
         )}
@@ -392,19 +420,30 @@ export function GoalAnalyzer({
                   <b>USDG</b>
                 </div>
                 <div className="goalAmountPresets" role="group">
-                  {amountPresets.map((preset) => (
-                    <button
-                      aria-pressed={state.amount === preset}
-                      className={`goalAmountPreset${
-                        state.amount === preset ? " active" : ""
-                      }`}
-                      key={preset}
-                      onClick={() => state.setAmount(preset)}
-                      type="button"
-                    >
-                      {preset} USDG
-                    </button>
-                  ))}
+                  {amountPresets.map((preset) => {
+                    const aboveCap =
+                      limits.cap !== undefined &&
+                      (parseUsdG(preset) ?? 0n) > limits.cap;
+                    return (
+                      <button
+                        aria-pressed={state.amount === preset}
+                        className={`goalAmountPreset${
+                          state.amount === preset ? " active" : ""
+                        }`}
+                        disabled={aboveCap}
+                        key={preset}
+                        onClick={() => state.setAmount(preset)}
+                        title={
+                          aboveCap
+                            ? `Above your ${formatUsdG(limits.cap!.toString())} USDG limit per trade`
+                            : undefined
+                        }
+                        type="button"
+                      >
+                        {preset} USDG
+                      </button>
+                    );
+                  })}
                 </div>
                 <small className="goalFieldHint">
                   Used to size the recommendation and Uniswap quote. No funds
@@ -412,23 +451,24 @@ export function GoalAnalyzer({
                 </small>
               </label>
               <label>
-                <span>Analysis time</span>
-                <select
-                  aria-label="Autonomous analysis window"
-                  onChange={(event) =>
-                    state.setWindowMinutes(Number(event.target.value))
-                  }
-                  value={state.windowMinutes}
-                >
-                  <option value={2}>2 minutes · demo</option>
-                  <option value={5}>5 minutes</option>
-                  <option value={20}>20 minutes</option>
-                </select>
-                <small className="goalFieldHint">
-                  The fleet compares candidates within this time limit.
-                </small>
+                <span>Your limits</span>
+                <output aria-live="polite" className="goalPolicyHint">
+                  {sessionWallet
+                    ? limitsSummary(
+                        state,
+                        limits,
+                        readiness,
+                        walletCheck?.wallet === sessionWallet,
+                      )
+                    : "Your limit, USDG balance and gas appear here once your wallet session is verified."}
+                </output>
               </label>
             </div>
+            {limits.block && (
+              <p className="goalError" role="alert">
+                {limits.block.reason}
+              </p>
+            )}
 
             <div
               aria-live="polite"
@@ -473,6 +513,7 @@ export function GoalAnalyzer({
                   Boolean(fleet.funding) ||
                   state.graphHealthLoading ||
                   !graphReady ||
+                  Boolean(limits.block) ||
                   state.goalText.trim().length < 10
                 }
                 onClick={state.analyze}
@@ -486,8 +527,10 @@ export function GoalAnalyzer({
                       ? "Evidence unavailable · refresh"
                   : fleet.funding
                     ? "Activate fleet to continue"
+                    : limits.block
+                      ? limits.block.label
                     : state.connected
-                      ? `Start ${state.windowMinutes}-minute analysis`
+                      ? "Start analysis"
                       : "Connect wallet to begin"}
               </button>
             </div>
@@ -1529,4 +1572,78 @@ function formatUsdG(value: string): string {
     .padStart(6, "0")
     .replace(/0+$/, "");
   return fraction ? `${whole}.${fraction}` : whole.toString();
+}
+
+type TradeLimits = {
+  cap?: bigint;
+  block?: { label: string; reason: string };
+};
+
+function tradeLimits(
+  state: GoalAnalysisState,
+  readiness?: WalletReadiness,
+): TradeLimits {
+  const cap = atomicAmount(state.policy?.limits.maxAmountPerTrade);
+  const balance = atomicAmount(readiness?.usdGBalance);
+  const amount = parseUsdG(state.amount);
+  if (amount === undefined || amount <= 0n) return { cap };
+  if (cap !== undefined && amount > cap) {
+    return {
+      cap,
+      block: {
+        label: "Amount is above your limit",
+        reason: `${formatUsdG(amount.toString())} USDG is above your limit of ${formatUsdG(cap.toString())} USDG per trade. Choose a smaller amount to start.`,
+      },
+    };
+  }
+  if (balance !== undefined && amount > balance) {
+    return {
+      cap,
+      block: {
+        label: "Amount is above your balance",
+        reason: `${formatUsdG(amount.toString())} USDG is more than your balance of ${formatUsdG(balance.toString())} USDG. Add USDG on Robinhood Chain or choose a smaller amount.`,
+      },
+    };
+  }
+  return { cap };
+}
+
+function limitsSummary(
+  state: GoalAnalysisState,
+  limits: TradeLimits,
+  readiness: WalletReadiness | undefined,
+  checked: boolean,
+): string {
+  const parts: string[] = [];
+  if (limits.cap !== undefined) {
+    parts.push(`Your limit: ${formatUsdG(limits.cap.toString())} USDG per trade.`);
+  } else if (state.policyLoading) {
+    parts.push("Reading your limit…");
+  }
+  if (readiness) {
+    const gas = `Gas: ${formatEth(readiness.nativeBalance)} ETH`;
+    parts.push(`Balance: ${formatUsdG(readiness.usdGBalance)} USDG.`);
+    parts.push(
+      readiness.checks.gas
+        ? `${gas}.`
+        : `${gas} (a purchase needs about ${formatEth(readiness.costEstimate.ownerSetupGas.estimatedCostWei)} ETH).`,
+    );
+  } else {
+    parts.push(
+      checked
+        ? "Balance and gas are unavailable right now."
+        : "Reading your balance and gas…",
+    );
+  }
+  return parts.join(" ");
+}
+
+function atomicAmount(value?: string): bigint | undefined {
+  return value && /^\d+$/.test(value) ? BigInt(value) : undefined;
+}
+
+function formatEth(wei: string): string {
+  return Number(formatEther(BigInt(wei))).toLocaleString("en-US", {
+    maximumSignificantDigits: 4,
+  });
 }

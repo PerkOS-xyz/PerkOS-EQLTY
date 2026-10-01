@@ -44,4 +44,18 @@ describe("public error messages", () => {
       "Unavailable",
     );
   });
+
+  it("explains vault errors in plain words", () => {
+    expect(
+      publicErrorMessage(
+        new Error('The contract function "execute" reverted. Error: RouterCallFailed(bytes reason) (0x1234)'),
+      ),
+    ).toBe("The swap failed on chain, usually because the price moved. Try again.");
+    expect(
+      publicErrorMessage(new Error("execution reverted: LimitExceeded()")),
+    ).toBe("The purchase is above the limit of this strategy.");
+    expect(
+      publicErrorMessage(new Error("Error: InvalidRiskSignature()")),
+    ).toBe("The prepared purchase expired. Prepare it again.");
+  });
 });
